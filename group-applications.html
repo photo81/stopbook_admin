@@ -33,6 +33,45 @@
     <main class="content">
       <h1>단체 회원 신청 리스트</h1>
 
+      <!-- 검색 조건 (아래 상태 탭과 함께 적용) -->
+      <form class="panel" id="searchForm">
+        <div class="search-grid">
+          <div class="field">
+            <label for="sType">검색어</label>
+            <select id="sType" style="flex:0 0 96px">
+              <option value="all">전체</option>
+              <option value="name">이름</option>
+              <option value="email">이메일</option>
+              <option value="userId">아이디</option>
+              <option value="company">상호</option>
+              <option value="bizNo">사업자번호</option>
+            </select>
+            <input type="text" id="sKeyword" placeholder="검색어 입력">
+          </div>
+          <div class="field">
+            <label>신청일</label>
+            <div class="range">
+              <input type="date" id="sFrom" aria-label="신청일 시작"> ~ <input type="date" id="sTo" aria-label="신청일 종료">
+            </div>
+          </div>
+          <div class="field">
+            <label for="sGroupType">단체유형</label>
+            <select id="sGroupType"><option value="">전체</option></select>
+          </div>
+          <div class="field">
+            <label for="sMemberType">유형</label>
+            <select id="sMemberType">
+              <option value="">전체</option>
+              <option>스탑북회원</option><option>카카오회원</option><option>네이버회원</option><option>구글회원</option>
+            </select>
+          </div>
+        </div>
+        <div class="search-actions">
+          <button type="submit" class="btn btn-primary">검색</button>
+          <button type="button" class="btn" id="btnReset">초기화</button>
+        </div>
+      </form>
+
       <div class="tabs" role="tablist" id="statusTabs"></div>
 
       <section class="panel">
@@ -42,18 +81,7 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr>
-                <th class="col-no">번호</th>
-                <th>유형</th>
-                <th>이름</th>
-                <th>이메일</th>
-                <th>휴대폰번호</th>
-                <th>아이디</th>
-                <th>단체유형</th>
-                <th>신청일시</th>
-                <th>상태</th>
-                <th style="width:72px">관리</th>
-              </tr>
+              <tr id="headRow"></tr>
             </thead>
             <tbody id="listBody"></tbody>
           </table>
@@ -178,18 +206,55 @@
   let filter = '대기';
   let current = null;
 
+  // 처리일시: 상태가 마지막으로 바뀐 시각 (승인·반려 처리 / 해제 / 기간 만료)
+  const processedTime = a => (a.status === '해제' ? a.revokedAt : a.status === '만료' ? a.expiredAt : a.processedAt);
+
+  // ===== 검색 =====
+  $('sGroupType').innerHTML += MemberData.GROUP_TYPES.map(t => `<option>${esc(t)}</option>`).join('');
+  let search = null;   // 검색 버튼을 눌렀을 때의 조건 (null = 조건 없음)
+
+  function readSearch() {
+    const s = {
+      type: $('sType').value, kw: $('sKeyword').value.trim().toLowerCase(),
+      from: $('sFrom').value, to: $('sTo').value,
+      groupType: $('sGroupType').value, memberType: $('sMemberType').value
+    };
+    if (s.from && s.to && s.from > s.to) { toast('신청일 시작일이 종료일보다 늦습니다.'); return null; }
+    return s;
+  }
+
+  function matches(a) {
+    if (!search) return true;
+    const m = memberOf(a), b = a.business;
+    const fields = { name: m.name, email: m.email, userId: m.userId, company: b.companyName, bizNo: b.bizNo };
+    const targets = search.type === 'all' ? Object.values(fields) : [fields[search.type]];
+    const day = a.appliedAt.slice(0, 10);
+    return (!search.kw || targets.some(v => v.toLowerCase().includes(search.kw) || (v === b.bizNo && v.replace(/-/g, '').includes(search.kw.replace(/-/g, ''))))) &&
+      (!search.from || day >= search.from) &&
+      (!search.to || day <= search.to) &&
+      (!search.groupType || a.groupType === search.groupType) &&
+      (!search.memberType || m.memberType === search.memberType);
+  }
+
   // ===== 목록 =====
   function render() {
-    const count = s => (s === '전체' ? applications.length : applications.filter(a => a.status === s).length);
+    const base = applications.filter(matches);   // 탭 건수도 검색 결과 기준
+    const count = s => (s === '전체' ? base.length : base.filter(a => a.status === s).length);
     $('statusTabs').innerHTML = STATUSES.map(s => `
       <button type="button" role="tab" class="tab ${s === filter ? 'active' : ''}" aria-selected="${s === filter}" data-status="${s}">
         ${s === '대기' ? '승인 대기' : s} <span class="tab-count">${count(s)}</span></button>`).join('');
 
-    const rows = applications.filter(a => filter === '전체' || a.status === filter)
+    const rows = base.filter(a => filter === '전체' || a.status === filter)
       .slice().sort((a, b) => b.appNo - a.appNo);
-    $('listGuide').textContent = filter === '대기'
+    $('listGuide').innerHTML = (search ? `검색결과 <b>${rows.length}</b>건 · ` : '') + (filter === '대기'
       ? '관리 버튼을 눌러 사업자 정보와 사업자등록증을 확인한 뒤 승인 또는 반려합니다.'
-      : `${filter} ${rows.length}건`;
+      : `${filter} ${rows.length}건`);
+
+    // 승인 대기 탭을 제외하면 신청일시 옆에 처리일시 표시
+    const showProcessed = filter !== '대기';
+    const heads = ['번호', '유형', '이름', '이메일', '단체유형', '신청일시', ...(showProcessed ? ['처리일시'] : []), '상태', '관리'];
+    $('headRow').innerHTML = heads.map(h =>
+      `<th${h === '번호' ? ' class="col-no"' : h === '관리' ? ' style="width:72px"' : ''}>${h}</th>`).join('');
 
     $('listBody').innerHTML = rows.length ? rows.map(a => {
       const m = memberOf(a);
@@ -198,14 +263,13 @@
         <td>${typeBadge(m.memberType)}</td>
         <td><b>${esc(m.name)}</b></td>
         <td class="email" title="${esc(m.email)}">${esc(m.email)}</td>
-        <td>${esc(m.phone)}</td>
-        <td>${esc(m.userId)}</td>
         <td>${esc(a.groupType)}</td>
         <td>${a.appliedAt}</td>
+        ${showProcessed ? `<td>${processedTime(a) || '<span class="muted">-</span>'}</td>` : ''}
         <td>${statusBadge(a.status)}</td>
         <td><button type="button" class="btn btn-sm ${a.status === '대기' ? 'btn-primary' : ''}" data-app="${a.appNo}">관리</button></td>
       </tr>`;
-    }).join('') : '<tr><td colspan="10" class="empty">해당 상태의 신청이 없습니다.</td></tr>';
+    }).join('') : `<tr><td colspan="${heads.length}" class="empty">해당 상태의 신청이 없습니다.</td></tr>`;
   }
 
   // ===== 사업자등록증 예시 이미지 (실서비스에서는 고객이 올린 파일 URL) =====
@@ -338,6 +402,16 @@
   }
 
   // ===== 이벤트 =====
+  $('searchForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const s = readSearch();
+    if (s) { search = s; render(); }
+  });
+  $('btnReset').addEventListener('click', () => {
+    $('searchForm').reset();
+    search = null;
+    render();
+  });
   $('statusTabs').addEventListener('click', e => {
     const b = e.target.closest('[data-status]');
     if (b) { filter = b.dataset.status; render(); }

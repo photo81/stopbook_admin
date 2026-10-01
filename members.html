@@ -153,7 +153,12 @@
         <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
         <tr><th>이름</th><td class="readonly" id="fName"></td><th>아이디</th><td class="readonly" id="fUserId"></td></tr>
         <tr><th>이메일</th><td class="readonly" id="fEmail" colspan="3"></td></tr>
-        <tr><th>휴대폰</th><td class="readonly" id="fPhone" colspan="3"></td></tr>
+        <tr><th>휴대폰</th><td colspan="3">
+          <div class="benefit-line">
+            <span class="readonly" id="fPhone"></span>
+            <button type="button" class="btn btn-xs" id="btnAlimtalk">알림톡</button>
+          </div>
+        </td></tr>
         <tr><th>패스워드</th><td colspan="3">
           <div id="pwSns" class="readonly" hidden></div>
           <div id="pwActions" class="pw-actions">
@@ -334,15 +339,79 @@
   </div>
 </div>
 
+<!-- 알림톡 발송 모달 (회원 상세 모달 위에 표시) -->
+<div class="modal-bg modal-top" id="aModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aTitle">
+    <div class="modal-header">
+      <h2 id="aTitle">알림톡 발송</h2>
+      <button type="button" class="close" data-aclose aria-label="닫기">&times;</button>
+    </div>
+    <form id="aForm" class="modal-body" novalidate>
+      <table class="form-table">
+        <tr><th>수신자</th><td class="readonly" id="aTo"></td></tr>
+        <tr><th>템플릿 *</th><td>
+          <div class="inline-row at-search">
+            <input type="search" id="aTmplQ" placeholder="템플릿명, 코드, 본문 검색" autocomplete="off">
+            <span class="readonly" id="aTmplCount"></span>
+          </div>
+          <select id="aTmpl" size="5" class="at-tmpl-list"></select>
+          <div class="readonly at-note">비즈엠에서 승인된 템플릿만 발송할 수 있으며, 본문은 수정할 수 없고 변수만 입력합니다.</div>
+        </td></tr>
+        <tbody id="aVars"></tbody>
+        <tr><th>미리보기</th><td>
+          <div class="at-bubble">
+            <div class="at-bubble-head">알림톡 도착</div>
+            <div class="at-bubble-body" id="aPreview"></div>
+            <div class="at-bubble-btn" id="aPreviewBtn" hidden></div>
+          </div>
+          <div class="readonly at-note" id="aLen"></div>
+        </td></tr>
+        <tr><th>발송 시점</th><td>
+          <div class="inline-row">
+            <label><input type="radio" name="aWhen" value="now" checked> 즉시</label>
+            <label><input type="radio" name="aWhen" value="reserve"> 예약</label>
+            <input type="datetime-local" id="aReserveAt" hidden>
+            <span class="readonly" id="aReserveNote" hidden>현재부터 10분 이후 · 발송 10분 전까지 취소 가능</span>
+          </div>
+        </td></tr>
+        <tr><th>대체 문자</th><td>
+          <label><input type="checkbox" id="aFallback" checked> 알림톡 실패 시 문자로 발송</label>
+          <span class="readonly" id="aSmsInfo" style="margin-left:8px"></span>
+        </td></tr>
+      </table>
+      <div class="err" id="eAlimtalk"></div>
+
+      <div class="section-title">발송 내역</div>
+      <div class="table-wrap history-wrap">
+        <table class="history-table">
+          <thead><tr><th>요청일시</th><th>템플릿</th><th>결과</th><th>메시지 번호</th><th>처리자</th></tr></thead>
+          <tbody id="aHistory"></tbody>
+        </table>
+      </div>
+    </form>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-aclose>닫기</button>
+      <button type="submit" form="aForm" class="btn btn-primary">발송</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
+<script src="alimtalk.js"></script>
 <script src="member-data.js"></script>
+<script src="member-type-store.js"></script>
 <script>
 (function () {
   'use strict';
 
   // ===== 샘플 데이터: member-data.js (단체 회원 신청 승인 결과 포함) =====
   const { members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, revokeBusiness } = MemberData;
+
+  // ===== 등급 자동 산정 =====
+  // 회원 유형 관리 > 등급 탭의 평가 조건에 따라, 산정 예정일이 지났으면 화면을 열 때 전체 회원 등급을 재산정
+  // (이전 산정 결과는 localStorage에서 먼저 반영). TODO: 실서비스에서는 서버 배치가 처리
+  const gradeRun = MemberTypeStore.GradeEvaluator.run(members, MemberTypeStore.load().find(g => g.key === 'grade'), MemberData.orderStats);
 
   // ===== 상태 =====
   const state = { filtered: [], page: 1, size: 20, sortKey: 'no', sortDir: 'desc', editing: null };
@@ -474,6 +543,141 @@
     $('modal').classList.add('open');
     $('fCategory').focus();
   }
+
+  // ===== 알림톡 발송 (alimtalk.js, 비즈엠 API v2.29.7) =====
+  // 회원 정보 저장 버튼과 별개로 즉시 처리. 발송 내역은 회원별 alimtalkLog에 쌓고 변경 히스토리에도 기록
+  // TODO: 실서비스에서는 POST /api/admin/members/{no}/alimtalk (서버가 비즈엠 /v2/sender/send 호출),
+  //       예약 건의 최종 결과는 서버가 /v2/sender/report 로 확인해 갱신
+  const { TEMPLATES: AT_TEMPLATES, MSG_MAX: AT_MAX } = Alimtalk;
+  // 템플릿 검색: 템플릿명·코드·본문에 검색어(공백으로 나눈 단어 모두)가 포함된 항목만 목록에 표시
+  // TODO: 템플릿이 많아지면 서버 검색 API로 대체 (GET /api/admin/alimtalk/templates?q=)
+  function renderAtTmplOptions() {
+    const words = $('aTmplQ').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const prev = $('aTmpl').value;
+    const hits = AT_TEMPLATES.map((t, i) => [t, i]).filter(([t]) => {
+      const hay = `${t.name} ${t.tmplId} ${t.body}`.toLowerCase();
+      return words.every(w => hay.includes(w));
+    });
+    $('aTmpl').innerHTML = hits.length
+      ? hits.map(([t, i]) => `<option value="${i}">${esc(t.name)} (${esc(t.tmplId)})</option>`).join('')
+      : '<option value="" disabled>검색 결과가 없습니다.</option>';
+    $('aTmplCount').textContent = `${hits.length} / ${AT_TEMPLATES.length}건`;
+    // 이전 선택이 결과에 남아 있으면 유지, 아니면 첫 번째 결과 선택
+    $('aTmpl').value = hits.some(([, i]) => String(i) === prev) ? prev : (hits.length ? String(hits[0][1]) : '');
+    renderAtVars();
+  }
+
+  const atTmpl = () => ($('aTmpl').value === '' ? null : AT_TEMPLATES[Number($('aTmpl').value)]);
+  const atValues = () => {
+    const v = {};
+    document.querySelectorAll('#aVars input[data-var]').forEach(el => { v[el.dataset.var] = el.value.trim(); });
+    return v;
+  };
+
+  function renderAtVars() {
+    const m = state.editing, t = atTmpl();
+    if (!m) return;
+    if (!t) { $('aVars').innerHTML = ''; renderAtPreview(); return; }
+    $('aVars').innerHTML = t.vars.map(v => {
+      const val = v.auto ? v.auto(m) : '';
+      return `<tr><th>#{${esc(v.key)}}</th><td>
+        <input type="text" data-var="${esc(v.key)}" value="${esc(val)}" placeholder="${esc(v.placeholder || '')}" maxlength="100">
+      </td></tr>`;
+    }).join('');
+    renderAtPreview();
+  }
+
+  function renderAtPreview() {
+    const t = atTmpl(), values = atValues();
+    if (!t) {
+      $('aPreview').textContent = '템플릿을 선택하세요.';
+      $('aPreviewBtn').hidden = true;
+      $('aLen').textContent = '';
+      $('aSmsInfo').textContent = '';
+      return;
+    }
+    // 변수 위치를 강조해 어떤 값이 들어가는지 보이게 함
+    $('aPreview').innerHTML = esc(t.body).replace(/#\{([^}]+)\}/g, (all, k) => {
+      const val = values[k];
+      return val ? `<span class="at-var">${esc(val)}</span>` : `<span class="at-var empty">#{${k}}</span>`;
+    });
+    $('aPreviewBtn').hidden = !t.button;
+    $('aPreviewBtn').textContent = t.button ? t.button.name : '';
+    const msg = Alimtalk.fill(t.body, values);
+    const bytes = Alimtalk.smsBytes(msg);
+    $('aLen').textContent = `${msg.length.toLocaleString()} / ${AT_MAX.toLocaleString()}자`;
+    $('aSmsInfo').textContent = $('aFallback').checked ? `${bytes > 90 ? 'LMS' : 'SMS'} · ${bytes.toLocaleString()}byte` : '';
+  }
+
+  function renderAtHistory() {
+    const log = state.editing.alimtalkLog || [];
+    $('aHistory').innerHTML = log.length ? log.slice().reverse().map(h => `
+      <tr><td>${h.at}</td><td class="left">${esc(h.tmplName)}</td><td>${esc(h.result)}</td><td class="mono">${esc(h.msgid)}</td><td>${esc(h.by)}</td></tr>`).join('')
+      : '<tr><td colspan="5" class="empty">발송 내역이 없습니다.</td></tr>';
+  }
+
+  function syncAtWhen() {
+    const reserve = document.querySelector('input[name=aWhen]:checked').value === 'reserve';
+    $('aReserveAt').hidden = !reserve;
+    $('aReserveNote').hidden = !reserve;
+  }
+
+  function openAlimtalk() {
+    const m = state.editing;
+    if (!m) return;
+    $('aForm').reset();
+    $('aTo').textContent = `${m.name} (${m.userId}) · ${m.phone}`;
+    $('eAlimtalk').classList.remove('show');
+    syncAtWhen();
+    $('aTmpl').value = '';
+    renderAtTmplOptions();   // 검색어 초기화된 상태로 전체 목록 + 첫 템플릿 선택
+    renderAtHistory();
+    $('aModal').classList.add('open');
+    $('aTmplQ').focus();
+  }
+
+  const closeAlimtalk = () => $('aModal').classList.remove('open');
+
+  function submitAlimtalk(e) {
+    e.preventDefault();
+    const m = state.editing, t = atTmpl();
+    const reserve = document.querySelector('input[name=aWhen]:checked').value === 'reserve';
+    let reserveAt = null, error = '';
+    if (!t) error = '발송할 템플릿을 선택하세요.';
+    else if (reserve) {
+      reserveAt = $('aReserveAt').value ? new Date($('aReserveAt').value) : null;
+      if (!reserveAt) error = '예약 일시를 선택하세요.';
+    }
+    const r = error ? { error } : Alimtalk.buildPayload(m, { tmpl: t, values: atValues(), fallback: $('aFallback').checked, reserveAt });
+    $('eAlimtalk').textContent = r.error || '';
+    $('eAlimtalk').classList.toggle('show', !!r.error);
+    if (r.error) return;
+    if (!confirm(`${m.name}님(${m.phone})에게 '${t.name}' 알림톡을 ${reserve ? '예약 ' : ''}발송하시겠습니까?`)) return;
+
+    // TODO: 실서비스에서는 서버 API 호출 후 응답 사용. 요청 본문은 비즈엠 규격(JSON Array, 최대 100건)
+    const [res] = Alimtalk.simulateSend(r.payload);
+    const result = Alimtalk.resultText(res);
+    const entry = { at: nowText(), tmplId: t.tmplId, tmplName: t.name, result, msgid: res.data.msgid, reserveDt: r.payload.reserveDt, by: ADMIN_NAME };
+    (m.alimtalkLog || (m.alimtalkLog = [])).push(entry);
+    addHistory(m, `알림톡 ${reserve ? '예약 ' : ''}발송: ${t.name} - ${result} (${res.data.msgid})`);
+    renderAtHistory();
+    toast(res.code === 'success' ? `알림톡 ${result}` : `알림톡 발송 ${result}`);
+  }
+
+  $('btnAlimtalk').addEventListener('click', openAlimtalk);
+  $('aTmpl').addEventListener('change', renderAtVars);
+  $('aTmplQ').addEventListener('input', renderAtTmplOptions);
+  // 검색창에서 Enter는 발송이 아니라 첫 결과 선택 / ↓는 목록으로 이동
+  $('aTmplQ').addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') { ev.preventDefault(); $('aTmpl').focus(); }
+    else if (ev.key === 'ArrowDown') { ev.preventDefault(); $('aTmpl').focus(); }
+  });
+  $('aVars').addEventListener('input', renderAtPreview);
+  $('aFallback').addEventListener('change', renderAtPreview);
+  document.querySelectorAll('input[name=aWhen]').forEach(el => el.addEventListener('change', syncAtWhen));
+  $('aForm').addEventListener('submit', submitAlimtalk);
+  document.querySelectorAll('[data-aclose]').forEach(b => b.addEventListener('click', closeAlimtalk));
+  $('aModal').addEventListener('click', ev => { if (ev.target === $('aModal')) closeAlimtalk(); });
 
   // ===== 혜택 내역 및 지급/차감 (저장 버튼과 별개로 즉시 처리) =====
   const bState = { kind: null };
@@ -880,7 +1084,8 @@
   $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if (bState.kind) closeBenefit();          // 위에 떠 있는 혜택 모달부터 닫기
+    if ($('aModal').classList.contains('open')) closeAlimtalk();   // 위에 떠 있는 모달부터 닫기
+    else if (bState.kind) closeBenefit();
     else if (state.editing) closeModal();
   });
 
@@ -898,6 +1103,7 @@
   // 초기 로드
   applyFilter();
   render();
+  if (gradeRun.ran && gradeRun.changes.length) toast(`등급 자동 산정 실행: ${gradeRun.changes.length}명의 등급이 변경되었습니다.`);
 })();
 </script>
 </body>

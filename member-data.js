@@ -103,6 +103,27 @@
   }
   members.forEach(makeLedger);
 
+  // ===== 주문 실적 샘플 (등급 자동 산정용) =====
+  // 주문 리스트 화면은 아직 없음. 등급 산정에 필요한 최소 정보(주문일·결제금액)만 회원별로 생성
+  // TODO: 주문 리스트 구현 후 실제 주문 데이터(또는 GET /api/admin/members/{no}/order-stats)로 대체
+  function makeOrders(m) {
+    let s = (m.no * 104729) % 233280;
+    const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    const from = Math.max(new Date(m.joinDate).getTime(), base - 365 * 86400000);
+    const n = r() < 0.25 ? 0 : Math.floor(r() * 25);
+    m.orders = Array.from({ length: n }, () => ({
+      at: fmtDate(new Date(from + r() * (base - from))),
+      amount: (80 + Math.floor(r() * 520)) * 100   // 8,000 ~ 60,000원
+    })).sort((a, b) => a.at.localeCompare(b.at));
+  }
+  members.forEach(makeOrders);
+
+  // 기간(YYYY-MM-DD, 양끝 포함) 내 주문횟수·주문금액 합계
+  function orderStats(m, from, to) {
+    return (m.orders || []).filter(o => o.at >= from && o.at <= to)
+      .reduce((acc, o) => ({ count: acc.count + 1, amount: acc.amount + o.amount }), { count: 0, amount: 0 });
+  }
+
   // 후불 결제 샘플: 단체 회원 일부에 올해 적용
   members.forEach(m => {
     const on = m.category === '단체' && m.no % 2 === 0;
@@ -231,7 +252,7 @@
   });
 
   window.MemberData = {
-    members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons,
+    members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, orderStats,
     applications, saveApplication, applyApproval, revokeBusiness, GROUP_TYPES: typeKeys
   };
 })();

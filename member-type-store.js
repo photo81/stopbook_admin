@@ -4,12 +4,12 @@
 (function () {
   'use strict';
 
-  const KEY = 'stopbook.memberTypes.v3';   // v3: 등급은 정기 지급 혜택(benefit)만 사용
+  const KEY = 'stopbook.memberTypes.v5';   // v4: 무료배송(freeShipping) 추가 / v5: 등급 평가 조건(policy)·등급별 평가 기준(criteria) 추가
   const CREATED = [{ at: '2026-01-02 09:00', content: '항목 생성', by: '시스템' }];
 
   const item = (code, name, rate, desc, flags) => Object.assign({
     code, name, discountRate: rate, desc,
-    mileageEarn: true, mileageUse: true, couponUse: true, stackOther: false, stackEvent: true,
+    mileageEarn: true, mileageUse: true, couponUse: true, stackOther: false, stackEvent: true, freeShipping: false,
     memos: [], history: CREATED.slice()
   }, flags);
 
@@ -17,8 +17,8 @@
   const DEFAULTS = [
     { key: 'category', label: '구분', items: [
       item('normal', '일반', 0, '개인 회원 기본 구분. 마일리지 적립·사용과 쿠폰 사용이 가능합니다.'),
-      item('group', '단체', 10, '학교·도서관·기관 등 단체 구매 회원. 단체 할인율을 적용하는 대신 마일리지·쿠폰 혜택은 제외합니다.',
-        { mileageEarn: false, mileageUse: false, couponUse: false, stackEvent: false })
+      item('group', '단체', 10, '학교·도서관·기관 등 단체 구매 회원. 단체 할인율과 무료배송을 적용하는 대신 마일리지·쿠폰 혜택은 제외합니다.',
+        { mileageEarn: false, mileageUse: false, couponUse: false, stackEvent: false, freeShipping: true })
     ]},
     { key: 'memberType', label: '유형', items: [
       item('stopbook', '스탑북회원', 0, '스탑북 아이디/패스워드로 가입한 회원.'),
@@ -26,26 +26,40 @@
       item('naver', '네이버회원', 0, '네이버 간편 로그인으로 가입한 회원.'),
       item('google', '구글회원', 0, '구글 간편 로그인으로 가입한 회원.')
     ]},
-    // 등급은 혜택 플래그/할인율 대신 정기 지급 혜택(benefit)과 설명만 가짐
-    { key: 'grade', label: '등급', items: [
-      gradeItem('normal', '일반', '가입 시 기본 등급.', {}),
-      gradeItem('starter', '스타터', '최근 6개월 구매 1회 이상.',
+    // 등급은 혜택 플래그/할인율 대신 평가 기준(criteria)·정기 지급 혜택(benefit)·설명을 가짐
+    // policy: 등급 탭 상단의 회원 등급 평가 조건 (자동 등급 설정, 산정 주기, 평가 기준, 평가 기간)
+    { key: 'grade', label: '등급', policy: { auto: true, cycle: 'monthly', monthDay: 1, basis: 'count', period: 'monthly' }, items: [
+      gradeItem('normal', '일반', '가입 시 기본 등급.', {}, {}),
+      gradeItem('starter', '스타터', '평가 기간 내 구매 1회 이상.', { minCount: 1, minAmount: 50000 },
         { cycle: 'monthly', monthDay: 1, coupons: ['3,000원 할인'], mileageOn: true, mileage: 500 }),
-      gradeItem('holic', '홀리커', '최근 6개월 구매 5회 이상.',
+      gradeItem('holic', '홀리커', '평가 기간 내 구매 5회 이상.', { minCount: 5, minAmount: 200000 },
         { cycle: 'monthly', monthDay: 1, coupons: ['3,000원 할인', '무료배송'], mileageOn: true, mileage: 1000, discountOn: true, discountRate: 2 }),
-      gradeItem('master', '마스터', '최근 6개월 구매 10회 이상.',
+      gradeItem('master', '마스터', '평가 기간 내 구매 10회 이상.', { minCount: 10, minAmount: 500000 },
         { cycle: 'monthly', monthDay: 1, coupons: ['무료배송', '도서 2권 이상 15% 할인'], mileageOn: true, mileage: 2000, discountOn: true, discountRate: 3 }),
-      gradeItem('master-vip', '마스터 VIP', '최근 6개월 구매 20회 이상.',
+      gradeItem('master-vip', '마스터 VIP', '평가 기간 내 구매 20회 이상.', { minCount: 20, minAmount: 1000000 },
         { cycle: 'weekly', weekday: 0, coupons: ['무료배송', '3,000원 할인', '도서 2권 이상 15% 할인'], mileageOn: true, mileage: 3000, discountOn: true, discountRate: 5 })
     ]}
   ];
 
-  function gradeItem(code, name, desc, benefit) {
-    return { code, name, desc, benefit: Object.assign(emptyBenefit(), benefit), memos: [], history: CREATED.slice() };
+  function gradeItem(code, name, desc, criteria, benefit) {
+    return {
+      code, name, desc,
+      criteria: Object.assign(emptyCriteria(), criteria),
+      benefit: Object.assign(emptyBenefit(), benefit),
+      memos: [], history: CREATED.slice()
+    };
   }
 
   function emptyBenefit() {
     return { cycle: 'none', weekday: 0, monthDay: 1, coupons: [], mileageOn: false, mileage: 0, discountOn: false, discountRate: 0 };
+  }
+
+  function emptyCriteria() {
+    return { minCount: 0, minAmount: 0 };   // 0 = 조건 없음(기본 등급)
+  }
+
+  function emptyPolicy() {
+    return { auto: false, cycle: 'monthly', weekday: 0, monthDay: 1, basis: 'count', period: 'monthly', from: '', to: '' };
   }
 
   // 혜택 항목 정의: 목록 컬럼, 상세 폼, 히스토리 문구에서 공통 사용
@@ -54,7 +68,8 @@
     { key: 'mileageUse',  label: '마일리지 사용', on: '가능', off: '불가' },
     { key: 'couponUse',   label: '쿠폰 사용',     on: '가능', off: '불가' },
     { key: 'stackOther',  label: '타할인 중복',   on: '허용', off: '불허' },
-    { key: 'stackEvent',  label: '이벤트 중복',   on: '허용', off: '불허' }
+    { key: 'stackEvent',  label: '이벤트 중복',   on: '허용', off: '불허' },
+    { key: 'freeShipping', label: '무료배송',     on: '적용', off: '미적용' }
   ];
 
   // 탭별로 쓰지 않는 혜택 항목 (등급은 FLAGS 대신 GradeBenefit 사용)
@@ -105,6 +120,36 @@
   const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'];
   const CYCLES = [['none', '지급 안 함'], ['daily', '매일'], ['weekly', '매주'], ['monthly', '매월']];
 
+  // 주기 선택 UI(매일/매주/매월 + 요일/일자)는 등급 혜택 지급 주기와 등급 평가 산정 주기에서 공통 사용
+  const cycleSelectsHtml = (p, cycles) => `
+    <select id="${p}Cycle">${cycles.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select>
+    <select id="${p}Weekday" hidden>${WEEKDAYS.map((d, i) => `<option value="${i}">${d}요일</option>`).join('')}</select>
+    <select id="${p}MonthDay" hidden>${Array.from({ length: 28 }, (_, i) => `<option value="${i + 1}">${i + 1}일</option>`).join('')}<option value="last">말일</option></select>`;
+  const syncCycleSelects = p => {
+    const cycle = document.getElementById(p + 'Cycle').value;
+    document.getElementById(p + 'Weekday').hidden = cycle !== 'weekly';
+    document.getElementById(p + 'MonthDay').hidden = cycle !== 'monthly';
+  };
+  const fillCycleSelects = (p, b) => {
+    document.getElementById(p + 'Cycle').value = b.cycle;
+    document.getElementById(p + 'Weekday').value = String(b.weekday);
+    document.getElementById(p + 'MonthDay').value = String(b.monthDay);
+  };
+  const readCycleSelects = p => {
+    const md = document.getElementById(p + 'MonthDay').value;
+    return {
+      cycle: document.getElementById(p + 'Cycle').value,
+      weekday: Number(document.getElementById(p + 'Weekday').value),
+      monthDay: md === 'last' ? 'last' : Number(md)
+    };
+  };
+  function cycleText(b) {
+    if (b.cycle === 'daily') return '매일';
+    if (b.cycle === 'weekly') return `매주 ${WEEKDAYS[b.weekday]}요일`;
+    if (b.cycle === 'monthly') return b.monthDay === 'last' ? '매월 말일' : `매월 ${b.monthDay}일`;
+    return '지급 안 함';
+  }
+
   const GradeBenefit = {
     empty: emptyBenefit,
 
@@ -113,9 +158,7 @@
       return `
         <tr><th>지급 주기</th><td>
           <div class="inline-row">
-            <select id="${p}Cycle">${CYCLES.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select>
-            <select id="${p}Weekday" hidden>${WEEKDAYS.map((d, i) => `<option value="${i}">${d}요일</option>`).join('')}</select>
-            <select id="${p}MonthDay" hidden>${Array.from({ length: 28 }, (_, i) => `<option value="${i + 1}">${i + 1}일</option>`).join('')}<option value="last">말일</option></select>
+            ${cycleSelectsHtml(p, CYCLES)}
             <span class="readonly">지급일 00:00 자동 지급</span>
           </div>
         </td></tr>
@@ -143,8 +186,7 @@
     bind(p) {
       const $ = id => document.getElementById(p + id);
       const sync = () => {
-        $('Weekday').hidden = $('Cycle').value !== 'weekly';
-        $('MonthDay').hidden = $('Cycle').value !== 'monthly';
+        syncCycleSelects(p);
         $('Mileage').disabled = !$('MileageOn').checked;
         $('DiscountRate').disabled = !$('DiscountOn').checked;
       };
@@ -155,9 +197,7 @@
 
     fill(p, b) {
       const $ = id => document.getElementById(p + id);
-      $('Cycle').value = b.cycle;
-      $('Weekday').value = String(b.weekday);
-      $('MonthDay').value = String(b.monthDay);
+      fillCycleSelects(p, b);
       document.querySelectorAll(`input[name=${p}Coupon]`).forEach(cb => { cb.checked = b.coupons.includes(cb.value); });
       $('MileageOn').checked = b.mileageOn;
       $('Mileage').value = b.mileageOn ? b.mileage : '';
@@ -170,17 +210,13 @@
     // 입력값 검증 후 { value } 또는 { error } 반환
     read(p) {
       const $ = id => document.getElementById(p + id);
-      const md = $('MonthDay').value;
-      const b = {
-        cycle: $('Cycle').value,
-        weekday: Number($('Weekday').value),
-        monthDay: md === 'last' ? 'last' : Number(md),
+      const b = Object.assign(readCycleSelects(p), {
         coupons: [...document.querySelectorAll(`input[name=${p}Coupon]:checked`)].map(cb => cb.value),
         mileageOn: $('MileageOn').checked,
         mileage: 0,
         discountOn: $('DiscountOn').checked,
         discountRate: 0
-      };
+      });
       const mText = $('Mileage').value.replace(/,/g, '').trim();
       const dText = $('DiscountRate').value.trim();
       let error = '';
@@ -194,12 +230,7 @@
       return error ? { error } : { value: b };
     },
 
-    cycleText(b) {
-      if (b.cycle === 'daily') return '매일';
-      if (b.cycle === 'weekly') return `매주 ${WEEKDAYS[b.weekday]}요일`;
-      if (b.cycle === 'monthly') return b.monthDay === 'last' ? '매월 말일' : `매월 ${b.monthDay}일`;
-      return '지급 안 함';
-    },
+    cycleText,
     mileageText: b => (b.mileageOn ? `${b.mileage.toLocaleString()}P` : '없음'),
     discountText: b => (b.discountOn ? `${b.discountRate}%` : '없음'),
 
@@ -217,6 +248,288 @@
     }
   };
 
-  window.MemberTypeStore = { load, save, FLAGS, flagsFor, GradeBenefit };
+  // ===== 회원 등급 평가 조건 (등급 탭 공통 설정) =====
+  // 자동 등급 설정 사용 시 산정 주기마다 평가 기간의 주문 실적을 평가 기준으로 집계해 등급을 재산정
+  // TODO: 실서비스에서는 GET/PUT /api/admin/member-grades/policy 로 대체
+  const POLICY_CYCLES = [['daily', '매일'], ['weekly', '매주'], ['monthly', '매월']];
+  const BASES = [['amount', '주문금액'], ['count', '주문횟수'], ['both', '주문횟수+주문금액']];
+  const PERIODS = [['daily', '매일 (전일 주문)'], ['weekly', '매주 (최근 1주)'], ['monthly', '매월 (최근 1개월)'], ['range', '특정 기간']];
+  const labelOf = (list, v) => (list.find(x => x[0] === v) || [v, v])[1];
+
+  const GradePolicy = {
+    empty: emptyPolicy,
+    BASES,
+
+    formHtml(p) {
+      return `
+        <tr><th>자동 등급 설정</th><td>
+          <label><input type="radio" name="${p}Auto" value="Y"> 사용</label>
+          <label style="margin-left:12px"><input type="radio" name="${p}Auto" value="N"> 미사용</label>
+          <span class="readonly" style="margin-left:8px">미사용 시 등급을 자동으로 재산정하지 않습니다.</span>
+        </td></tr>
+        <tr><th>산정 주기</th><td>
+          <div class="inline-row">
+            ${cycleSelectsHtml(p, POLICY_CYCLES)}
+            <span class="readonly">산정일 00:00 자동 산정</span>
+          </div>
+        </td></tr>
+        <tr><th>평가 기준</th><td>
+          ${BASES.map(([v, t], i) => `<label${i ? ' style="margin-left:12px"' : ''}><input type="radio" name="${p}Basis" value="${v}"> ${t}</label>`).join('')}
+          <span class="readonly" style="margin-left:8px">등급별 기준값은 각 등급 상세에서 설정</span>
+        </td></tr>
+        <tr><th>평가 기간</th><td>
+          <div class="inline-row">
+            <select id="${p}Period">${PERIODS.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select>
+            <span class="inline-row" id="${p}Range" hidden>
+              <input type="date" id="${p}From" style="width:150px"> ~ <input type="date" id="${p}To" style="width:150px">
+            </span>
+            <span class="readonly">기간 내 총 주문금액·주문횟수로 평가</span>
+          </div>
+          <div class="err" id="${p}PolicyErr"></div>
+        </td></tr>`;
+    },
+
+    bind(p) {
+      const $ = id => document.getElementById(p + id);
+      const sync = () => {
+        syncCycleSelects(p);
+        $('Range').hidden = $('Period').value !== 'range';
+        const autoEl = document.querySelector(`input[name=${p}Auto]:checked`);
+        const off = !!autoEl && autoEl.value === 'N';
+        ['Cycle', 'Weekday', 'MonthDay', 'Period', 'From', 'To'].forEach(id => { $(id).disabled = off; });
+        document.querySelectorAll(`input[name=${p}Basis]`).forEach(r => { r.disabled = off; });
+      };
+      ['Cycle', 'Period'].forEach(id => $(id).addEventListener('change', sync));
+      document.querySelectorAll(`input[name=${p}Auto]`).forEach(r => r.addEventListener('change', sync));
+      this._sync = this._sync || {};
+      this._sync[p] = sync;
+    },
+
+    fill(p, pol) {
+      const $ = id => document.getElementById(p + id);
+      document.querySelector(`input[name=${p}Auto][value=${pol.auto ? 'Y' : 'N'}]`).checked = true;
+      fillCycleSelects(p, pol);
+      document.querySelector(`input[name=${p}Basis][value=${pol.basis}]`).checked = true;
+      $('Period').value = pol.period;
+      $('From').value = pol.from || '';
+      $('To').value = pol.to || '';
+      $('PolicyErr').classList.remove('show');
+      if (this._sync && this._sync[p]) this._sync[p]();
+    },
+
+    read(p) {
+      const $ = id => document.getElementById(p + id);
+      const pol = Object.assign(emptyPolicy(), readCycleSelects(p), {
+        auto: document.querySelector(`input[name=${p}Auto]:checked`).value === 'Y',
+        basis: document.querySelector(`input[name=${p}Basis]:checked`).value,
+        period: $('Period').value,
+        from: $('From').value,
+        to: $('To').value
+      });
+      let error = '';
+      if (pol.period === 'range') {
+        if (!pol.from || !pol.to) error = '특정 기간은 시작일과 종료일을 모두 선택하세요.';
+        else if (pol.from > pol.to) error = '종료일은 시작일 이후여야 합니다.';
+      } else { pol.from = ''; pol.to = ''; }
+      $('PolicyErr').textContent = error;
+      $('PolicyErr').classList.toggle('show', !!error);
+      return error ? { error } : { value: pol };
+    },
+
+    basisText: pol => labelOf(BASES, pol.basis),
+    periodText: pol => (pol.period === 'range' ? `${pol.from} ~ ${pol.to}` : labelOf(PERIODS, pol.period)),
+    // 상세 화면 안내용 한 줄 요약
+    summary(pol) {
+      if (!pol.auto) return '자동 등급 설정 미사용';
+      return `자동 등급 설정 사용 · 산정 주기 ${cycleText(pol)} · 평가 기준 ${labelOf(BASES, pol.basis)} · 평가 기간 ${this.periodText(pol)}`;
+    }
+  };
+
+  // ===== 등급별 평가 기준값 (주문횟수/주문금액 하한) =====
+  const GradeCriteria = {
+    empty: emptyCriteria,
+    usesCount: basis => basis !== 'amount',
+    usesAmount: basis => basis !== 'count',
+
+    // 평가 기준(basis)에 해당하는 값만 표시. 조건이 없으면 기본 등급
+    text(c, basis) {
+      const parts = [];
+      if (this.usesCount(basis) && c.minCount > 0) parts.push(`주문 ${c.minCount.toLocaleString()}회 이상`);
+      if (this.usesAmount(basis) && c.minAmount > 0) parts.push(`${c.minAmount.toLocaleString()}원 이상`);
+      return parts.length ? parts.join(' · ') : '기본 등급';
+    },
+
+    // 주문횟수·주문금액 두 항목을 항상 표시하되, 현재 평가 기준(basis)에서 쓰지 않는 항목은 비활성화 (값은 보관)
+    formHtml(p, basis) {
+      const unused = '<span class="readonly">현재 평가 기준에서 사용하지 않음</span>';
+      const row = (label, id, unit, on) => `
+        <tr><th>${label}</th><td>
+          <div class="inline-row">
+            <input type="text" id="${p}${id}" inputmode="numeric" class="w-num"${on ? '' : ' disabled'}>
+            <span${on ? '' : ' class="readonly"'}>${unit} 이상</span> ${on ? '' : unused}
+          </div>
+        </td></tr>`;
+      return `
+        ${row('주문횟수', 'MinCount', '회', this.usesCount(basis))}
+        ${row('주문금액', 'MinAmount', '원', this.usesAmount(basis))}
+        <tr><th></th><td>
+          <span class="readonly">0 입력 시 조건 없음(기본 등급). 평가 기간 내 주문 실적이 기준값 이상이면 해당 등급으로 산정됩니다.</span>
+          <div class="err" id="${p}CriteriaErr"></div>
+        </td></tr>`;
+    },
+
+    fill(p, c) {
+      const $ = id => document.getElementById(p + id);
+      $('MinCount').value = c.minCount.toLocaleString();
+      $('MinAmount').value = c.minAmount.toLocaleString();
+      $('CriteriaErr').classList.remove('show');
+    },
+
+    read(p) {
+      const $ = id => document.getElementById(p + id);
+      const num = id => $(id).value.replace(/,/g, '').trim();
+      const cText = num('MinCount'), aText = num('MinAmount');
+      let error = '';
+      if (!/^\d{1,5}$/.test(cText)) error = '주문횟수는 0~99,999 사이 정수로 입력하세요.';
+      else if (!/^\d{1,10}$/.test(aText)) error = '주문금액은 0~9,999,999,999 사이 정수로 입력하세요.';
+      $('CriteriaErr').textContent = error;
+      $('CriteriaErr').classList.toggle('show', !!error);
+      return error ? { error } : { value: { minCount: Number(cText), minAmount: Number(aText) } };
+    },
+
+    // 히스토리용: 현재 평가 기준과 무관하게 두 값 모두 비교
+    diff(a, b) {
+      const out = [];
+      if (a.minCount !== b.minCount) out.push(`평가 기준(주문횟수) 변경: ${a.minCount.toLocaleString()}회 → ${b.minCount.toLocaleString()}회`);
+      if (a.minAmount !== b.minAmount) out.push(`평가 기준(주문금액) 변경: ${a.minAmount.toLocaleString()}원 → ${b.minAmount.toLocaleString()}원`);
+      return out;
+    }
+  };
+
+  // ===== 등급 자동 산정 =====
+  // 산정일 00:00마다 평가 기간의 주문 실적을 평가 기준으로 집계해 조건을 충족하는 가장 높은 등급으로 변경.
+  // 프로토타입: 서버 배치 대신 화면을 열 때 산정 시점이 지났으면 실행하고, 결과는 localStorage(RUN_KEY)에 저장해 다음 로드에 반영.
+  // 주문 실적 조회(statsFn)는 외부에서 주입 → 주문 리스트 구현 후 MemberData.orderStats만 교체하면 됨
+  // TODO: 실서비스에서는 서버 배치가 처리하고 결과만 GET /api/admin/member-grades/runs 로 조회
+  const RUN_KEY = 'stopbook.gradeRuns.v1';
+  const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const midnight = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  function loadRun() {
+    try { return Object.assign({ lastRunAt: '', members: {} }, JSON.parse(localStorage.getItem(RUN_KEY)) || {}); }
+    catch (e) { return { lastRunAt: '', members: {} }; }
+  }
+  function saveRun(run) {
+    try { localStorage.setItem(RUN_KEY, JSON.stringify(run)); return true; } catch (e) { return false; }
+  }
+
+  // 월 단위 산정일: monthDay('last' 가능)에 해당하는 해당 월의 날짜
+  const monthRunDate = (y, mo, monthDay) => (monthDay === 'last' ? new Date(y, mo + 1, 0) : new Date(y, mo, monthDay));
+
+  const GradeEvaluator = {
+    // 평가 기간 (YYYY-MM-DD, 양끝 포함). 산정일 전일까지 집계
+    periodRange(pol, now) {
+      if (pol.period === 'range') return { from: pol.from, to: pol.to };
+      const end = addDays(midnight(now), -1);
+      let start = end;
+      if (pol.period === 'weekly') start = addDays(end, -6);
+      else if (pol.period === 'monthly') start = addDays(new Date(end.getFullYear(), end.getMonth() - 1, end.getDate()), 1);
+      return { from: fmtDate(start), to: fmtDate(end) };
+    },
+
+    // now 이전(당일 포함) 가장 최근 산정 예정일 00:00
+    lastScheduled(pol, now) {
+      const today = midnight(now);
+      if (pol.cycle === 'daily') return today;
+      if (pol.cycle === 'weekly') {
+        const wd = (today.getDay() + 6) % 7;   // WEEKDAYS 기준 월=0
+        return addDays(today, -((wd - pol.weekday + 7) % 7));
+      }
+      for (let k = 0; k < 2; k++) {
+        const d = monthRunDate(today.getFullYear(), today.getMonth() - k, pol.monthDay);
+        if (d <= today) return d;
+      }
+      return today;
+    },
+
+    // 다음 산정 예정일 00:00 (화면 안내용)
+    nextScheduled(pol, now) {
+      const last = this.lastScheduled(pol, now);
+      if (pol.cycle === 'daily') return addDays(last, 1);
+      if (pol.cycle === 'weekly') return addDays(last, 7);
+      return monthRunDate(last.getFullYear(), last.getMonth() + 1, pol.monthDay);
+    },
+
+    isDue(pol, lastRunAt, now) {
+      return !!pol.auto && (!lastRunAt || new Date(lastRunAt.replace(' ', 'T')) < this.lastScheduled(pol, now));
+    },
+
+    // 등급별 기준값 충족 여부 (평가 기준에 해당하는 값만 비교)
+    meets(c, stats, basis) {
+      const okCount = stats.count >= c.minCount, okAmount = stats.amount >= c.minAmount;
+      return basis === 'amount' ? okAmount : basis === 'count' ? okCount : okCount && okAmount;
+    },
+
+    // 조건이 있는 등급을 기준값이 높은 순으로 보고 처음 충족하는 등급, 없으면 기본 등급(조건 없는 등급)
+    matchGrade(group, stats) {
+      const basis = group.policy.basis;
+      const hasCond = c => (GradeCriteria.usesCount(basis) && c.minCount > 0) || (GradeCriteria.usesAmount(basis) && c.minAmount > 0);
+      const rank = c => (basis === 'amount' ? [c.minAmount, c.minCount] : [c.minCount, c.minAmount]);
+      const ranked = group.items.filter(it => hasCond(it.criteria)).sort((a, b) => {
+        const ra = rank(a.criteria), rb = rank(b.criteria);
+        return (rb[0] - ra[0]) || (rb[1] - ra[1]);
+      });
+      const hit = ranked.find(it => this.meets(it.criteria, stats, basis));
+      const base = group.items.find(it => !hasCond(it.criteria)) || group.items[0];
+      return (hit || base).name;
+    },
+
+    // 저장된 산정 결과를 회원 목록에 반영 (샘플 회원 데이터는 매번 새로 생성되므로 로드 시마다 필요)
+    applyStored(members) {
+      const run = loadRun();
+      members.forEach(m => {
+        const r = run.members[m.no];
+        if (!r) return;
+        m.grade = r.grade;
+        r.history.forEach(h => { if (!m.history.some(x => x.at === h.at && x.content === h.content)) m.history.push(h); });
+      });
+      return run;
+    },
+
+    // 산정 실행. force=false면 산정 예정일이 지났을 때만 실행. 반환: { ran, changes, range, run }
+    run(members, group, statsFn, { now = new Date(), force = false } = {}) {
+      const pol = Object.assign(emptyPolicy(), group.policy);
+      const run = this.applyStored(members);
+      if (!force && !this.isDue(pol, run.lastRunAt, now)) return { ran: false, changes: [], run };
+      group.items.forEach(it => { it.criteria = Object.assign(emptyCriteria(), it.criteria); });
+
+      const range = this.periodRange(pol, now);
+      const at = fmtDateTime(now);
+      const changes = [];
+      members.forEach(m => {
+        const stats = statsFn(m, range.from, range.to);
+        const to = this.matchGrade(group, stats);
+        if (to === m.grade) return;
+        const content = `등급 자동 산정: ${m.grade} → ${to} (평가 기간 ${range.from} ~ ${range.to}, 주문 ${stats.count}회 · ${stats.amount.toLocaleString()}원)`;
+        const h = { at, content, by: '시스템' };
+        changes.push({ no: m.no, name: m.name, from: m.grade, to, stats });
+        m.grade = to;
+        m.history.push(h);
+        const r = run.members[m.no] || (run.members[m.no] = { grade: to, history: [] });
+        r.grade = to;
+        r.history.push(h);
+      });
+      run.lastRunAt = at;
+      run.lastRange = range;
+      run.lastChanged = changes.length;
+      saveRun(run);
+      return { ran: true, changes, range, run };
+    },
+
+    lastRun: loadRun
+  };
+
+  window.MemberTypeStore = { load, save, FLAGS, flagsFor, GradeBenefit, GradePolicy, GradeCriteria, GradeEvaluator };
   window.AdminUtil = { fmtDateTime, esc, toast, initSidebar, ADMIN_NAME: '관리자' };  // TODO: 로그인 관리자명
 })();

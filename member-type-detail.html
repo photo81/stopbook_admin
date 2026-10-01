@@ -44,6 +44,16 @@
           <tr><th>설명</th><td><textarea id="fDesc" maxlength="300"></textarea></td></tr>
         </table>
 
+        <!-- 등급 전용: 평가 기준 (평가 조건은 목록 상단에서 설정, 여기서는 등급별 기준값만) -->
+        <div class="section-title" id="criteriaTitle" hidden>평가 기준</div>
+        <table class="form-table" id="criteriaTable" hidden>
+          <tr><th>평가 조건</th><td>
+            <span class="readonly" id="policySummary"></span>
+            <a id="policyLink" href="member-types.html?tab=grade" style="margin-left:8px">변경</a>
+          </td></tr>
+          <tbody id="criteriaRows"></tbody>
+        </table>
+
         <div class="section-title" id="benefitTitle">혜택 설정</div>
         <!-- 등급 전용: 정기 지급 혜택 -->
         <table class="form-table" id="gradeTable" hidden>
@@ -90,7 +100,7 @@
 (function () {
   'use strict';
   const { esc, toast, fmtDateTime, initSidebar, ADMIN_NAME } = AdminUtil;
-  const { load, save, flagsFor, GradeBenefit } = MemberTypeStore;
+  const { load, save, flagsFor, GradeBenefit, GradePolicy, GradeCriteria } = MemberTypeStore;
   const $ = id => document.getElementById(id);
 
   initSidebar();
@@ -115,9 +125,15 @@
 
   // 등급은 정기 지급 혜택만, 그 외(구분/유형)는 혜택 플래그 + 할인율
   const isGrade = group.key === 'grade';
+  const policy = isGrade ? Object.assign(GradePolicy.empty(), group.policy) : null;
   $('gradeTable').hidden = !isGrade;
   $('flagTable').hidden = isGrade;
+  $('criteriaTitle').hidden = !isGrade;
+  $('criteriaTable').hidden = !isGrade;
   if (isGrade) {
+    it.criteria = Object.assign(GradeCriteria.empty(), it.criteria);
+    $('policySummary').textContent = GradePolicy.summary(policy);
+    $('criteriaRows').innerHTML = GradeCriteria.formHtml('c', policy.basis);
     $('benefitTitle').textContent = '등급 혜택 (정기 지급)';
     $('gradeRows').innerHTML = GradeBenefit.formHtml('g');
     GradeBenefit.bind('g');
@@ -132,6 +148,7 @@
   function fillForm() {
     $('fDesc').value = it.desc;
     if (isGrade) {
+      GradeCriteria.fill('c', it.criteria);
       GradeBenefit.fill('g', it.benefit);
     } else {
       $('fRate').value = it.discountRate;
@@ -153,9 +170,12 @@
     const changes = [];
 
     if (isGrade) {
+      const c = GradeCriteria.read('c');
       const r = GradeBenefit.read('g');
-      if (r.error) return;
+      if (c.error || r.error) return;
+      next.criteria = c.value;
       next.benefit = r.value;
+      changes.push(...GradeCriteria.diff(it.criteria, c.value));
       changes.push(...GradeBenefit.diff(it.benefit, r.value));
     } else {
       const rateText = $('fRate').value.trim();
