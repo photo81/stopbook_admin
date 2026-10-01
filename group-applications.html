@@ -293,7 +293,7 @@
     const rows = base.filter(a => filter === '전체' || a.status === filter)
       .slice().sort((a, b) => b.appNo - a.appNo);
     $('listGuide').innerHTML = (search ? `검색결과 <b>${rows.length}</b>건 · ` : '') + (filter === '대기'
-      ? '관리 버튼을 눌러 사업자 정보와 사업자등록증을 확인한 뒤 승인 또는 반려합니다.'
+      ? '확인 버튼을 눌러 사업자 정보와 사업자등록증을 확인한 뒤 승인 또는 반려합니다.'
       : `${filter} ${rows.length}건`);
 
     // 승인 대기 탭을 제외하면 신청일시 옆에 처리일시 표시
@@ -313,7 +313,7 @@
         <td>${a.appliedAt}</td>
         ${showProcessed ? `<td>${processedTime(a) || '<span class="muted">-</span>'}</td>` : ''}
         <td>${statusBadge(a.status)}</td>
-        <td><button type="button" class="btn btn-sm ${a.status === '대기' ? 'btn-primary' : ''}" data-app="${a.appNo}">관리</button></td>
+        <td><button type="button" class="btn btn-sm ${a.status === '대기' ? 'btn-primary' : ''}" data-app="${a.appNo}">확인</button></td>
       </tr>`;
     }).join('') : `<tr><td colspan="${heads.length}" class="empty">해당 상태의 신청이 없습니다.</td></tr>`;
   }

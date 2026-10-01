@@ -210,7 +210,8 @@
   // 탈퇴 기록 구조 (탈퇴 시점 스냅샷)
   // ----------------------------------------------------------------------
   // 탈퇴하면 회원 정보가 파기되므로, 분석에 필요한 값을 탈퇴 처리 순간에 한 번 기록해 둔다.
-  // 이름·이메일·휴대폰 등 식별 정보는 저장하지 않는다. (아이디는 중복 가입 방지 기간 동안만 보관하는 것을 전제)
+  // 이름·이메일·휴대폰 등 식별 정보는 원본을 저장하지 않는다. (아이디는 중복 가입 방지 기간 동안만 보관하는 것을 전제)
+  // 이메일은 문의 대응 확인용으로 탈퇴 시점에 마스킹한 값(emailMasked)만 저장한다. 예) ab***@naver.com
   //
   //  회원 속성   category, kind(종류), memberType(가입유형), grade, marketing(Y/N)
   //  이용 기간   joinDate, withdrawDate, tenureDays, lastLoginDate, inactiveDays(마지막 접속 → 탈퇴)
@@ -264,6 +265,15 @@
   const base = new Date(2026, 9, 1).getTime();
   const addDays = (t, n) => fmtDate(new Date(t + n * DAY));
 
+  // 이메일 마스킹: 아이디 앞 2자만 남기고 나머지는 *** (2자 이하면 첫 글자만), 도메인은 그대로
+  // TODO: 실서비스에서는 탈퇴 처리 시 서버가 마스킹한 값만 저장
+  function maskEmail(email) {
+    const [local, domain] = String(email).split('@');
+    if (!domain) return '';
+    const keep = local.length > 2 ? 2 : 1;
+    return `${local.slice(0, keep)}${'*'.repeat(Math.max(3, local.length - keep))}@${domain}`;
+  }
+
   const KINDS = ['기관', '회사', '학교', '유치원', '어린이집', '동호회', '기타'];
   const PRODUCTS = ['포토북', '캘린더', '액자', '팬시·굿즈'];
   const INQ_TYPES = ['주문/결제', '배송', '상품', '교환/반품', '회원정보', '기타'];
@@ -310,6 +320,11 @@
     const cartAmount = savedProjects ? between(1, savedProjects + 1) * pick([17500, 21000, 28900, 14000, 9660]) : 0;
 
     const memberType = weighted([['스탑북회원', 60], ['카카오회원', 18], ['네이버회원', 13], ['구글회원', 9]]);
+    // 가입유형에 맞는 이메일 도메인 (간편가입은 해당 서비스 메일)
+    // 다른 샘플 값이 바뀌지 않도록 난수 대신 번호(i)로 정함
+    const emailDomain = { '카카오회원': 'kakao.com', '네이버회원': 'naver.com', '구글회원': 'gmail.com' }[memberType]
+      || ['naver.com', 'gmail.com', 'daum.net', 'hanmail.net', 'nate.com'][i % 5];
+    const emailLocal = ['photo', 'jiyoung', 'minsu', 'happyday', 'travel', 'sunny', 'mylove', 'family', 'hjkim', 'yeonwoo'][(i * 7) % 10] + ((i * 37) % 999 + 1);
     const category = rand() < 0.82 ? '일반' : '단체';
     const rejoined = reasonType === '자진탈퇴' && rand() < 0.09;
     const withdrawDate = fmtDate(new Date(withdrawT));
@@ -317,6 +332,7 @@
     items.push({
       no: i,
       userId: 'out' + String(100 + i),
+      emailMasked: maskEmail(`${emailLocal}@${emailDomain}`),   // 원본은 저장하지 않음
       category, kind: category === '단체' ? pick(KINDS) : '',
       memberType,
       grade: orderCount >= 10 ? pick(['홀리커', '마스터', '마스터 VIP']) : orderCount >= 2 ? pick(['일반', '스타터', '스타터']) : '일반',
@@ -554,6 +570,10 @@
     const table = rows => `<table class="form-table multi-col"><colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>${rows.join('')}</table>`;
     const none = '<span class="muted">없음</span>';
     $('mBody').innerHTML = `
+      <div class="section-title">기본 정보</div>
+      ${table([
+        row([['이메일', `<span class="mono">${esc(m.emailMasked)}</span> <span class="readonly">마스킹 저장</span>`, 3]])
+      ])}
       <div class="section-title">탈퇴 처리</div>
       ${table([
         row([['탈퇴구분', `<span class="badge wd-${m.reasonType}">${m.reasonType}</span>`], ['탈퇴일', m.withdrawDate]]),
@@ -600,7 +620,7 @@
   function downloadExcel() {
     if (!state.filtered.length) { toast('다운로드할 데이터가 없습니다.'); return; }
     const cols = [
-      ['no', '번호'], ['userId', '아이디'], ['category', '구분'], ['kind', '종류'], ['memberType', '가입유형'], ['grade', '등급'], ['marketing', '마케팅수신'],
+      ['no', '번호'], ['userId', '아이디'], ['emailMasked', '이메일(마스킹)'], ['category', '구분'], ['kind', '종류'], ['memberType', '가입유형'], ['grade', '등급'], ['marketing', '마케팅수신'],
       ['joinDate', '가입일'], ['withdrawDate', '탈퇴일'], ['tenureDays', '이용기간(일)'], ['tenureBucket', '이용기간구간'], ['lastLoginDate', '마지막접속일'], ['inactiveDays', '탈퇴전미접속(일)'],
       ['orderCount', '주문건수'], ['orderAmount', '주문금액'], ['avgOrder', '객단가'], ['orders12m', '최근1년주문'], ['lastOrderDate', '마지막주문일'], ['mainProduct', '주구매상품'],
       ['inquiryCount', '문의건수'], ['openInquiry', '미답변문의'], ['lastInquiryType', '최근문의유형'], ['claimCount', '재제작반품'], ['savedProjects', '남은작업물'], ['cartAmount', '장바구니금액'],
