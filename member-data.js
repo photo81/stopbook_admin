@@ -118,6 +118,105 @@
   }
   members.forEach(makeOrders);
 
+  // ===== 이용 정보 샘플 (회원 상세 > 이용 정보: 주문 내역·문의 이력·장바구니) =====
+  // 위 주문 실적(일자·금액)은 등급 산정에 쓰이므로 그대로 두고, 표시용 상세 정보만 별도 난수로 덧붙임
+  // TODO: 실서비스에서는 GET /api/admin/members/{no}/orders | inquiries | cart 로 대체
+  // 스탑북(www.stopbook.com) 판매 상품 기준 [상품명, 카테고리, 판매가(기본 옵션 시작가)] (2026-10-01 확인)
+  // TODO: 실서비스에서는 상품 마스터에서 조회
+  const PRODUCTS = [
+    ['마이트립북', '포토북', 28900], ['조이풀트립', '포토북', 17500], ['시티북 A5', '포토북', 21000],
+    ['트래블북 A5', '포토북', 21000], ['팔레트', '포토북', 17500], ['메모리북', '포토북', 28900],
+    ['포토로그북', '포토북', 21200], ['레코드북', '포토북', 32800], ['러블리커플', '포토북', 17500],
+    ['타임레코드', '포토북', 17500],
+    ['비트윈캘린더', '캘린더', 16000], ['스탠다드 캘린더', '캘린더', 14000], ['우드월캘린더', '캘린더', 26000],
+    ['우드스탠드 캘린더', '캘린더', 22000],
+    ['원목액자', '액자', 17360], ['심플액자', '액자', 9660], ['프리미엄 아크릴액자', '액자', 50800], ['감성액자', '액자', 11830],
+    ['엽서', '팬시·굿즈', 2100], ['포토노트', '팬시·굿즈', 4800], ['포토엽서', '팬시·굿즈', 18000], ['미니배너', '팬시·굿즈', 3700]
+  ];
+  // 카테고리별 옵션 예시 (장바구니 미리보기에 표시)
+  const OPTIONS = {
+    '포토북': ['하드커버 · 24페이지', '소프트커버 · 30페이지', '레이플랫 · 40페이지'],
+    '캘린더': ['2027년 · 1월 시작', '2027년 · 3월 시작'],
+    '액자': ['5x7 · 화이트', '8x10 · 내추럴', 'A4 · 블랙'],
+    '팬시·굿즈': ['무광 코팅', '유광 코팅', '기본']
+  };
+  const PROJECT_NAMES = ['제주 여름 여행', '우리 아이 첫돌', '가족 사진 모음', '2026 졸업 기념', '커플 100일', '반려견 일기', '부모님 선물', '동아리 추억'];
+  // 장바구니 작업물 미리보기(스탑북 뷰어). 샘플은 모든 상품에 같은 예시 작업물을 연결
+  // TODO: 실서비스에서는 장바구니 항목의 작업 키(mskey)와 고객 아이디(user_id)로 주소를 만듦
+  const VIEWER_SAMPLE = { mskey: '612574', userId: 'jy811228' };
+  const viewerUrl = (mskey, userId) =>
+    `https://www.stopbook.com/viewer/viewer_mobile.asp?mskey=${encodeURIComponent(mskey)}&user_id=${encodeURIComponent(userId)}`;
+  const PAY_METHODS = ['신용카드', '신용카드', '카카오페이', '네이버페이', '무통장입금', '마일리지+카드'];
+  const INQ_TYPES = ['주문/결제', '배송', '상품', '교환/반품', '회원정보', '기타'];
+  const INQ_SAMPLES = {
+    '주문/결제': ['결제 수단을 변경하고 싶어요', '주문 후 영수증 발급 문의', '카드 결제가 두 번 된 것 같아요'],
+    '배송': ['언제 도착하나요?', '배송지를 변경할 수 있나요?', '택배가 분실된 것 같아요'],
+    '상품': ['포토북 페이지를 추가할 수 있나요?', '캘린더 시작 월을 바꾸고 싶어요', '액자 사이즈 문의'],
+    '교환/반품': ['인쇄 불량으로 재제작 요청합니다', '사진 색감이 화면과 달라요'],
+    '회원정보': ['등급 산정 기준이 궁금해요', '휴대폰 번호 변경 방법'],
+    '기타': ['단체 대량 제작 견적 요청', '졸업앨범 제작 문의']
+  };
+
+  function makeUsage(m) {
+    let s = (m.no * 7907 + 13) % 233280;
+    const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    const pickR = arr => arr[Math.floor(r() * arr.length)];
+    const daysAgo = d => Math.floor((base - new Date(d).getTime()) / 86400000);
+
+    // 주문 상세: 일자·금액은 기존 값 유지(등급 산정용), 상품명·수량·상태·결제수단만 채움
+    // 상태(주문 제작 흐름): 주문완료 → 제작중 → 발송완료
+    //   2일 이내 주문완료·제작중 / 3~6일 제작중·발송완료 / 7일 이상 발송완료
+    (m.orders || []).forEach((o, i) => {
+      const p = pickR(PRODUCTS);
+      const qty = 1 + Math.floor(r() * 3);
+      const kinds = 1 + Math.floor(r() * 3);
+      const d = daysAgo(o.at);
+      Object.assign(o, {
+        orderNo: `${o.at.replace(/-/g, '')}-${String(m.no).slice(-3)}${String(i + 1).padStart(2, '0')}`,
+        title: kinds > 1 ? `${p[0]} 외 ${kinds - 1}종` : p[0],
+        productCategory: p[1],
+        qty: qty + kinds - 1,
+        status: d <= 2 ? pickR(['주문완료', '제작중']) : d <= 6 ? pickR(['제작중', '발송완료']) : '발송완료',
+        payMethod: pickR(PAY_METHODS)
+      });
+    });
+
+    // 문의 이력: 0~5건, 최근 문의 일부는 답변 대기
+    const from = new Date(m.joinDate).getTime();
+    m.inquiries = Array.from({ length: Math.floor(r() * r() * 6) }, (_, i) => {
+      const type = pickR(INQ_TYPES);
+      const at = new Date(from + r() * (base - from));
+      const waiting = (base - at.getTime()) < 5 * 86400000 || r() < 0.08;
+      const ans = new Date(at.getTime() + (2 + Math.floor(r() * 40)) * 3600000);
+      return {
+        no: m.no * 10 + i, type, title: pickR(INQ_SAMPLES[type]),
+        at: fmtDateTime(at),
+        content: '안녕하세요. 문의드립니다. 확인 부탁드립니다.',
+        status: waiting ? '답변대기' : '답변완료',
+        answeredAt: waiting ? '' : fmtDateTime(ans),
+        answer: waiting ? '' : '안녕하세요, 스탑북입니다. 문의하신 내용 확인하여 처리해 드렸습니다. 감사합니다.',
+        answeredBy: waiting ? '' : '상담원'
+      };
+    }).sort((a, b) => b.at.localeCompare(a.at));
+
+    // 장바구니: 0~5개 상품. 주문 제작 상품이라 고객이 편집해 둔 작업물(프로젝트) 단위로 담김
+    // price = 판매가(기본 옵션), savedAt = 장바구니에 보관한 날
+    const used = new Set();
+    m.cart = Array.from({ length: Math.floor(r() * 6) }, () => {
+      let p; do { p = pickR(PRODUCTS); } while (used.has(p[0]) && used.size < PRODUCTS.length);
+      used.add(p[0]);
+      return {
+        title: p[0], productCategory: p[1], price: p[2],
+        option: pickR(OPTIONS[p[1]]),
+        project: pickR(PROJECT_NAMES),
+        qty: 1 + Math.floor(r() * r() * 3),
+        savedAt: fmtDate(new Date(base - Math.floor(r() * 30) * 86400000)),
+        previewUrl: viewerUrl(VIEWER_SAMPLE.mskey, VIEWER_SAMPLE.userId)
+      };
+    });
+  }
+  members.forEach(makeUsage);
+
   // 기간(YYYY-MM-DD, 양끝 포함) 내 주문횟수·주문금액 합계
   function orderStats(m, from, to) {
     return (m.orders || []).filter(o => o.at >= from && o.at <= to)

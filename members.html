@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261006">
+<link rel="stylesheet" href="admin.css?v=20261009">
 </head>
 <body>
 <div class="layout">
@@ -268,6 +268,29 @@
           </td>
         </tr>
       </table>
+
+      <div class="section-title">이용 정보</div>
+      <table class="form-table multi-col">
+        <colgroup><col class="c-th"><col><col class="c-th"><col><col class="c-th"><col></colgroup>
+        <tr>
+          <th>총 주문 이력</th><td>
+            <div class="usage-line"><span class="benefit" id="uOrders"></span>
+              <button type="button" class="btn btn-xs" data-usage="orders">상세보기</button>
+            </div>
+          </td>
+          <th>문의 이력</th><td>
+            <div class="usage-line"><span class="benefit" id="uInquiries"></span>
+              <button type="button" class="btn btn-xs" data-usage="inquiries">상세보기</button>
+            </div>
+          </td>
+          <th>장바구니</th><td>
+            <div class="usage-line"><span class="benefit" id="uCart"></span>
+              <button type="button" class="btn btn-xs" data-usage="cart">장바구니 보기</button>
+            </div>
+          </td>
+        </tr>
+      </table>
+
       <div class="section-title">회원 관리</div>
       <table class="form-table">
         <tr><th>관리자 메모</th><td>
@@ -341,6 +364,30 @@
   </div>
 </div>
 
+<!-- 이용 정보 모달: 주문 내역 / 문의 이력 / 장바구니 미리보기 (회원 상세 모달 위에 표시, 조회 전용) -->
+<div class="modal-bg modal-top" id="uModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="uTitle">
+    <div class="modal-header">
+      <h2 id="uTitle"></h2>
+      <button type="button" class="close" data-uclose aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="usage-summary" id="uSummary"></div>
+      <div class="table-wrap history-wrap usage-wrap">
+        <table class="history-table usage-table">
+          <thead><tr id="uHead"></tr></thead>
+          <tbody id="uBody"></tbody>
+        </table>
+      </div>
+      <div class="cart-total" id="uCartTotal" hidden></div>
+      <div class="readonly at-note" id="uNote"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-uclose>닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 알림톡 발송 모달 (회원 상세 모달 위에 표시) -->
 <div class="modal-bg modal-top" id="aModal">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aTitle">
@@ -400,9 +447,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261006"></script>
-<script src="member-data.js?v=20261006"></script>
-<script src="member-type-store.js?v=20261006"></script>
+<script src="alimtalk.js?v=20261009"></script>
+<script src="member-data.js?v=20261009"></script>
+<script src="member-type-store.js?v=20261009"></script>
 <script>
 (function () {
   'use strict';
@@ -572,6 +619,7 @@
     $('fMemberType').innerHTML = typeBadge(m.memberType);
     fillPostpay(m);
     fillBusiness(m);
+    renderUsage(m);
     $('fUserId').textContent = m.userId;
     $('fName').textContent = m.name;
     $('fEmail').textContent = m.email;
@@ -732,6 +780,120 @@
   $('aForm').addEventListener('submit', submitAlimtalk);
   document.querySelectorAll('[data-aclose]').forEach(b => b.addEventListener('click', closeAlimtalk));
   $('aModal').addEventListener('click', ev => { if (ev.target === $('aModal')) closeAlimtalk(); });
+
+  // ===== 이용 정보 (주문 내역 / 문의 이력 / 장바구니 미리보기, 조회 전용) =====
+  // 데이터: member-data.js의 m.orders / m.inquiries / m.cart
+  // TODO: 실서비스에서는 GET /api/admin/members/{no}/orders | inquiries | cart
+  const won = n => `${Number(n).toLocaleString()}원`;
+  const SHIP_FEE = 2500, FREE_SHIP_MIN = 15000;   // TODO: 배송비 정책은 쇼핑몰 설정값 사용
+
+  // 장바구니 금액: 상품금액(판매가 × 수량 합계), 배송비, 결제 예정 금액
+  // 회원 구분의 무료배송 혜택(회원 유형 관리 > 구분)이 있으면 배송비 0
+  function cartSummary(m) {
+    const list = m.cart || [];
+    const saleSum = list.reduce((s, c) => s + c.price * c.qty, 0);
+    const catItem = MemberTypeStore.categoryByCode(m.categoryCode);
+    const freeByCategory = !!(catItem && catItem.freeShipping);
+    const ship = !list.length || freeByCategory || saleSum >= FREE_SHIP_MIN ? 0 : SHIP_FEE;
+    const qty = list.reduce((s, c) => s + c.qty, 0);
+    return { count: list.length, qty, saleSum, ship, total: saleSum + ship, freeByCategory };
+  }
+
+  // 장바구니 미리보기: 스탑북 뷰어(모바일)를 새 창으로 열기. 팝업이 막히면 링크의 target=_blank로 새 탭에서 열림
+  const VIEWER_FEATURES = 'width=1100,height=900,resizable=yes,scrollbars=yes';
+  function openViewer(url) {
+    const w = window.open(url, 'stopbookViewer', VIEWER_FEATURES);
+    if (w) { w.opener = null; w.focus(); return true; }
+    return false;
+  }
+
+  function renderUsage(m) {
+    const orders = m.orders || [], inq = m.inquiries || [];
+    const orderSum = orders.reduce((s, o) => s + o.amount, 0);
+    const waiting = inq.filter(q => q.status === '답변대기').length;
+    const cs = cartSummary(m);
+    $('uOrders').textContent = `${orders.length.toLocaleString()}건 / ${won(orderSum)}`;
+    $('uInquiries').innerHTML = `${inq.length.toLocaleString()}건${waiting ? ` <span class="usage-wait">답변대기 ${waiting}</span>` : ''}`;
+    $('uCart').textContent = cs.count ? `${cs.count}종 ${cs.qty}개 / ${won(cs.total)}` : '비어 있음';
+  }
+
+  const orderStatusBadge = s => `<span class="badge os-${esc(s)}">${esc(s)}</span>`;
+
+  function openUsage(kind) {
+    const m = state.editing;
+    if (!m) return;
+    const who = `${m.name} (${m.userId})`;
+    $('uCartTotal').hidden = true;
+    $('uNote').textContent = '';
+    if (kind === 'orders') {
+      const list = (m.orders || []).slice().reverse();   // 최근 주문이 위
+      const sum = list.reduce((s, o) => s + o.amount, 0);
+      $('uTitle').textContent = `주문 내역 - ${who}`;
+      $('uSummary').innerHTML = `총 <b>${list.length.toLocaleString()}</b>건 · 결제금액 <b>${won(sum)}</b>`;
+      $('uHead').innerHTML = '<th>주문일</th><th>주문번호</th><th>상품</th><th>수량</th><th>결제금액</th><th>결제수단</th><th>상태</th>';
+      $('uBody').innerHTML = list.length ? list.map(o => `<tr>
+        <td>${o.at}</td><td class="mono">${esc(o.orderNo)}</td><td class="left" title="${esc(o.title)}">${esc(o.title)}</td>
+        <td class="num">${o.qty}</td><td class="num">${won(o.amount)}</td><td>${esc(o.payMethod)}</td><td>${orderStatusBadge(o.status)}</td>
+      </tr>`).join('') : '<tr><td colspan="7" class="empty">주문 내역이 없습니다.</td></tr>';
+      $('uNote').textContent = '최근 1년 주문 기준입니다.';
+    } else if (kind === 'inquiries') {
+      const list = m.inquiries || [];
+      const waiting = list.filter(q => q.status === '답변대기').length;
+      $('uTitle').textContent = `문의 이력 - ${who}`;
+      $('uSummary').innerHTML = `총 <b>${list.length.toLocaleString()}</b>건 · 답변대기 <b>${waiting}</b>건`;
+      $('uHead').innerHTML = '<th>문의일시</th><th>분류</th><th>제목</th><th>상태</th><th>답변일시</th>';
+      // 제목을 누르면 아래에 문의·답변 내용 펼침
+      $('uBody').innerHTML = list.length ? list.map((q, i) => `<tr>
+        <td>${q.at}</td><td>${esc(q.type)}</td>
+        <td class="left"><button type="button" class="link-btn" data-inq="${i}" aria-expanded="false">${esc(q.title)}</button></td>
+        <td><span class="badge ${q.status === '답변대기' ? 'inq-wait' : 'inq-done'}">${q.status}</span></td><td>${q.answeredAt || '-'}</td>
+      </tr>
+      <tr class="inq-detail" id="inqDetail${i}" hidden><td colspan="5" class="left">
+        <div class="inq-q"><b>문의</b> ${esc(q.content)}</div>
+        ${q.answer ? `<div class="inq-a"><b>답변</b> ${esc(q.answer)} <span class="memo-meta">(${q.answeredAt} · ${esc(q.answeredBy)})</span></div>` : '<div class="inq-a readonly">아직 답변이 등록되지 않았습니다.</div>'}
+      </td></tr>`).join('') : '<tr><td colspan="5" class="empty">문의 이력이 없습니다.</td></tr>';
+      $('uNote').textContent = '제목을 누르면 문의 내용과 답변을 볼 수 있습니다.';
+    } else {
+      const list = m.cart || [];
+      const cs = cartSummary(m);
+      $('uTitle').textContent = `장바구니 - ${who}`;
+      $('uSummary').innerHTML = `담긴 상품 <b>${cs.count}</b>종 · <b>${cs.qty}</b>개`;
+      $('uHead').innerHTML = '<th>상품</th><th>수량</th><th>금액</th><th>보관일</th><th>미리보기</th>';
+      // 미리보기: 스탑북 뷰어를 새 창으로 엶
+      $('uBody').innerHTML = list.length ? list.map(c => `<tr>
+        <td class="left" title="${esc(c.title)} · ${esc(c.option)}"><b>${esc(c.title)}</b> <span class="readonly">${esc(c.productCategory)}</span></td>
+        <td class="num">${c.qty}</td>
+        <td class="num"><b>${won(c.price * c.qty)}</b></td><td>${c.savedAt}</td>
+        <td><a class="btn btn-xs" href="${esc(c.previewUrl)}" target="_blank" rel="noopener" data-viewer
+          title="${esc(c.project)} 작업물을 새 창에서 미리보기">미리보기</a></td>
+      </tr>`).join('') : '<tr><td colspan="5" class="empty">장바구니가 비어 있습니다.</td></tr>';
+      if (list.length) {
+        $('uCartTotal').hidden = false;
+        $('uCartTotal').innerHTML = `
+          <div><span>상품금액</span><b>${won(cs.saleSum)}</b></div>
+          <div><span>배송비</span><b>${cs.ship ? won(cs.ship) : '무료'}</b></div>
+          <div class="total"><span>결제 예정 금액</span><b>${won(cs.total)}</b></div>`;
+        $('uNote').textContent = (cs.freeByCategory ? '회원 구분의 무료배송 혜택이 적용되었습니다. ' : `${won(FREE_SHIP_MIN)} 이상 무료배송. `)
+          + '쿠폰·마일리지·회원 구분 할인율은 주문 시 적용되어 실제 결제 금액과 다를 수 있습니다.';
+      }
+    }
+    $('uModal').classList.add('open');
+  }
+
+  const closeUsage = () => $('uModal').classList.remove('open');
+
+  document.querySelectorAll('[data-usage]').forEach(b => b.addEventListener('click', () => openUsage(b.dataset.usage)));
+  document.querySelectorAll('[data-uclose]').forEach(b => b.addEventListener('click', closeUsage));
+  $('uModal').addEventListener('click', e => { if (e.target === $('uModal')) closeUsage(); });
+  $('uBody').addEventListener('click', e => {
+    const v = e.target.closest('[data-viewer]');
+    if (v) { if (openViewer(v.href)) e.preventDefault(); return; }   // 새 창(팝업)으로 열리면 링크 기본 동작 취소
+    const b = e.target.closest('[data-inq]');
+    if (!b) return;
+    const row = $('inqDetail' + b.dataset.inq);
+    row.hidden = !row.hidden;
+    b.setAttribute('aria-expanded', String(!row.hidden));
+  });
 
   // ===== 혜택 내역 및 지급/차감 (저장 버튼과 별개로 즉시 처리) =====
   const bState = { kind: null };
@@ -1152,7 +1314,8 @@
   $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if ($('aModal').classList.contains('open')) closeAlimtalk();   // 위에 떠 있는 모달부터 닫기
+    if ($('uModal').classList.contains('open')) closeUsage();      // 위에 떠 있는 모달부터 닫기
+    else if ($('aModal').classList.contains('open')) closeAlimtalk();
     else if (bState.kind) closeBenefit();
     else if (state.editing) closeModal();
   });
