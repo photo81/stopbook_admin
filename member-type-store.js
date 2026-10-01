@@ -15,10 +15,13 @@
 
   // 탭 순서 = 배열 순서
   const DEFAULTS = [
+    // 구분의 각 항목은 subs = 종류 목록을 가짐
+    // (회원 정보 상세의 구분 > 종류 선택지, 단체 회원 신청 승인 시 지정하는 종류 선택지로 사용)
     { key: 'category', label: '구분', items: [
-      item('normal', '일반', 0, '개인 회원 기본 구분. 마일리지 적립·사용과 쿠폰 사용이 가능합니다.'),
-      item('group', '단체', 10, '학교·도서관·기관 등 단체 구매 회원. 단체 할인율과 무료배송을 적용하는 대신 마일리지·쿠폰 혜택은 제외합니다.',
-        { mileageEarn: false, mileageUse: false, couponUse: false, stackEvent: false, freeShipping: true })
+      item('normal', '일반', 0, '개인 회원 기본 구분. 마일리지 적립·사용과 쿠폰 사용이 가능합니다.', { subs: [] }),
+      item('group', '단체', 10, '기관·회사·학교 등 단체 구매 회원. 단체 할인율과 무료배송을 적용하는 대신 마일리지·쿠폰 혜택은 제외합니다.',
+        { mileageEarn: false, mileageUse: false, couponUse: false, stackEvent: false, freeShipping: true,
+          subs: ['기관', '회사', '학교', '유치원', '어린이집', '동호회', '기타'] })
     ]},
     { key: 'memberType', label: '유형', items: [
       item('stopbook', '스탑북회원', 0, '스탑북 아이디/패스워드로 가입한 회원.'),
@@ -79,12 +82,98 @@
   const clone = v =>JSON.parse(JSON.stringify(v));
 
   function load() {
+    let groups = null;
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) groups = JSON.parse(raw);
     } catch (e) { /* 저장소 사용 불가 시 기본값 */ }
-    return clone(DEFAULTS);
+    groups = groups || clone(DEFAULTS);
+    // 저장된 데이터 보정 (기존 수정 내용은 유지)
+    // - 종류(subs) 도입 전 데이터: 기본값으로 채움
+    // - 이전 샘플 목록을 그대로 쓰고 있으면 새 샘플 목록으로 교체 (관리자가 수정한 목록은 그대로 둠)
+    const OLD_SAMPLE = '학교|유치원|도서관|기업|공공기관|학원|기타 단체';
+    const cat = groups.find(g => g.key === 'category');
+    const defCat = DEFAULTS.find(g => g.key === 'category');
+    if (cat) cat.items.forEach(it => {
+      const def = defCat.items.find(d => d.code === it.code);
+      if (!Array.isArray(it.subs) || it.subs.join('|') === OLD_SAMPLE) it.subs = def ? def.subs.slice() : [];
+    });
+    return groups;
   }
+
+  // ===== 구분 참조 =====
+  // 구분명은 중복될 수 있으므로 회원·단체 신청은 구분을 code로 참조한다.
+  //   회원: categoryCode(기준) + category(표시용 이름, 화면 로드 시 code로 갱신)
+  //   신청: assignCategoryCode(승인 시 지정한 구분), expireToCode(만료 후 전환 구분)
+  // code가 없는 예전 데이터는 이름(또는 바뀌기 전 이름 aliases)으로 code를 찾아 채운다.
+  // TODO: 실서비스에서는 서버가 구분 ID로 저장·조회
+  const CATEGORY_NAME_MAX = 20;
+  const PROTECTED_CATEGORIES = ['normal', 'group'];   // 시스템이 사용하는 기본 구분 (삭제 불가, 숨김·이름 변경은 가능)
+
+  const categoryItems = groups => ((groups || load()).find(g => g.key === 'category') || { items: [] }).items;
+
+  // 구분 → 종류 목록. 회원 정보 화면 등에서 선택지로 사용
+  // 반환: [{ code, name, label, subs: [...], hidden }]
+  //   label = 선택지 표시명. 같은 이름이 여러 개면 '단체 (2)'처럼 순번을 붙여 구별
+  //   hidden = 구분 목록에서 '숨김'으로 설정 (새로 고르는 선택지에서 제외)
+  const categoryTree = groups => {
+    const items = categoryItems(groups);
+    return items.map(it => {
+      const same = items.filter(x => x.name === it.name);
+      return {
+        code: it.code, name: it.name, subs: (it.subs || []).slice(), hidden: !!it.hidden,
+        label: same.length > 1 ? `${it.name} (${same.indexOf(it) + 1})` : it.name
+      };
+    });
+  };
+
+  // code → 현재 구분명 / 구분 항목
+  const categoryByCode = (code, groups) => categoryItems(groups).find(x => x.code === code) || null;
+  const categoryName = (code, groups) => { const it = categoryByCode(code, groups); return it ? it.name : ''; };
+
+  // 이름(현재 또는 바뀌기 전 이름) → code. 같은 이름이 여럿이면 목록의 첫 번째. 없으면 ''
+  const codeByName = (name, groups) => {
+    if (!name) return '';
+    const items = categoryItems(groups);
+    const hit = items.find(x => x.name === name) || items.find(x => (x.aliases || []).includes(name));
+    return hit ? hit.code : '';
+  };
+
+  // 회원·단체 신청의 구분 참조 정리 (각 화면에서 데이터 로드 직후 1회 호출)
+  // code가 있으면 그 구분의 현재 이름으로 표시명을 갱신, 없으면 이름으로 code를 찾아 채움
+  // 삭제된 구분은 code·이름을 그대로 둠 (화면에서 '(삭제됨)' 표시)
+  function normalizeCategoryRefs(data, groups) {
+    const g = groups || load();
+    const fix = (obj, codeKey, nameKey) => {
+      if (!obj[codeKey] && obj[nameKey]) obj[codeKey] = codeByName(obj[nameKey], g);
+      const it = obj[codeKey] && categoryByCode(obj[codeKey], g);
+      if (it) obj[nameKey] = it.name;
+    };
+    (data.members || []).forEach(m => fix(m, 'categoryCode', 'category'));
+    (data.applications || []).forEach(a => {
+      if (a.expireTo) fix(a, 'expireToCode', 'expireTo');
+      if (a.assignCategoryCode) fix(a, 'assignCategoryCode', 'assignCategory');
+    });
+  }
+
+  // 구분명 검증 (중복 이름 허용). 반환: 오류 메시지 또는 ''
+  function checkCategoryName(name) {
+    const v = String(name).trim();
+    if (!v) return '구분명을 입력하세요.';
+    if (v.length > CATEGORY_NAME_MAX) return `구분명은 ${CATEGORY_NAME_MAX}자 이내로 입력하세요.`;
+    return '';
+  }
+
+  // 종류 입력값 검증 (한 번에 하나만, 같은 구분 안에서 중복 불가). 반환: 오류 메시지 또는 ''
+  const SUB_MAX = 20;
+  const checkSub = (value, list) => {
+    const v = String(value).trim();
+    if (!v) return '종류를 입력하세요.';
+    if (/[,\n]/.test(v)) return '종류는 한 번에 하나만 입력하세요.';
+    if (v.length > SUB_MAX) return `종류는 ${SUB_MAX}자 이내로 입력하세요.`;
+    if ((list || []).includes(v)) return `이미 등록된 종류입니다: ${v}`;
+    return '';
+  };
 
   function save(groups) {
     try { localStorage.setItem(KEY, JSON.stringify(groups)); return true; }
@@ -530,6 +619,7 @@
     lastRun: loadRun
   };
 
-  window.MemberTypeStore = { load, save, FLAGS, flagsFor, GradeBenefit, GradePolicy, GradeCriteria, GradeEvaluator };
+  window.MemberTypeStore = { load, save, FLAGS, flagsFor, categoryTree, checkSub,
+    categoryName, categoryByCode, codeByName, normalizeCategoryRefs, checkCategoryName, PROTECTED_CATEGORIES, GradeBenefit, GradePolicy, GradeCriteria, GradeEvaluator };
   window.AdminUtil = { fmtDateTime, esc, toast, initSidebar, ADMIN_NAME: '관리자' };  // TODO: 로그인 관리자명
 })();

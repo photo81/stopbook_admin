@@ -133,17 +133,27 @@
   // ===== 단체 회원 신청 =====
   // 기본 신청 데이터는 고정 생성, 관리자 처리 결과(승인/반려/히스토리)만 localStorage에 저장해 덮어씀
   // TODO: 실서비스에서는 GET /api/admin/group-applications, POST .../{no}/approve|reject 로 대체
-  const APP_KEY = 'stopbook.groupApplications.v1';
+  const APP_KEY = 'stopbook.groupApplications.v3';   // v3: 승인 시 회원 구분·종류 지정(assign*) 저장, 고객 단체 유형은 변경 안 함
+  // 단체 유형별 샘플 사업자 정보. 유형 이름은 회원 유형 관리 > 구분 > 단체의 단체 유형 기본값과 같게 유지
   const GROUP_TYPES = {
+    '기관':     { names: ['가람시 평생학습관', '나래구 청소년수련관', '책마루도서관'], bizType: '공공행정', bizItem: '평생교육' },
+    '회사':     { names: ['(주)새벽북스', '(주)온누리교육', '누리소프트(주)'], bizType: '도소매업', bizItem: '서적' },
     '학교':     { names: ['한빛초등학교', '새솔중학교', '다온고등학교'], bizType: '교육 서비스업', bizItem: '초중등 교육' },
-    '도서관':   { names: ['푸른숲작은도서관', '책마루도서관'], bizType: '서비스업', bizItem: '도서관 운영' },
-    '기업':     { names: ['(주)새벽북스', '(주)온누리교육', '누리소프트(주)'], bizType: '도소매업', bizItem: '서적' },
-    '공공기관': { names: ['가람시 평생학습관', '나래구 청소년수련관'], bizType: '공공행정', bizItem: '평생교육' },
-    '학원':     { names: ['지혜샘학원', '글빛논술학원'], bizType: '교육 서비스업', bizItem: '교습학원' },
-    '기타 단체': { names: ['책읽는엄마들 독서모임', '시냇가 북클럽'], bizType: '비영리', bizItem: '독서모임' }
+    '유치원':   { names: ['햇살유치원', '꿈나무유치원'], bizType: '교육 서비스업', bizItem: '유아 교육' },
+    '어린이집': { names: ['푸른숲어린이집', '새싹어린이집'], bizType: '보건업 및 사회복지 서비스업', bizItem: '보육시설 운영' },
+    '동호회':   { names: ['책읽는엄마들 독서모임', '시냇가 북클럽'], bizType: '비영리', bizItem: '독서모임' },
+    '기타':     { names: ['지혜샘학원', '글빛논술학원'], bizType: '교육 서비스업', bizItem: '교습학원' }
   };
   const ADDRESSES = ['서울특별시 마포구 월드컵북로 12', '경기도 성남시 분당구 판교로 45', '부산광역시 해운대구 센텀로 8', '대전광역시 유성구 대학로 99', '인천광역시 연수구 송도과학로 31'];
   const typeKeys = Object.keys(GROUP_TYPES);
+
+  // 회원 구분 참조: categoryCode(기준, 회원 유형 관리의 구분 code) + category(표시명)
+  // 회원의 종류(subCategory) 샘플: 단체 회원은 종류 중 하나, 그 외는 없음
+  // 승인된 단체 신청 회원은 아래 applyApproval에서 관리자가 지정한 구분·종류로 덮어씀
+  members.forEach(m => {
+    m.categoryCode = m.category === '단체' ? 'group' : 'normal';
+    m.subCategory = m.category === '단체' ? typeKeys[m.no % typeKeys.length] : '';
+  });
 
   function loadAppOverlay() {
     try { return JSON.parse(localStorage.getItem(APP_KEY)) || {}; } catch (e) { return {}; }
@@ -189,23 +199,30 @@
         app.periodTo = k === 9 ? fmtDate(new Date(Date.now() - 86400000))
           : fmtDate(new Date(d.getFullYear() + 1, d.getMonth(), d.getDate() - 1));
         app.expireTo = '일반';
+        app.expireToCode = 'normal';
+        // 승인 시 관리자가 지정한 회원 구분·종류 (샘플은 단체 + 고객이 고른 단체 유형)
+        Object.assign(app, { assignCategoryCode: 'group', assignCategory: '단체', assignKind: groupType });
       }
       app.history.push({ at, content: app.status === '승인' ? `승인 처리 (적용 기간 ${app.periodFrom} ~ ${app.periodTo}, 만료 후 '${app.expireTo}' 전환)` : `반려 처리 (사유: ${app.rejectReason})`, by: '관리자' });
     }
     return Object.assign(app, appOverlay[app.appNo] || {});
   });
 
+  // 고객이 입력한 단체 유형(groupType)은 바꾸지 않으므로 저장 대상이 아님
   function saveApplication(app) {
-    const { status, processedAt, processedBy, rejectReason, periodFrom, periodTo, expireTo, revokedAt, revokedBy, expiredAt, history } = app;
-    appOverlay[app.appNo] = { status, processedAt, processedBy, rejectReason, periodFrom, periodTo, expireTo, revokedAt, revokedBy, expiredAt, history };
+    const keys = ['status', 'processedAt', 'processedBy', 'rejectReason', 'periodFrom', 'periodTo', 'expireTo', 'expireToCode',
+      'assignCategoryCode', 'assignCategory', 'assignKind', 'revokedAt', 'revokedBy', 'expiredAt', 'history'];
+    appOverlay[app.appNo] = Object.fromEntries(keys.map(k => [k, app[k]]));
     try { localStorage.setItem(APP_KEY, JSON.stringify(appOverlay)); return true; } catch (e) { return false; }
   }
 
-  // 승인된 신청 → 회원 구분을 단체로 바꾸고 기본 정보 하단에 사업자 정보 추가
+  // 승인된 신청 → 관리자가 지정한 구분·종류로 회원 구분을 바꾸고 기본 정보 하단에 사업자 정보 추가
   function applyApproval(app) {
     const m = members.find(x => x.userId === app.userId);
     if (!m) return;
-    m.category = '단체';
+    m.categoryCode = app.assignCategoryCode || 'group';
+    m.category = app.assignCategory || '단체';   // 표시명은 화면에서 code 기준으로 다시 맞춤
+    m.subCategory = app.assignKind !== undefined ? app.assignKind : app.groupType;
     m.business = Object.assign({ groupType: app.groupType, approvedAt: app.processedAt, appNo: app.appNo,
       periodFrom: app.periodFrom, periodTo: app.periodTo, expireTo: app.expireTo || '일반' }, app.business);
     m.history.push({ at: app.processedAt, content: `단체 회원 승인: ${app.business.companyName} (${app.business.bizNo}), 적용 기간 ${app.periodFrom} ~ ${app.periodTo}`, by: app.processedBy });
@@ -240,13 +257,16 @@
     const m = members.find(x => x.userId === a.userId);
     if (!m || a.status === '승인') return;
     const biz = `${a.business.companyName} (${a.business.bizNo})`;
+    m.subCategory = '';
     if (a.status === '해제') {
       m.category = '일반';
+      m.categoryCode = 'normal';
       m.history.push({ at: a.revokedAt, content: `사업자 정보 삭제: ${biz} - 구분 일반 변경`, by: a.revokedBy });
     } else {
       const to = a.expireTo || '일반';
-      m.history.push({ at: a.expiredAt, content: `단체 회원 기간 만료: 구분 단체 → ${to} 자동 전환, 사업자 정보 삭제 (${biz})`, by: '시스템' });
+      m.history.push({ at: a.expiredAt, content: `단체 회원 기간 만료: 구분 ${m.category} → ${to} 자동 전환, 사업자 정보 삭제 (${biz})`, by: '시스템' });
       m.category = to;
+      m.categoryCode = a.expireToCode || '';   // 없으면 화면에서 이름으로 찾아 채움
     }
     delete m.business;
   });

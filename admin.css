@@ -228,6 +228,33 @@ td.reason a.name-link { font-weight: 400; color: var(--text-2); }
 .history-table .minus { color: var(--danger); font-weight: 600; }
 .change-table td.left { white-space: normal; max-width: none; }
 
+/* 구분 사용/숨김 토글 */
+/* 아래쪽 table.equal-cols th:not(:last-child) 규칙보다 우선하도록 thead 포함 */
+/* 고정 레이아웃에서는 min-width가 무시되므로 설명 열에 폭을 지정. 화면이 좁으면 표가 가로 스크롤됨 */
+table.equal-cols thead th.col-desc { width: 240px; }
+table.equal-cols thead th.col-use { width: 96px; }
+.use-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; cursor: pointer; font-size: 12px; color: var(--text); }
+.use-track { position: relative; width: 32px; height: 18px; border-radius: 999px; background: var(--success, #16a34a); transition: background .15s; }
+.use-track::after { content: ""; position: absolute; top: 2px; left: 16px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: left .15s; }
+.use-toggle[aria-checked="false"] .use-track { background: #d4d4d8; }
+.use-toggle[aria-checked="false"] .use-track::after { left: 2px; }
+.use-toggle[aria-checked="false"] .use-label { color: var(--faint); }
+.use-toggle:focus-visible { outline: 2px solid var(--primary, #2563eb); outline-offset: 2px; border-radius: 4px; }
+tr.row-hidden td:not(:last-child) { opacity: .45; }
+
+/* 상세 하단 삭제 영역 */
+.danger-zone { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 24px; padding: 14px 16px; border: 1px solid #fecaca; border-radius: 8px; background: #fff7f7; }
+.danger-zone b { color: var(--danger); font-size: 13px; }
+.danger-zone .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* 구분 > 단체 유형 칩 */
+.sub-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.sub-chips .chip { height: 26px; display: inline-flex; align-items: center; gap: 2px; padding: 0 4px 0 10px; border: 1px solid var(--border); border-radius: 999px; background: #fff; color: var(--text); font-size: 12px; }
+.sub-chips .chip-x { width: 18px; height: 18px; border: 0; border-radius: 50%; background: transparent; color: var(--faint); font-size: 14px; line-height: 1; cursor: pointer; }
+.sub-chips .chip-x:hover { background: var(--subtle); color: var(--danger); }
+.cat-sub { color: var(--faint); font-size: 12px; margin-left: 4px; }
+.form-table select.w-auto { width: auto; min-width: 110px; }
+
 /* 알림톡 발송 모달 */
 .at-note { margin-top: 4px; font-size: 12px; }
 .at-search { margin-bottom: 6px; flex-wrap: nowrap; }

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 리스트</title>
-<link rel="stylesheet" href="admin.css">
+<link rel="stylesheet" href="admin.css?v=20261006">
 </head>
 <body>
 <div class="layout">
@@ -63,7 +63,6 @@
             <label for="sCategory">구분</label>
             <select id="sCategory">
               <option value="">전체</option>
-              <option>일반</option><option>단체</option>
             </select>
           </div>
           <div class="field">
@@ -152,13 +151,13 @@
       <table class="form-table multi-col">
         <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
         <tr><th>이름</th><td class="readonly" id="fName"></td><th>아이디</th><td class="readonly" id="fUserId"></td></tr>
-        <tr><th>이메일</th><td class="readonly" id="fEmail" colspan="3"></td></tr>
-        <tr><th>휴대폰</th><td colspan="3">
-          <div class="benefit-line">
-            <span class="readonly" id="fPhone"></span>
-            <button type="button" class="btn btn-xs" id="btnAlimtalk">알림톡</button>
-          </div>
-        </td></tr>
+        <tr><th>이메일</th><td class="readonly" id="fEmail" style="word-break:break-all"></td>
+          <th>휴대폰</th><td>
+            <div class="benefit-line">
+              <span class="readonly" id="fPhone"></span>
+              <button type="button" class="btn btn-xs" id="btnAlimtalk">알림톡</button>
+            </div>
+          </td></tr>
         <tr><th>패스워드</th><td colspan="3">
           <div id="pwSns" class="readonly" hidden></div>
           <div id="pwActions" class="pw-actions">
@@ -208,13 +207,9 @@
           <th>최근접속일</th><td class="readonly" id="fLastLogin" colspan="3"></td>
         </tr>
         <tr>
-          <th>구분</th><td>
-            <select id="fCategory"><option>일반</option><option>단체</option></select>
-          </td>
           <th>유형</th><td class="readonly" id="fMemberType"></td>
-          <th>등급</th><td>
-            <select id="fGrade"><option>일반</option><option>스타터</option><option>홀리커</option><option>마스터</option><option>마스터 VIP</option></select>
-          </td>
+          <th>구분</th><td><select id="fCategory" aria-label="구분"></select></td>
+          <th>종류</th><td><select id="fSubCategory" aria-label="종류"></select></td>
         </tr>
         <tr>
           <th>SMS 수신</th><td>
@@ -231,6 +226,14 @@
       <div class="section-title">혜택 정보</div>
       <table class="form-table multi-col">
         <colgroup><col class="c-th"><col><col class="c-th"><col><col class="c-th"><col></colgroup>
+        <tr>
+          <th>등급</th><td colspan="5">
+            <div class="inline-row">
+              <select id="fGrade" class="w-auto"><option>일반</option><option>스타터</option><option>홀리커</option><option>마스터</option><option>마스터 VIP</option></select>
+              <span class="readonly" id="fGradeDesc"></span>
+            </div>
+          </td>
+        </tr>
         <tr>
           <th>마일리지</th><td>
             <div class="benefit-line"><span class="benefit" id="fMileage"></span>
@@ -398,15 +401,18 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js"></script>
-<script src="member-data.js"></script>
-<script src="member-type-store.js"></script>
+<script src="alimtalk.js?v=20261006"></script>
+<script src="member-data.js?v=20261006"></script>
+<script src="member-type-store.js?v=20261006"></script>
 <script>
 (function () {
   'use strict';
 
   // ===== 샘플 데이터: member-data.js (단체 회원 신청 승인 결과 포함) =====
   const { members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, revokeBusiness } = MemberData;
+  // 회원·신청 데이터의 구분 참조(code)를 현재 구분명으로 정리
+  MemberTypeStore.normalizeCategoryRefs(MemberData);
+  const NORMAL_NAME = MemberTypeStore.categoryName('normal') || '일반';   // 기본 구분(일반)의 현재 이름
 
   // ===== 등급 자동 산정 =====
   // 회원 유형 관리 > 등급 탭의 평가 조건에 따라, 산정 예정일이 지났으면 화면을 열 때 전체 회원 등급을 재산정
@@ -421,6 +427,56 @@
   // 유형 표시: SNS 유형은 CSS(.ty-*)에 정의된 로고, 스탑북회원은 점
   const typeBadge = t => `<span class="badge ty-${esc(t)}">${esc(t)}</span>`;
   const mkDot = (label, v) => `<span class="mk ${v === 'Y' ? 'yn-on' : 'yn-off'}" title="${label} 수신 ${v === 'Y' ? '동의' : '거부'}">${label}</span>`;
+
+  // ===== 구분 > 종류 =====
+  // 선택지는 회원 유형 관리 > 구분 탭의 항목과 각 항목의 종류. 그곳에서 추가하면 여기에도 바로 노출됨
+  // 구분명은 중복될 수 있어 선택 값은 구분 code (회원 데이터: categoryCode, 종류는 subCategory)
+  const CAT_TREE = MemberTypeStore.categoryTree();
+  const catOf = code => CAT_TREE.find(c => c.code === code);
+  const subsOf = code => (catOf(code) || { subs: [] }).subs;
+  const catLabel = m => (catOf(m.categoryCode) || { label: m.category }).label;   // 같은 이름이면 순번 표시
+  const categoryText = (label, sub) => (sub ? `${label} > ${sub}` : label);
+  // 배지 색: 기본 구분은 이름이 바뀌어도 같은 색 (admin.css .ct-일반 / .ct-단체), 그 외는 기본 점
+  const catClass = code => (code === 'normal' ? '일반' : code === 'group' ? '단체' : 'etc');
+  const catBadge = m => `<span class="badge ct-${catClass(m.categoryCode)}">${esc(catLabel(m))}</span>${m.subCategory ? `<span class="cat-sub">${esc(m.subCategory)}</span>` : ''}`;
+  // 검색: 숨긴 구분의 회원도 찾을 수 있도록 모두 표시
+  $('sCategory').innerHTML += CAT_TREE.map(c => `<option value="${esc(c.code)}">${esc(c.label)}${c.hidden ? ' (숨김)' : ''}</option>`).join('');
+
+  // 상세 모달: 구분 선택지는 '사용' 구분만. 회원의 현재 값이 숨김·삭제된 구분이면 그 값만 표시를 붙여 남겨 기존 값을 잃지 않게 함
+  function fillCategorySelects(m) {
+    const usable = CAT_TREE.filter(c => !c.hidden);
+    const code = m.categoryCode || '';
+    const cur = catOf(code);
+    $('fCategory').innerHTML = usable.map(c => `<option value="${esc(c.code)}">${esc(c.label)}</option>`).join('')
+      + (!usable.some(c => c.code === code) ? `<option value="${esc(code)}">${esc(cur ? cur.label : m.category)} (${cur ? '숨김' : '삭제됨'})</option>` : '');
+    $('fCategory').value = code;
+    fillSubSelect(m.subCategory || '');
+  }
+
+  // 종류 선택지: 고른 구분의 종류 목록. 없으면 '종류 없음'으로 비활성화
+  function fillSubSelect(sub) {
+    const subs = subsOf($('fCategory').value);
+    const sel = $('fSubCategory');
+    if (!subs.length && !sub) {
+      sel.innerHTML = '<option value="">종류 없음</option>';
+      sel.disabled = true;
+      return;
+    }
+    sel.disabled = false;
+    sel.innerHTML = '<option value="">종류 선택</option>'
+      + subs.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('')
+      + (sub && !subs.includes(sub) ? `<option value="${esc(sub)}">${esc(sub)} (삭제됨)</option>` : '');
+    sel.value = sub || '';
+  }
+  // ===== 등급 설명 =====
+  // 회원 유형 관리 > 등급 탭의 각 등급 설명을 그대로 표시 (등급을 바꾸면 설명도 바뀜)
+  const GRADE_DESC = Object.fromEntries((MemberTypeStore.load().find(g => g.key === 'grade') || { items: [] })
+    .items.map(it => [it.name, it.desc || '']));
+  const renderGradeDesc = () => { $('fGradeDesc').textContent = GRADE_DESC[$('fGrade').value] || ''; };
+  $('fGrade').addEventListener('change', renderGradeDesc);
+
+  // 구분을 바꾸면 종류는 새로 고르도록 비움
+  $('fCategory').addEventListener('change', () => fillSubSelect(''));
 
   // ===== 검색 =====
   function applyFilter() {
@@ -439,7 +495,7 @@
     const fields = type === 'all' ? ['name', 'userId', 'email', 'phone'] : [type];
     state.filtered = members.filter(m =>
       (!kw || fields.some(f => m[f].toLowerCase().includes(kw))) &&
-      (!category || m.category === category) &&
+      (!category || m.categoryCode === category) &&
       (!memberType || m.memberType === memberType) &&
       (!grade || m.grade === grade) &&
       (!from || m.joinDate >= from) &&
@@ -474,7 +530,7 @@
     $('memberBody').innerHTML = rows.length ? rows.map(m => `
       <tr>
         <td>${m.no}</td>
-        <td><span class="badge ct-${m.category}">${m.category}</span></td>
+        <td>${catBadge(m)}</td>
         <td>${typeBadge(m.memberType)}</td>
         <td><a class="name-link" data-no="${m.no}">${esc(m.name)}</a></td>
         <td class="left email" title="${esc(m.email)}">${esc(m.email)}</td>
@@ -513,9 +569,7 @@
     const m = members.find(x => x.no === no);
     if (!m) return;
     state.editing = m;
-    // 만료 자동 전환 등으로 목록에 없는 구분이면 선택지에 추가
-    if (![...$('fCategory').options].some(o => o.value === m.category)) $('fCategory').add(new Option(m.category, m.category));
-    $('fCategory').value = m.category;
+    fillCategorySelects(m);
     $('fMemberType').innerHTML = typeBadge(m.memberType);
     fillPostpay(m);
     fillBusiness(m);
@@ -533,6 +587,7 @@
     $('fJoinDate').textContent = m.joinDate;
     $('fLastLogin').textContent = m.lastLogin;
     $('fGrade').value = m.grade;
+    renderGradeDesc();
     document.querySelector(`input[name=fMkSms][value=${m.marketingSms}]`).checked = true;
     document.querySelector(`input[name=fMkEmail][value=${m.marketingEmail}]`).checked = true;
     $('fMemo').value = '';
@@ -927,25 +982,39 @@
     const mkText = v => (v === 'Y' ? '동의' : '거부');
     const postpay = readPostpay();
     if (!postpay) return;
+    // 종류가 있는 구분은 종류까지 선택해야 저장
+    const selCode = $('fCategory').value;
+    const selCat = catOf(selCode);
+    if (!$('fSubCategory').disabled && !$('fSubCategory').value && subsOf(selCode).length) {
+      toast(`'${selCat ? selCat.label : selCode}'의 종류를 선택하세요.`);
+      $('fSubCategory').focus();
+      return;
+    }
     const next = {
-      category: $('fCategory').value,
+      categoryCode: selCode,
+      category: selCat ? selCat.name : m.category,   // 표시명 (숨김·삭제된 기존 값이면 그대로)
+      subCategory: $('fSubCategory').disabled ? '' : $('fSubCategory').value,
       grade: $('fGrade').value,
       marketingSms: document.querySelector('input[name=fMkSms]:checked').value,
       marketingEmail: document.querySelector('input[name=fMkEmail]:checked').value,
       ...postpay
     };
-    const changes = [['category', '구분', String], ['grade', '등급', String],
+    const changes = [['grade', '등급', String],
       ['marketingSms', 'SMS 수신', mkText], ['marketingEmail', '메일 수신', mkText]]
       .filter(([k]) => m[k] !== next[k])
       .map(([k, label, f]) => `${label} 변경: ${f(m[k])} → ${f(next[k])}`);
+    if (m.categoryCode !== next.categoryCode || (m.subCategory || '') !== next.subCategory) {
+      const after = selCat ? selCat.label : next.category;
+      changes.unshift(`구분 변경: ${categoryText(catLabel(m), m.subCategory || '')} → ${categoryText(after, next.subCategory)}`);
+    }
     if (postpayText(m) !== postpayText(next)) changes.push(`후불 결제 변경: ${postpayText(m)} → ${postpayText(next)}`);
     const memoText = $('fMemo').value.trim();
 
     if (!changes.length && !memoText) { toast('변경된 내용이 없습니다.'); return; }
 
-    // 단체 → 일반: 승인 때 등록된 사업자 정보 삭제
-    const dropBusiness = m.business && m.category === '단체' && next.category === '일반';
-    if (dropBusiness && !confirm(`구분을 '일반'으로 바꾸면 등록된 사업자 정보(${m.business.companyName})가 삭제됩니다.\n계속하시겠습니까?`)) return;
+    // 단체(사업자 정보 보유) → 일반: 승인 때 등록된 사업자 정보 삭제
+    const dropBusiness = m.business && m.categoryCode !== 'normal' && next.categoryCode === 'normal';
+    if (dropBusiness && !confirm(`구분을 '${NORMAL_NAME}'(으)로 바꾸면 등록된 사업자 정보(${m.business.companyName})가 삭제됩니다.\n계속하시겠습니까?`)) return;
 
     // TODO: 실서비스에서는 PUT /api/admin/members/{no} 호출 (서버에서 히스토리 기록)
     Object.assign(m, next);
@@ -953,7 +1022,7 @@
     if (dropBusiness) {
       const b = m.business;
       revokeBusiness(m, ADMIN_NAME);
-      addHistory(m, `사업자 정보 삭제: ${b.companyName} (${b.bizNo}) - 구분 일반 변경`);
+      addHistory(m, `사업자 정보 삭제: ${b.companyName} (${b.bizNo}) - 구분 ${NORMAL_NAME} 변경`);
       fillBusiness(m);
     }
     if (memoText) {
@@ -972,7 +1041,7 @@
   function downloadExcel() {
     if (!state.filtered.length) { toast('다운로드할 데이터가 없습니다.'); return; }
     const cols = [
-      ['no', '번호'], ['category', '구분'], ['memberType', '유형'], ['name', '이름'], ['email', '이메일'], ['phone', '휴대폰'], ['userId', '아이디'],
+      ['no', '번호'], ['category', '구분'], ['subCategory', '종류'], ['memberType', '유형'], ['name', '이름'], ['email', '이메일'], ['phone', '휴대폰'], ['userId', '아이디'],
       ['grade', '등급'], ['marketingSms', 'SMS수신'], ['marketingEmail', '메일수신'], ['joinDate', '가입일'],
       ['lastLogin', '최근접속일'],
       ['mileage', '마일리지(P)'], ['giftCard', '상품권(원)'], ['coupon', '쿠폰(장)'],   // 단위 없이 숫자만 → 엑셀 합계·정렬 가능

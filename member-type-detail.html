@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 유형 상세</title>
-<link rel="stylesheet" href="admin.css">
+<link rel="stylesheet" href="admin.css?v=20261006">
 </head>
 <body>
 <div class="layout">
@@ -40,8 +40,28 @@
       <form class="panel" id="editForm" novalidate hidden>
         <div class="section-title">기본 정보</div>
         <table class="form-table">
-          <tr><th id="nameLabel"></th><td class="readonly" id="fName"></td></tr>
+          <tr><th id="nameLabel"></th><td>
+            <span class="readonly" id="fName"></span>
+            <!-- 구분 전용: 구분명 수정 -->
+            <input type="text" id="fNameInput" maxlength="20" style="max-width:240px" hidden>
+            <div class="err" id="eName"></div>
+            <div class="readonly at-note" id="nameNote" hidden>바꾸면 이 구분인 회원과 단체 회원 신청에도 새 이름으로 표시됩니다.</div>
+          </td></tr>
           <tr><th>설명</th><td><textarea id="fDesc" maxlength="300"></textarea></td></tr>
+        </table>
+
+        <!-- 구분 전용: 종류 (회원 정보 상세의 구분 > 종류, 단체 회원 신청 승인 시 종류 선택지) -->
+        <div class="section-title" id="subsTitle" hidden>종류</div>
+        <table class="form-table" id="subsTable" hidden>
+          <tr><th>종류</th><td>
+            <div class="sub-chips" id="subChips"></div>
+            <div class="inline-row">
+              <input type="text" id="fSubNew" maxlength="20" placeholder="예) 어린이집" style="max-width:240px">
+              <button type="button" class="btn btn-sm" id="btnSubAdd">추가</button>
+            </div>
+            <div class="err" id="eSub"></div>
+            <div class="readonly at-note" id="subsNote"></div>
+          </td></tr>
         </table>
 
         <!-- 등급 전용: 평가 기준 (평가 조건은 목록 상단에서 설정, 여기서는 등급별 기준값만) -->
@@ -88,6 +108,15 @@
           <a class="btn" id="btnList" href="member-types.html">목록</a>
           <button type="submit" class="btn btn-primary">저장</button>
         </div>
+
+        <!-- 구분 전용: 삭제 (페이지 가장 하단) -->
+        <div class="danger-zone" id="deleteZone" hidden>
+          <div>
+            <b>구분 삭제</b>
+            <div class="readonly at-note" id="deleteNote"></div>
+          </div>
+          <button type="button" class="btn btn-danger" id="btnDelete">삭제</button>
+        </div>
       </form>
     </main>
   </div>
@@ -95,12 +124,14 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js"></script>
+<script src="member-data.js?v=20261006"></script>
+<script src="member-type-store.js?v=20261006"></script>
 <script>
 (function () {
   'use strict';
   const { esc, toast, fmtDateTime, initSidebar, ADMIN_NAME } = AdminUtil;
-  const { load, save, flagsFor, GradeBenefit, GradePolicy, GradeCriteria } = MemberTypeStore;
+  const { load, save, flagsFor, checkSub, checkCategoryName, normalizeCategoryRefs, PROTECTED_CATEGORIES,
+    GradeBenefit, GradePolicy, GradeCriteria } = MemberTypeStore;
   const $ = id => document.getElementById(id);
 
   initSidebar();
@@ -114,14 +145,56 @@
 
   // ===== 화면 구성 =====
   const listUrl = `member-types.html?tab=${encodeURIComponent(group.key)}`;
-  document.title = `스탑북 관리자 - 회원 유형 상세 (${group.label}: ${it.name})`;
-  $('pageTitle').textContent = `회원 유형 상세 - ${group.label}: ${it.name}`;
+  function renderTitle() {
+    document.title = `스탑북 관리자 - 회원 유형 상세 (${group.label}: ${it.name})`;
+    $('pageTitle').textContent = `회원 유형 상세 - ${group.label}: ${it.name}`;
+    $('crumbName').textContent = it.name;
+    $('fName').textContent = it.name;
+  }
+  renderTitle();
   $('crumbGroup').textContent = group.label;
   $('crumbGroup').href = listUrl;
   $('btnList').href = listUrl;
-  $('crumbName').textContent = it.name;
   $('nameLabel').textContent = group.label;
-  $('fName').textContent = it.name;
+
+  // 구분은 이름 수정 가능 (유형·등급은 표시만)
+  const isCat = group.key === 'category';
+  $('fName').hidden = isCat;
+  $('fNameInput').hidden = !isCat;
+  $('nameNote').hidden = !isCat;
+  if (isCat) $('nameLabel').textContent = '구분명 *';
+
+  // ===== 구분 삭제 =====
+  // 기본 구분(일반·단체)은 시스템이 사용하므로 삭제 불가 → 숨김 사용
+  // 이 구분을 쓰는 회원이나 '만료 후 전환' 대상으로 지정된 승인 건이 있으면 삭제 불가
+  // TODO: 실서비스에서는 DELETE /api/admin/member-types/category/{code} (서버에서 사용 여부 검사)
+  function usage() {
+    normalizeCategoryRefs(MemberData);
+    const members = MemberData.members.filter(m => m.categoryCode === it.code).length;
+    const apps = MemberData.applications.filter(a => a.status === '승인' && (a.expireToCode === it.code || a.assignCategoryCode === it.code)).length;
+    return { members, apps };
+  }
+
+  function renderDelete() {
+    $('deleteZone').hidden = !isCat;
+    if (!isCat) return;
+    const u = usage();
+    let reason = '';
+    if (PROTECTED_CATEGORIES.includes(it.code)) reason = '기본 구분은 삭제할 수 없습니다. 사용하지 않으려면 목록에서 숨김으로 바꿔 주세요.';
+    else if (u.members) reason = `이 구분인 회원이 ${u.members.toLocaleString()}명 있어 삭제할 수 없습니다. 회원의 구분을 바꾸거나 숨김을 사용해 주세요.`;
+    else if (u.apps) reason = `이 구분으로 지정되었거나 만료 후 이 구분으로 전환될 승인 건이 ${u.apps.toLocaleString()}건 있어 삭제할 수 없습니다.`;
+    $('btnDelete').disabled = !!reason;
+    $('deleteNote').textContent = reason || '삭제하면 되돌릴 수 없습니다. 회원 정보와 단체 회원 신청의 선택지에서 바로 빠집니다.';
+  }
+
+  $('btnDelete').addEventListener('click', () => {
+    if ($('btnDelete').disabled) return;
+    if (!confirm(`'${it.name}' 구분을 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다.`)) return;
+    group.items.splice(group.items.indexOf(it), 1);
+    save(groups);
+    // 목록으로 이동 후 안내 (토스트는 페이지 이동 시 사라지므로 주소로 전달)
+    location.href = `${listUrl}&deleted=${encodeURIComponent(it.name)}`;
+  });
 
   // 등급은 정기 지급 혜택만, 그 외(구분/유형)는 혜택 플래그 + 할인율
   const isGrade = group.key === 'grade';
@@ -145,8 +218,57 @@
       </td></tr>`).join('');
   }
 
+  // ===== 구분 전용: 종류 편집 (하나씩 추가, 저장 버튼을 눌러야 반영) =====
+  const isCategory = group.key === 'category';
+  $('subsTitle').hidden = !isCategory;
+  $('subsTable').hidden = !isCategory;
+  $('subsNote').textContent = it.code === 'group'
+    ? '회원 정보 상세와 단체 회원 신청 승인 시 이 구분의 종류 선택지로 사용됩니다. 한 번에 하나씩 추가합니다.'
+    : '회원 정보 상세에서 이 구분을 고르면 종류 선택지로 표시됩니다. 비워 두면 종류 없이 사용합니다.';
+  let subsDraft = [];
+
+  function renderSubs() {
+    $('subChips').innerHTML = subsDraft.length
+      ? subsDraft.map((s, i) => `<span class="chip">${esc(s)}<button type="button" class="chip-x" data-i="${i}" aria-label="${esc(s)} 삭제">&times;</button></span>`).join('')
+      : '<span class="readonly">등록된 종류가 없습니다.</span>';
+  }
+
+  function addSubs() {
+    const v = $('fSubNew').value.trim();
+    const msg = checkSub(v, subsDraft);
+    $('eSub').textContent = msg;
+    $('eSub').classList.toggle('show', !!msg);
+    if (msg) return;
+    subsDraft.push(v);
+    $('fSubNew').value = '';
+    renderSubs();
+  }
+
+  if (isCategory) {
+    $('btnSubAdd').addEventListener('click', addSubs);
+    $('fSubNew').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addSubs(); } });
+    $('subChips').addEventListener('click', e => {
+      const b = e.target.closest('.chip-x');
+      if (!b) return;
+      subsDraft.splice(Number(b.dataset.i), 1);
+      renderSubs();
+    });
+  }
+
   function fillForm() {
     $('fDesc').value = it.desc;
+    if (isCat) {
+      $('fNameInput').value = it.name;
+      $('eName').classList.remove('show');
+      renderTitle();
+      renderDelete();
+    }
+    if (isCategory) {
+      subsDraft = (it.subs || []).slice();
+      $('fSubNew').value = '';
+      $('eSub').classList.remove('show');
+      renderSubs();
+    }
     if (isGrade) {
       GradeCriteria.fill('c', it.criteria);
       GradeBenefit.fill('g', it.benefit);
@@ -169,6 +291,20 @@
     const next = { desc: $('fDesc').value.trim() };
     const changes = [];
 
+    // 구분명: 바뀌면 예전 이름을 aliases에 남겨 회원·단체 신청 데이터가 새 이름으로 연결되게 함
+    if (isCat) {
+      const name = $('fNameInput').value.trim();
+      const msg = name === it.name ? '' : checkCategoryName(name);
+      $('eName').textContent = msg;
+      $('eName').classList.toggle('show', !!msg);
+      if (msg) { $('fNameInput').focus(); return; }
+      if (name !== it.name) {
+        next.name = name;
+        next.aliases = [...new Set([...(it.aliases || []), it.name])].filter(n => n !== name);
+        changes.push(`구분명 변경: ${it.name} → ${name}`);
+      }
+    }
+
     if (isGrade) {
       const c = GradeCriteria.read('c');
       const r = GradeBenefit.read('g');
@@ -188,6 +324,16 @@
         if (it[f.key] !== next[f.key]) changes.push(`${f.label} 변경: ${it[f.key] ? f.on : f.off} → ${next[f.key] ? f.on : f.off}`);
       });
       if (it.discountRate !== next.discountRate) changes.push(`할인율 변경: ${it.discountRate}% → ${next.discountRate}%`);
+    }
+    if (isCategory) {
+      const prev = it.subs || [];
+      const added = subsDraft.filter(s => !prev.includes(s));
+      const removed = prev.filter(s => !subsDraft.includes(s));
+      if (added.length) changes.push(`종류 추가: ${added.join(', ')}`);
+      if (removed.length) changes.push(`종류 삭제: ${removed.join(', ')}`);
+      if (!added.length && !removed.length && prev.join('|') !== subsDraft.join('|')) changes.push('종류 순서 변경');
+      // 삭제한 종류가 지정된 회원은 '(삭제됨)'으로 표시되며, 다른 종류로 바꿔 저장하면 정리됨
+      next.subs = subsDraft.slice();
     }
     if (it.desc !== next.desc) changes.push('설명 변경');
     const memoText = $('fMemo').value.trim();
