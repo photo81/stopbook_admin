@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 탈퇴 회원 관리</title>
-<link rel="stylesheet" href="admin.css?v=20261012">
+<link rel="stylesheet" href="admin.css?v=20261014">
 </head>
 <body>
 <div class="layout">
@@ -16,8 +16,8 @@
         <ul class="submenu">
           <li><a href="members.html">회원 리스트</a></li>
           <li><a href="group-applications.html">단체 회원 신청 리스트</a></li>
-          <li><a href="withdrawn.html" class="active" aria-current="page">탈퇴 회원 관리</a></li>
           <li><a href="member-types.html">회원 유형 관리</a></li>
+          <li><a href="withdrawn.html" class="active" aria-current="page">탈퇴 회원 관리</a></li>
         </ul>
       </li>
     </ul>
@@ -37,37 +37,7 @@
         <button type="button" role="tab" class="tab" id="tab-list" data-tab="list" aria-controls="panelList">리스트 <span class="tab-count" id="tabListCount"></span></button>
       </div>
 
-      <!-- 분석 탭 -->
-      <div role="tabpanel" id="panelAnalysis" aria-labelledby="tab-analysis">
-        <!-- 탈퇴 분석 (전체 탈퇴 회원 기준) -->
-        <section class="panel viz-root" id="analysis" aria-labelledby="analysisTitle">
-          <div class="list-head">
-            <div class="count"><b id="analysisTitle">탈퇴 분석</b> <span id="analysisScope"></span></div>
-          </div>
-          <div id="analysisBody">
-            <div class="kpi-row" id="kpis"></div>
-            <div class="viz-grid">
-              <figure class="viz-card viz-wide">
-                <figcaption>월별 탈퇴 회원 <span class="viz-sub">최근 12개월 · 명</span></figcaption>
-                <div class="col-chart" id="chartMonthly"></div>
-              </figure>
-              <figure class="viz-card">
-                <figcaption>자진탈퇴 사유 <span class="viz-sub" id="reasonSub"></span></figcaption>
-                <div class="hbar-chart" id="chartReasons"></div>
-              </figure>
-              <figure class="viz-card">
-                <figcaption>이용 기간 <span class="viz-sub">가입 → 탈퇴 · 명</span></figcaption>
-                <div class="col-chart" id="chartTenure"></div>
-              </figure>
-            </div>
-            <p class="readonly at-note">탈퇴 시점에 저장한 통계용 정보입니다. 이름·연락처 등 개인정보는 탈퇴 즉시 파기되며, 주문 기록은 전자상거래법에 따라 5년간 보관 후 파기합니다.</p>
-          </div>
-        </section>
-      </div>
-
-      <!-- 리스트 탭: 상단 검색 + 목록 -->
-      <div role="tabpanel" id="panelList" aria-labelledby="tab-list" hidden>
-      <!-- 검색 조건 (리스트에 적용) -->
+      <!-- 검색 조건 (분석·리스트 두 탭 공용: 같은 검색값이 두 탭에 함께 적용) -->
       <form class="panel" id="searchForm">
         <div class="search-row">
           <div class="search-grid">
@@ -144,6 +114,36 @@
         </div>
       </form>
 
+      <!-- 분석 탭 -->
+      <div role="tabpanel" id="panelAnalysis" aria-labelledby="tab-analysis">
+        <!-- 탈퇴 분석 (검색 결과 기준) -->
+        <section class="panel viz-root" id="analysis" aria-labelledby="analysisTitle">
+          <div class="list-head">
+            <div class="count"><b id="analysisTitle">탈퇴 분석</b> <span id="analysisScope"></span></div>
+          </div>
+          <div id="analysisBody">
+            <div class="kpi-row" id="kpis"></div>
+            <div class="viz-grid">
+              <figure class="viz-card viz-wide">
+                <figcaption>월별 탈퇴 회원 <span class="viz-sub">최근 12개월 · 명</span></figcaption>
+                <div class="col-chart" id="chartMonthly"></div>
+              </figure>
+              <figure class="viz-card">
+                <figcaption>자진탈퇴 사유 <span class="viz-sub" id="reasonSub"></span></figcaption>
+                <div class="hbar-chart" id="chartReasons"></div>
+              </figure>
+              <figure class="viz-card">
+                <figcaption>이용 기간 <span class="viz-sub">가입 → 탈퇴 · 명</span></figcaption>
+                <div class="col-chart" id="chartTenure"></div>
+              </figure>
+            </div>
+            <p class="readonly at-note">탈퇴 시점에 저장한 통계용 정보입니다. 이름·연락처 등 개인정보는 탈퇴 즉시 파기되며, 주문 기록은 전자상거래법에 따라 5년간 보관 후 파기합니다.</p>
+          </div>
+        </section>
+      </div>
+
+      <!-- 리스트 탭 -->
+      <div role="tabpanel" id="panelList" aria-labelledby="tab-list" hidden>
       <!-- 탈퇴회원 목록 -->
       <section class="panel">
         <div class="list-head">
@@ -169,6 +169,7 @@
                 <th class="sortable w-cnt" data-key="orderCount">주문건수</th>
                 <th class="sortable w-amt" data-key="orderAmount">주문금액</th>
                 <th class="sortable w-date" data-key="lastOrderDate">마지막 주문</th>
+                <th class="sortable w-date" data-key="joinDate">가입일</th>
                 <th class="sortable w-date" data-key="withdrawDate">탈퇴일</th>
                 <th class="sortable w-type" data-key="reasonType">탈퇴구분</th>
                 <th>탈퇴 사유</th>
@@ -389,14 +390,14 @@
     });
   }
 
-  // ===== 분석 (전체 탈퇴 회원 기준, 리스트 탭 검색과 무관) =====
+  // ===== 분석 (검색 결과 기준: 두 탭이 같은 검색 조건을 공유) =====
   const avg = (list, f) => (list.length ? list.reduce((s, m) => s + f(m), 0) / list.length : 0);
   const sum = (list, f) => list.reduce((s, m) => s + f(m), 0);
   const pct = (a, b) => (b ? Math.round(a / b * 1000) / 10 : 0);
 
   function renderAnalysis() {
-    const list = items, n = list.length;
-    $('analysisScope').textContent = `· 전체 탈퇴 회원 ${n}명 · 사유 막대를 누르면 리스트에서 해당 회원을 볼 수 있습니다`;
+    const list = state.filtered, n = list.length;
+    $('analysisScope').textContent = `· ${n === items.length ? `전체 탈퇴 회원 ${n}명` : `검색 결과 ${n}명 / 전체 ${items.length}명`} · 사유 막대를 누르면 리스트에서 해당 회원을 볼 수 있습니다`;
 
     const buyers = list.filter(m => m.orderCount > 0).length;
     const lostMileage = sum(list, m => m.lostMileage), lostGift = sum(list, m => m.lostGiftCard), lostCoupons = sum(list, m => m.lostCoupons);
@@ -464,14 +465,13 @@
   });
   $('analysis').addEventListener('mouseleave', () => { tip.hidden = true; });
 
-  // 사유 막대를 누르면 리스트 탭으로 이동해 그 사유로 검색 (다른 검색 조건은 초기화)
+  // 사유 막대를 누르면 현재 검색 조건에 그 사유를 더해 검색하고 리스트 탭으로 이동
   function searchByReason(code) {
-    $('searchForm').reset();
     $('sReason').value = code;
     $('detailSearch').hidden = false;
     $('btnDetail').setAttribute('aria-expanded', 'true');
     updateDetailCount();
-    if (applyFilter()) { state.page = 1; render(); }
+    if (applyFilter()) { state.page = 1; renderAll(); }
     showTab('list');
   }
   $('chartReasons').addEventListener('click', e => { const r = e.target.closest('[data-reason]'); if (r) searchByReason(r.dataset.reason); });
@@ -514,11 +514,12 @@
         <td class="num">${m.orderCount.toLocaleString()}</td>
         <td class="num">${won(m.orderAmount)}</td>
         <td>${m.lastOrderDate || '<span class="muted">-</span>'}</td>
+        <td>${m.joinDate}</td>
         <td>${m.withdrawDate}</td>
         <td><span class="badge wd-${m.reasonType}">${m.reasonType}</span>${m.rejoined ? ` <span class="tag-rejoin" title="재가입 ${m.rejoinDate}">재가입</span>` : ''}</td>
         <td class="reason"><a class="name-link" data-no="${m.no}" title="${esc(labels.join(', '))}${m.reasonEtc ? ` / ${esc(m.reasonEtc)}` : ''}">${esc(labels[0])}${labels.length > 1 ? ` <span class="muted">외 ${labels.length - 1}</span>` : ''}</a></td>
       </tr>`;
-    }).join('') : '<tr><td colspan="11" class="empty">검색 결과가 없습니다.</td></tr>';
+    }).join('') : '<tr><td colspan="12" class="empty">검색 결과가 없습니다.</td></tr>';
     $('tabListCount').textContent = total.toLocaleString();
 
     document.querySelectorAll('th.sortable').forEach(th => {
@@ -541,8 +542,8 @@
     $('pagination').innerHTML = html;
   }
 
-  // 분석은 전체 기준이라 처음 한 번만 그림. 검색은 리스트만 다시 그림
-  const renderAll = () => render();
+  // 검색하면 리스트와 분석을 함께 다시 그림 (어느 탭에서 검색해도 두 탭 결과가 같음)
+  const renderAll = () => { render(); renderAnalysis(); };
 
   // ===== 상세 모달 (탈퇴 시점 스냅샷) =====
   function openModal(no) {
@@ -695,8 +696,7 @@
 
   // 초기 로드
   applyFilter();
-  render();
-  renderAnalysis();
+  renderAll();
   showTab(new URLSearchParams(location.search).get('tab'));
 })();
 </script>
