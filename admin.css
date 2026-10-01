@@ -257,6 +257,8 @@ td.reason a.name-link { font-weight: 400; color: var(--text-2); }
 .st-대기 { --dot: #f59e0b; }
 .st-승인 { --dot: #16a34a; }
 .st-반려 { --dot: #dc2626; }
+.st-해제 { --dot: #a1a1aa; }
+.st-만료 { --dot: #71717a; }
 .btn-danger { color: var(--danger); }
 .btn-danger:hover { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
 .btn:disabled, .btn:disabled:hover { opacity: .4; cursor: not-allowed; background: inherit; }

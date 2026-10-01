@@ -114,6 +114,19 @@
               <label><input type="checkbox" id="chkCert"> 사업자등록증 내용이 신청 정보와 일치합니다.</label>
             </div>
           </td></tr>
+          <tr><th>적용 기간 *</th><td>
+            <div class="inline-row">
+              <input type="date" id="periodFrom" aria-label="단체 회원 적용 시작일"> ~
+              <input type="date" id="periodTo" aria-label="단체 회원 적용 종료일">
+              <span class="readonly">승인 시 이 기간 동안 단체 회원으로 적용됩니다.</span>
+            </div>
+          </td></tr>
+          <tr><th>만료 후 전환 *</th><td>
+            <div class="inline-row">
+              <select id="expireTo" aria-label="기간 만료 후 전환할 회원 구분"></select>
+              <span class="readonly">종료일 다음 날 00:00에 이 구분으로 자동 전환되고 사업자 정보가 삭제됩니다.</span>
+            </div>
+          </td></tr>
           <tr><th>반려 사유</th><td>
             <textarea id="rejectReason" maxlength="300" placeholder="반려할 때만 입력합니다. 고객에게 안내되는 문구입니다."></textarea>
             <div class="err" id="eReview"></div>
@@ -156,7 +169,12 @@
   const typeBadge = t => `<span class="badge ty-${esc(t)}">${esc(t)}</span>`;
   const statusBadge = s => `<span class="badge st-${s}">${s}</span>`;
 
-  const STATUSES = ['대기', '승인', '반려', '전체'];
+  // 해제: 승인 후 회원 정보에서 구분을 일반으로 바꾼 건 / 만료: 적용 기간이 끝나 자동 전환된 건
+  const STATUSES = ['대기', '승인', '반려', '해제', '만료', '전체'];
+
+  // 만료 후 전환 구분: 회원 유형 관리의 구분 목록에서 '단체' 제외
+  const EXPIRE_TARGETS = MemberTypeStore.load().find(g => g.key === 'category').items.map(it => it.name).filter(n => n !== '단체');
+  $('expireTo').innerHTML = EXPIRE_TARGETS.map(n => `<option>${esc(n)}</option>`).join('');
   let filter = '대기';
   let current = null;
 
@@ -247,13 +265,22 @@
     $('statusBanner').className = `status-banner st-${a.status}`;
     $('statusBanner').innerHTML = pending
       ? '<b>승인 대기</b> 사업자 정보와 사업자등록증을 확인한 뒤 처리해 주세요.'
-      : `<b>${a.status}</b> ${a.processedAt} · ${esc(a.processedBy)}${a.rejectReason ? `<div class="banner-sub">반려 사유: ${esc(a.rejectReason)}</div>` : ''}`;
+      : `<b>${a.status}</b> ${a.processedAt} · ${esc(a.processedBy)}${a.periodFrom ? `<div class="banner-sub">적용 기간: ${a.periodFrom} ~ ${a.periodTo} · 만료 후 '${esc(a.expireTo || '일반')}' 전환</div>` : ''}${a.rejectReason ? `<div class="banner-sub">반려 사유: ${esc(a.rejectReason)}</div>` : ''}${a.revokedAt ? `<div class="banner-sub">승인: ${a.processedAt} · ${esc(a.processedBy)} → 회원 정보에서 구분을 일반으로 변경해 사업자 정보 삭제</div>` : ''}`;
+    // 해제·만료 건은 첫 줄에 해당 시각을 표시
+    if (a.status === '해제') $('statusBanner').querySelector('b').nextSibling.textContent = ` ${a.revokedAt} · ${a.revokedBy}`;
+    if (a.status === '만료') $('statusBanner').querySelector('b').nextSibling.textContent = ` ${a.expiredAt} · 시스템 자동 전환 (승인 ${a.processedAt} · ${a.processedBy})`;
     $('reviewBox').hidden = !pending;
     $('btnApprove').hidden = !pending;
     $('btnReject').hidden = !pending;
     $('chkInfo').checked = false;
     $('chkCert').checked = false;
     $('rejectReason').value = '';
+    // 기본 적용 기간: 오늘부터 1년
+    const today = new Date();
+    const yearLater = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate() - 1);
+    $('periodFrom').value = fmtDateTime(today).slice(0, 10);
+    $('periodTo').value = fmtDateTime(yearLater).slice(0, 10);
+    $('expireTo').value = EXPIRE_TARGETS.includes('일반') ? '일반' : EXPIRE_TARGETS[0];
     $('eReview').classList.remove('show');
     syncApprove();
     $('dHistory').innerHTML = a.history.slice().reverse().map(h => `
@@ -272,7 +299,7 @@
     a.history.push({
       at: now, by: ADMIN_NAME,
       content: status === '승인'
-        ? `승인 처리 (사업자 정보·사업자등록증 확인) → 회원 구분 '단체' 변경, 사업자 정보 등록`
+        ? `승인 처리 (사업자 정보·사업자등록증 확인, 적용 기간 ${a.periodFrom} ~ ${a.periodTo}, 만료 후 '${a.expireTo}' 전환) → 회원 구분 '단체' 변경, 사업자 정보 등록`
         : `반려 처리 (사유: ${a.rejectReason})`
     });
     if (status === '승인') applyApproval(a);
@@ -284,10 +311,19 @@
   }
 
   function approve() {
+    const from = $('periodFrom').value, to = $('periodTo').value;
+    let msg = '';
+    if (!from || !to) msg = '적용 기간의 시작일과 종료일을 모두 입력하세요.';
+    else if (from > to) msg = '적용 기간 종료일이 시작일보다 빠릅니다.';
+    $('eReview').textContent = msg;
+    $('eReview').classList.toggle('show', !!msg);
+    if (msg) return;
+
     const m = memberOf(current);
-    if (!confirm(`${m.name}(${m.userId}) 회원의 단체 회원 신청을 승인하시겠습니까?\n회원 구분이 '단체'로 바뀌고 사업자 정보가 회원 정보에 추가됩니다.`)) return;
+    const expireTo = $('expireTo').value;
+    if (!confirm(`${m.name}(${m.userId}) 회원의 단체 회원 신청을 승인하시겠습니까?\n적용 기간: ${from} ~ ${to} (만료 후 '${expireTo}' 전환)\n회원 구분이 '단체'로 바뀌고 사업자 정보가 회원 정보에 추가됩니다.`)) return;
     // TODO: 실서비스에서는 POST /api/admin/group-applications/{appNo}/approve
-    finish('승인');
+    finish('승인', { periodFrom: from, periodTo: to, expireTo });
   }
 
   function reject() {

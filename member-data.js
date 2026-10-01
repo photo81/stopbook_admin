@@ -154,21 +154,29 @@
       },
       // 예시: 일부는 이미 처리된 상태
       status: k % 5 === 4 ? '승인' : k % 7 === 6 ? '반려' : '대기',
-      processedAt: '', processedBy: '', rejectReason: '',
+      processedAt: '', processedBy: '', rejectReason: '', periodFrom: '', periodTo: '', expireTo: '',
       history: [{ at: fmtDateTime(appliedAt), content: `단체 회원 신청 (${groupType})`, by: '고객' }]
     };
     if (app.status !== '대기') {
       const at = fmtDateTime(new Date(appliedAt.getTime() + 86400000));
       Object.assign(app, { processedAt: at, processedBy: '관리자' });
       if (app.status === '반려') app.rejectReason = '사업자등록증 이미지가 흐려 등록번호를 확인할 수 없습니다. 선명한 이미지로 다시 신청해 주세요.';
-      app.history.push({ at, content: app.status === '승인' ? '승인 처리' : `반려 처리 (사유: ${app.rejectReason})`, by: '관리자' });
+      if (app.status === '승인') {
+        const d = new Date(appliedAt.getTime() + 86400000);
+        app.periodFrom = fmtDate(d);
+        // 예시: 한 건은 기간이 이미 끝나 자동 전환되는 경우를 보여주도록 어제 만료
+        app.periodTo = k === 9 ? fmtDate(new Date(Date.now() - 86400000))
+          : fmtDate(new Date(d.getFullYear() + 1, d.getMonth(), d.getDate() - 1));
+        app.expireTo = '일반';
+      }
+      app.history.push({ at, content: app.status === '승인' ? `승인 처리 (적용 기간 ${app.periodFrom} ~ ${app.periodTo}, 만료 후 '${app.expireTo}' 전환)` : `반려 처리 (사유: ${app.rejectReason})`, by: '관리자' });
     }
     return Object.assign(app, appOverlay[app.appNo] || {});
   });
 
   function saveApplication(app) {
-    const { status, processedAt, processedBy, rejectReason, history } = app;
-    appOverlay[app.appNo] = { status, processedAt, processedBy, rejectReason, history };
+    const { status, processedAt, processedBy, rejectReason, periodFrom, periodTo, expireTo, revokedAt, revokedBy, expiredAt, history } = app;
+    appOverlay[app.appNo] = { status, processedAt, processedBy, rejectReason, periodFrom, periodTo, expireTo, revokedAt, revokedBy, expiredAt, history };
     try { localStorage.setItem(APP_KEY, JSON.stringify(appOverlay)); return true; } catch (e) { return false; }
   }
 
@@ -177,13 +185,53 @@
     const m = members.find(x => x.userId === app.userId);
     if (!m) return;
     m.category = '단체';
-    m.business = Object.assign({ groupType: app.groupType, approvedAt: app.processedAt, appNo: app.appNo }, app.business);
-    m.history.push({ at: app.processedAt, content: `단체 회원 승인: ${app.business.companyName} (${app.business.bizNo})`, by: app.processedBy });
+    m.business = Object.assign({ groupType: app.groupType, approvedAt: app.processedAt, appNo: app.appNo,
+      periodFrom: app.periodFrom, periodTo: app.periodTo, expireTo: app.expireTo || '일반' }, app.business);
+    m.history.push({ at: app.processedAt, content: `단체 회원 승인: ${app.business.companyName} (${app.business.bizNo}), 적용 기간 ${app.periodFrom} ~ ${app.periodTo}`, by: app.processedBy });
   }
-  applications.filter(a => a.status === '승인').forEach(applyApproval);
+  // 회원 정보에서 구분을 단체 → 일반으로 바꾼 경우: 사업자 정보 삭제 + 신청 건을 '해제'로 기록
+  function revokeBusiness(m, by) {
+    const app = m.business && applications.find(a => a.appNo === m.business.appNo);
+    delete m.business;
+    if (!app) return;
+    const at = fmtDateTime(new Date());
+    Object.assign(app, { status: '해제', revokedAt: at, revokedBy: by });
+    app.history.push({ at, content: '단체 회원 해제 (회원 정보에서 구분 일반으로 변경, 사업자 정보 삭제)', by });
+    saveApplication(app);
+  }
+
+  // 적용 기간 만료: 종료일이 지난 승인 건은 '만료'로 바꾸고 지정한 구분으로 자동 전환
+  // TODO: 실서비스에서는 매일 00:00 서버 배치로 처리 (여기서는 화면을 열 때 처리)
+  const todayStr = fmtDate(new Date());
+  applications.forEach(a => {
+    if (a.status !== '승인' || !a.periodTo || a.periodTo >= todayStr) return;
+    const end = new Date(a.periodTo);
+    a.expiredAt = `${fmtDate(new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1))} 00:00`;
+    a.status = '만료';
+    a.history.push({ at: a.expiredAt, content: `적용 기간 만료 → 구분 '${a.expireTo || '일반'}' 자동 전환, 사업자 정보 삭제`, by: '시스템' });
+    saveApplication(a);
+  });
+
+  // 페이지 로드 시 처리 결과 반영: 승인 → 사업자 정보 등록 / 해제·만료 → 승인 후 삭제된 이력만 남김
+  applications.forEach(a => {
+    if (!['승인', '해제', '만료'].includes(a.status)) return;
+    applyApproval(a);
+    const m = members.find(x => x.userId === a.userId);
+    if (!m || a.status === '승인') return;
+    const biz = `${a.business.companyName} (${a.business.bizNo})`;
+    if (a.status === '해제') {
+      m.category = '일반';
+      m.history.push({ at: a.revokedAt, content: `사업자 정보 삭제: ${biz} - 구분 일반 변경`, by: a.revokedBy });
+    } else {
+      const to = a.expireTo || '일반';
+      m.history.push({ at: a.expiredAt, content: `단체 회원 기간 만료: 구분 단체 → ${to} 자동 전환, 사업자 정보 삭제 (${biz})`, by: '시스템' });
+      m.category = to;
+    }
+    delete m.business;
+  });
 
   window.MemberData = {
     members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons,
-    applications, saveApplication, applyApproval, GROUP_TYPES: typeKeys
+    applications, saveApplication, applyApproval, revokeBusiness, GROUP_TYPES: typeKeys
   };
 })();

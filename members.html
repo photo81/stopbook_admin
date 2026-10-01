@@ -191,6 +191,7 @@
           <tr><th>업태 / 종목</th><td id="bizKind"></td><th>개업일</th><td id="bizOpen"></td></tr>
           <tr><th>사업장 주소</th><td id="bizAddress" colspan="3"></td></tr>
           <tr><th>담당자</th><td id="bizManager" colspan="3"></td></tr>
+          <tr><th>적용 기간</th><td id="bizPeriod" colspan="3"></td></tr>
         </table>
       </div>
 
@@ -268,7 +269,7 @@
         </td></tr>
       </table>
 
-      <div class="section-title">변경 히스토리</div>
+      <div class="section-title">정보 변경 히스토리</div>
       <div class="table-wrap history-wrap">
         <table class="history-table change-table">
           <thead><tr><th style="width:130px">변경일시</th><th>변경 내용</th><th style="width:90px">변경 담당자</th></tr></thead>
@@ -341,7 +342,7 @@
   'use strict';
 
   // ===== 샘플 데이터: member-data.js (단체 회원 신청 승인 결과 포함) =====
-  const { members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons } = MemberData;
+  const { members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, revokeBusiness } = MemberData;
 
   // ===== 상태 =====
   const state = { filtered: [], page: 1, size: 20, sortKey: 'no', sortDir: 'desc', editing: null };
@@ -443,6 +444,8 @@
     const m = members.find(x => x.no === no);
     if (!m) return;
     state.editing = m;
+    // 만료 자동 전환 등으로 목록에 없는 구분이면 선택지에 추가
+    if (![...$('fCategory').options].some(o => o.value === m.category)) $('fCategory').add(new Option(m.category, m.category));
     $('fCategory').value = m.category;
     $('fMemberType').innerHTML = typeBadge(m.memberType);
     fillPostpay(m);
@@ -682,6 +685,7 @@
     $('bizOpen').textContent = b.openDate;
     $('bizAddress').textContent = b.address;
     $('bizManager').textContent = `${b.managerName} · ${b.managerPhone} · ${b.managerEmail}`;
+    $('bizPeriod').textContent = b.periodFrom ? `${b.periodFrom} ~ ${b.periodTo} (만료 후 '${b.expireTo}'(으)로 자동 전환)` : '-';
   }
 
   // ===== 후불 결제 (적용 시 기간 필수) =====
@@ -735,9 +739,19 @@
 
     if (!changes.length && !memoText) { toast('변경된 내용이 없습니다.'); return; }
 
+    // 단체 → 일반: 승인 때 등록된 사업자 정보 삭제
+    const dropBusiness = m.business && m.category === '단체' && next.category === '일반';
+    if (dropBusiness && !confirm(`구분을 '일반'으로 바꾸면 등록된 사업자 정보(${m.business.companyName})가 삭제됩니다.\n계속하시겠습니까?`)) return;
+
     // TODO: 실서비스에서는 PUT /api/admin/members/{no} 호출 (서버에서 히스토리 기록)
     Object.assign(m, next);
     changes.forEach(c => addHistory(m, c));
+    if (dropBusiness) {
+      const b = m.business;
+      revokeBusiness(m, ADMIN_NAME);
+      addHistory(m, `사업자 정보 삭제: ${b.companyName} (${b.bizNo}) - 구분 일반 변경`);
+      fillBusiness(m);
+    }
     if (memoText) {
       m.memos.push({ text: memoText, at: nowText(), by: ADMIN_NAME });
       addHistory(m, `관리자 메모 작성: ${memoText.length > 30 ? memoText.slice(0, 30) + '…' : memoText}`);
