@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 단체 회원 신청 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261009">
+<link rel="stylesheet" href="admin.css?v=20261012">
 </head>
 <body>
 <div class="layout">
@@ -16,7 +16,7 @@
         <ul class="submenu">
           <li><a href="members.html">회원 리스트</a></li>
           <li><a href="group-applications.html" class="active" aria-current="page">단체 회원 신청 리스트</a></li>
-          <li><a href="withdrawn.html">탈퇴회원 리스트</a></li>
+          <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
           <li><a href="member-types.html">회원 유형 관리</a></li>
         </ul>
       </li>
@@ -34,40 +34,42 @@
 
       <!-- 검색 조건 (아래 상태 탭과 함께 적용) -->
       <form class="panel" id="searchForm">
-        <div class="search-grid">
-          <div class="field">
-            <label for="sType">검색어</label>
-            <select id="sType" style="flex:0 0 96px">
-              <option value="all">전체</option>
-              <option value="name">이름</option>
-              <option value="email">이메일</option>
-              <option value="userId">아이디</option>
-              <option value="company">상호</option>
-              <option value="bizNo">사업자번호</option>
-            </select>
-            <input type="text" id="sKeyword" placeholder="검색어 입력">
-          </div>
-          <div class="field">
-            <label>신청일</label>
-            <div class="range">
-              <input type="date" id="sFrom" aria-label="신청일 시작"> ~ <input type="date" id="sTo" aria-label="신청일 종료">
+        <div class="search-row">
+          <div class="search-grid">
+            <div class="field">
+              <label for="sType">검색어</label>
+              <select id="sType" style="flex:0 0 96px">
+                <option value="all">전체</option>
+                <option value="name">이름</option>
+                <option value="email">이메일</option>
+                <option value="userId">아이디</option>
+                <option value="company">상호</option>
+                <option value="bizNo">사업자번호</option>
+              </select>
+              <input type="text" id="sKeyword" placeholder="검색어 입력">
+            </div>
+            <div class="field">
+              <label>신청일</label>
+              <div class="range">
+                <input type="date" id="sFrom" aria-label="신청일 시작"> ~ <input type="date" id="sTo" aria-label="신청일 종료">
+              </div>
+            </div>
+            <div class="field">
+              <label for="sGroupType">단체유형</label>
+              <select id="sGroupType"><option value="">전체</option></select>
+            </div>
+            <div class="field">
+              <label for="sMemberType">유형</label>
+              <select id="sMemberType">
+                <option value="">전체</option>
+                <option>스탑북회원</option><option>카카오회원</option><option>네이버회원</option><option>구글회원</option>
+              </select>
             </div>
           </div>
-          <div class="field">
-            <label for="sGroupType">단체유형</label>
-            <select id="sGroupType"><option value="">전체</option></select>
+          <div class="search-actions">
+            <button type="submit" class="btn btn-primary">검색</button>
+            <button type="button" class="btn" id="btnReset">초기화</button>
           </div>
-          <div class="field">
-            <label for="sMemberType">유형</label>
-            <select id="sMemberType">
-              <option value="">전체</option>
-              <option>스탑북회원</option><option>카카오회원</option><option>네이버회원</option><option>구글회원</option>
-            </select>
-          </div>
-        </div>
-        <div class="search-actions">
-          <button type="submit" class="btn btn-primary">검색</button>
-          <button type="button" class="btn" id="btnReset">초기화</button>
         </div>
       </form>
 
@@ -191,8 +193,8 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-data.js?v=20261009"></script>
-<script src="member-type-store.js?v=20261009"></script>
+<script src="member-data.js?v=20261012"></script>
+<script src="member-type-store.js?v=20261012"></script>
 <script>
 (function () {
   'use strict';

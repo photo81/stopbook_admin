@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>스탑북 관리자 - 탈퇴회원 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261009">
+<title>스탑북 관리자 - 탈퇴 회원 관리</title>
+<link rel="stylesheet" href="admin.css?v=20261012">
 </head>
 <body>
 <div class="layout">
@@ -16,7 +16,7 @@
         <ul class="submenu">
           <li><a href="members.html">회원 리스트</a></li>
           <li><a href="group-applications.html">단체 회원 신청 리스트</a></li>
-          <li><a href="withdrawn.html" class="active" aria-current="page">탈퇴회원 리스트</a></li>
+          <li><a href="withdrawn.html" class="active" aria-current="page">탈퇴 회원 관리</a></li>
           <li><a href="member-types.html">회원 유형 관리</a></li>
         </ul>
       </li>
@@ -25,37 +25,122 @@
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>탈퇴회원 리스트</b></div>
+      <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>탈퇴 회원 관리</b></div>
       <div>관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>탈퇴회원 리스트</h1>
+      <h1>탈퇴 회원 관리</h1>
 
-      <!-- 검색 조건 -->
-      <form class="panel" id="searchForm">
-        <div class="search-grid">
-          <div class="field">
-            <label for="sKeyword">아이디</label>
-            <input type="text" id="sKeyword" placeholder="아이디 입력">
+      <div class="tabs" role="tablist" id="tabs">
+        <button type="button" role="tab" class="tab" id="tab-analysis" data-tab="analysis" aria-controls="panelAnalysis">분석</button>
+        <button type="button" role="tab" class="tab" id="tab-list" data-tab="list" aria-controls="panelList">리스트 <span class="tab-count" id="tabListCount"></span></button>
+      </div>
+
+      <!-- 분석 탭 -->
+      <div role="tabpanel" id="panelAnalysis" aria-labelledby="tab-analysis">
+        <!-- 탈퇴 분석 (전체 탈퇴 회원 기준) -->
+        <section class="panel viz-root" id="analysis" aria-labelledby="analysisTitle">
+          <div class="list-head">
+            <div class="count"><b id="analysisTitle">탈퇴 분석</b> <span id="analysisScope"></span></div>
           </div>
-          <div class="field">
-            <label>탈퇴일</label>
-            <div class="range">
-              <input type="date" id="sFrom"> ~ <input type="date" id="sTo">
+          <div id="analysisBody">
+            <div class="kpi-row" id="kpis"></div>
+            <div class="viz-grid">
+              <figure class="viz-card viz-wide">
+                <figcaption>월별 탈퇴 회원 <span class="viz-sub">최근 12개월 · 명</span></figcaption>
+                <div class="col-chart" id="chartMonthly"></div>
+              </figure>
+              <figure class="viz-card">
+                <figcaption>자진탈퇴 사유 <span class="viz-sub" id="reasonSub"></span></figcaption>
+                <div class="hbar-chart" id="chartReasons"></div>
+              </figure>
+              <figure class="viz-card">
+                <figcaption>이용 기간 <span class="viz-sub">가입 → 탈퇴 · 명</span></figcaption>
+                <div class="col-chart" id="chartTenure"></div>
+              </figure>
+            </div>
+            <p class="readonly at-note">탈퇴 시점에 저장한 통계용 정보입니다. 이름·연락처 등 개인정보는 탈퇴 즉시 파기되며, 주문 기록은 전자상거래법에 따라 5년간 보관 후 파기합니다.</p>
+          </div>
+        </section>
+      </div>
+
+      <!-- 리스트 탭: 상단 검색 + 목록 -->
+      <div role="tabpanel" id="panelList" aria-labelledby="tab-list" hidden>
+      <!-- 검색 조건 (리스트에 적용) -->
+      <form class="panel" id="searchForm">
+        <div class="search-row">
+          <div class="search-grid">
+            <div class="field">
+              <label for="sKeyword">아이디</label>
+              <input type="text" id="sKeyword" placeholder="아이디 입력">
+            </div>
+            <div class="field">
+              <label>탈퇴일</label>
+              <div class="range">
+                <input type="date" id="sFrom" aria-label="탈퇴일 시작"> ~ <input type="date" id="sTo" aria-label="탈퇴일 종료">
+              </div>
+            </div>
+            <div class="field">
+              <label for="sReasonType">탈퇴구분</label>
+              <select id="sReasonType">
+                <option value="">전체</option>
+                <option>자진탈퇴</option><option>강제탈퇴</option><option>장기미이용</option>
+              </select>
             </div>
           </div>
-          <div class="field">
-            <label for="sReasonType">탈퇴구분</label>
-            <select id="sReasonType">
-              <option value="">전체</option>
-              <option>자진탈퇴</option><option>강제탈퇴</option><option>장기미이용</option>
-            </select>
+          <div class="search-actions">
+            <button type="submit" class="btn btn-primary">검색</button>
+            <button type="button" class="btn" id="btnReset">초기화</button>
           </div>
         </div>
-        <div class="search-actions">
-          <button type="submit" class="btn btn-primary">검색</button>
-          <button type="button" class="btn" id="btnReset">초기화</button>
+
+        <button type="button" class="detail-toggle" id="btnDetail" aria-expanded="false" aria-controls="detailSearch">
+          상세검색 <span id="detailCount"></span><span class="chev">▼</span>
+        </button>
+        <div class="search-grid detail-search" id="detailSearch" hidden>
+          <div class="field">
+            <label for="sCategory">구분</label>
+            <select id="sCategory"><option value="">전체</option><option>일반</option><option>단체</option></select>
+          </div>
+          <div class="field">
+            <label for="sMemberType">가입유형</label>
+            <select id="sMemberType">
+              <option value="">전체</option>
+              <option>스탑북회원</option><option>카카오회원</option><option>네이버회원</option><option>구글회원</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="sGrade">등급</label>
+            <select id="sGrade">
+              <option value="">전체</option>
+              <option>일반</option><option>스타터</option><option>홀리커</option><option>마스터</option><option>마스터 VIP</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="sTenure">이용기간</label>
+            <select id="sTenure"><option value="">전체</option></select>
+          </div>
+          <div class="field">
+            <label for="sOrder">주문 이력</label>
+            <select id="sOrder"><option value="">전체</option><option value="Y">있음</option><option value="N">없음</option></select>
+          </div>
+          <div class="field">
+            <label for="sReason">탈퇴 사유</label>
+            <select id="sReason"><option value="">전체</option></select>
+          </div>
+          <div class="field">
+            <label for="sOpenInq">미답변 문의</label>
+            <select id="sOpenInq"><option value="">전체</option><option value="Y">있음</option><option value="N">없음</option></select>
+          </div>
+          <div class="field">
+            <label for="sLeftover">남은 작업물</label>
+            <select id="sLeftover"><option value="">전체</option><option value="Y">있음</option><option value="N">없음</option></select>
+          </div>
+          <div class="field">
+            <label for="sRejoin">재가입</label>
+            <select id="sRejoin"><option value="">전체</option><option value="Y">재가입</option><option value="N">미재가입</option></select>
+          </div>
         </div>
       </form>
 
@@ -77,13 +162,16 @@
             <thead>
               <tr>
                 <th class="sortable col-no" data-key="no">번호</th>
-                <th class="sortable w-id" data-key="userId">아이디</th>
-                <th class="sortable w-cnt" data-key="orderCount">주문수량</th>
+                <th class="sortable w-cat" data-key="category">구분</th>
+                <th class="sortable w-mt" data-key="memberType">가입유형</th>
+                <th class="sortable w-grade" data-key="grade">등급</th>
+                <th class="sortable w-cnt" data-key="tenureDays">이용기간</th>
+                <th class="sortable w-cnt" data-key="orderCount">주문건수</th>
                 <th class="sortable w-amt" data-key="orderAmount">주문금액</th>
-                <th class="sortable w-date" data-key="joinDate">가입일</th>
+                <th class="sortable w-date" data-key="lastOrderDate">마지막 주문</th>
                 <th class="sortable w-date" data-key="withdrawDate">탈퇴일</th>
                 <th class="sortable w-type" data-key="reasonType">탈퇴구분</th>
-                <th>상세사유</th>
+                <th>탈퇴 사유</th>
               </tr>
             </thead>
             <tbody id="listBody"></tbody>
@@ -91,91 +179,203 @@
         </div>
         <div class="pagination" id="pagination"></div>
       </section>
+      </div>
     </main>
   </div>
 </div>
 
-<!-- 상세사유 모달 -->
+<!-- 탈퇴 상세 모달 (탈퇴 시점 스냅샷) -->
 <div class="modal-bg" id="modal">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-header">
-      <h2 id="modalTitle">탈퇴 상세사유</h2>
+      <h2 id="modalTitle">탈퇴 상세</h2>
       <button type="button" class="close" data-close aria-label="닫기">&times;</button>
     </div>
-    <div class="modal-body">
-      <table class="form-table">
-        <tr><th>아이디</th><td id="mUserId"></td></tr>
-        <tr><th>가입일</th><td id="mJoinDate"></td></tr>
-        <tr><th>탈퇴일</th><td id="mWithdrawDate"></td></tr>
-        <tr><th>탈퇴구분</th><td id="mReasonType"></td></tr>
-        <tr><th>상세사유</th><td class="reason-full" id="mReason"></td></tr>
-      </table>
-    </div>
+    <div class="modal-body" id="mBody"></div>
     <div class="modal-footer">
       <button type="button" class="btn" data-close>닫기</button>
     </div>
   </div>
 </div>
 
+<div class="viz-tip" id="vizTip" role="tooltip" hidden></div>
 <div class="toast" id="toast"></div>
 
 <script>
 (function () {
   'use strict';
 
-  // ===== 샘플 데이터 (실서비스에서는 API 응답으로 대체) =====
-  const REASON_TYPES = ['자진탈퇴', '자진탈퇴', '자진탈퇴', '강제탈퇴', '장기미이용'];
-  const REASONS = {
-    '자진탈퇴': ['서비스를 더 이상 이용하지 않음', '원하는 도서가 부족함', '배송이 느림', '다른 서비스를 이용하기로 함', '개인정보 보호를 위해 탈퇴', '가격이 비쌈'],
-    '강제탈퇴': ['부정 거래 이력으로 관리자 탈퇴 처리', '이용약관 위반(욕설·비방 게시글 반복 작성)', '타인 명의 도용 확인'],
-    '장기미이용': ['휴면 전환 후 1년 경과로 자동 탈퇴']
-  };
+  // ======================================================================
+  // 탈퇴 기록 구조 (탈퇴 시점 스냅샷)
+  // ----------------------------------------------------------------------
+  // 탈퇴하면 회원 정보가 파기되므로, 분석에 필요한 값을 탈퇴 처리 순간에 한 번 기록해 둔다.
+  // 이름·이메일·휴대폰 등 식별 정보는 저장하지 않는다. (아이디는 중복 가입 방지 기간 동안만 보관하는 것을 전제)
+  //
+  //  회원 속성   category, kind(종류), memberType(가입유형), grade, marketing(Y/N)
+  //  이용 기간   joinDate, withdrawDate, tenureDays, lastLoginDate, inactiveDays(마지막 접속 → 탈퇴)
+  //  주문        orderCount, orderAmount, avgOrder, orders12m(탈퇴 전 1년), lastOrderDate, mainProduct
+  //  직전 경험   inquiryCount, openInquiry(미답변), lastInquiryType, claimCount(재제작·반품), savedProjects(남은 작업물), cartAmount
+  //  소멸 혜택   lostMileage(P), lostCoupons(장), lostGiftCard(원)
+  //  처리        reasonType, reasonCodes[](복수 선택), reasonEtc(기타 의견), channel, processedBy, processNote
+  //  사후        rejoined, rejoinDate, orderRecordPurgeDate(탈퇴일 + 5년)
+  //
+  // TODO: 실서비스에서는 탈퇴 처리 시 서버가 이 스냅샷을 저장하고 GET /api/admin/withdrawals 로 조회
+  //       (샘플은 회원 리스트 데이터와 연결되지 않은 임의 데이터)
+  // ======================================================================
 
+  // 탈퇴 사유 코드 (선택형). 자진탈퇴는 복수 선택 가능
+  const REASONS = [
+    { code: 'EDITOR',   label: '편집기 사용이 어려움',        type: '자진탈퇴' },
+    { code: 'QUALITY',  label: '인쇄 품질·색감 불만',         type: '자진탈퇴' },
+    { code: 'LEADTIME', label: '제작·배송 기간이 김',         type: '자진탈퇴' },
+    { code: 'PRICE',    label: '가격이 비쌈',                type: '자진탈퇴' },
+    { code: 'PRODUCT',  label: '원하는 상품·옵션 없음',       type: '자진탈퇴' },
+    { code: 'CS',       label: '상담·응대 불만',              type: '자진탈퇴' },
+    { code: 'NOUSE',    label: '더 이상 이용하지 않음',       type: '자진탈퇴' },
+    { code: 'PRIVACY',  label: '개인정보 보호',              type: '자진탈퇴' },
+    { code: 'OTHER',    label: '기타',                       type: '자진탈퇴' },
+    { code: 'ABUSE',    label: '부정 거래',                  type: '강제탈퇴' },
+    { code: 'TOS',      label: '이용약관 위반',              type: '강제탈퇴' },
+    { code: 'IDENTITY', label: '명의 도용',                  type: '강제탈퇴' },
+    { code: 'DORMANT',  label: '휴면 1년 경과',              type: '장기미이용' }
+  ];
+  const REASON = Object.fromEntries(REASONS.map(r => [r.code, r]));
+
+  // 이용 기간 구간 (일)
+  const TENURE_BUCKETS = [
+    { key: 't1', label: '30일 미만',   min: 0,   max: 29 },
+    { key: 't2', label: '1~6개월',     min: 30,  max: 179 },
+    { key: 't3', label: '6개월~1년',   min: 180, max: 364 },
+    { key: 't4', label: '1~2년',       min: 365, max: 729 },
+    { key: 't5', label: '2년 이상',    min: 730, max: Infinity }
+  ];
+  const bucketOf = d => TENURE_BUCKETS.find(b => d >= b.min && d <= b.max);
+
+  // ===== 샘플 데이터 =====
   let seed = 7;
   const rand = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
   const pick = arr => arr[Math.floor(rand() * arr.length)];
+  const weighted = pairs => { let x = rand() * pairs.reduce((s, p) => s + p[1], 0); for (const [v, w] of pairs) { if ((x -= w) < 0) return v; } return pairs[0][0]; };
+  const between = (a, b) => a + Math.floor(rand() * (b - a + 1));
   const pad = n => String(n).padStart(2, '0');
   const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const won = n => n.toLocaleString() + '원';
+  const DAY = 86400000;
+  const base = new Date(2026, 9, 1).getTime();
+  const addDays = (t, n) => fmtDate(new Date(t + n * DAY));
+
+  const KINDS = ['기관', '회사', '학교', '유치원', '어린이집', '동호회', '기타'];
+  const PRODUCTS = ['포토북', '캘린더', '액자', '팬시·굿즈'];
+  const INQ_TYPES = ['주문/결제', '배송', '상품', '교환/반품', '회원정보', '기타'];
+  const ETC_COMMENTS = ['원하는 사이즈가 없어서 다른 곳을 이용합니다', '모바일 편집이 자주 멈춰요', '사진 업로드가 너무 느려요', '이벤트가 적어요', '한 번만 필요했어요'];
+  const FORCE_NOTES = { ABUSE: '쿠폰 부정 사용 반복 확인', TOS: '욕설·비방 게시글 반복 작성', IDENTITY: '타인 명의 가입 신고 접수 후 확인' };
 
   const items = [];
-  const base = new Date(2026, 9, 1).getTime();
-  for (let i = 1; i <= 64; i++) {
-    const withdraw = new Date(base - Math.floor(rand() * 365) * 86400000);
-    const join = new Date(withdraw.getTime() - (30 + Math.floor(rand() * 900)) * 86400000);
-    const reasonType = pick(REASON_TYPES);
-    const orderCount = reasonType === '장기미이용' ? Math.floor(rand() * 3) : Math.floor(rand() * 40);
+  for (let i = 1; i <= 180; i++) {
+    const withdrawT = base - between(1, 365) * DAY;
+    const reasonType = weighted([['자진탈퇴', 70], ['장기미이용', 20], ['강제탈퇴', 10]]);
+    const bucket = reasonType === '장기미이용' ? weighted([[TENURE_BUCKETS[3], 55], [TENURE_BUCKETS[4], 45]])
+      : weighted([[TENURE_BUCKETS[0], 18], [TENURE_BUCKETS[1], 27], [TENURE_BUCKETS[2], 22], [TENURE_BUCKETS[3], 20], [TENURE_BUCKETS[4], 13]]);
+    const tenureDays = Math.max(bucket.min, between(bucket.min, Math.min(bucket.max, 1400)));
+    const joinT = withdrawT - tenureDays * DAY;
+
+    // 사유
+    let reasonCodes;
+    if (reasonType === '장기미이용') reasonCodes = ['DORMANT'];
+    else if (reasonType === '강제탈퇴') reasonCodes = [weighted([['ABUSE', 5], ['TOS', 3], ['IDENTITY', 2]])];
+    else {
+      const first = weighted([['NOUSE', 20], ['PRICE', 16], ['EDITOR', 15], ['QUALITY', 12], ['LEADTIME', 11], ['PRODUCT', 9], ['CS', 6], ['PRIVACY', 6], ['OTHER', 5]]);
+      reasonCodes = [first];
+      if (rand() < 0.35) { const second = weighted([['PRICE', 3], ['LEADTIME', 3], ['EDITOR', 2], ['QUALITY', 2], ['CS', 1]]); if (second !== first) reasonCodes.push(second); }
+    }
+    const has = c => reasonCodes.includes(c);
+
+    // 접속·주문
+    const inactiveDays = reasonType === '장기미이용' ? between(365, Math.min(500, tenureDays))
+      : Math.min(tenureDays, weighted([[between(0, 7), 45], [between(8, 60), 35], [between(61, 240), 20]]));
+    const lastLoginT = withdrawT - inactiveDays * DAY;
+    const orderCount = reasonType === '장기미이용' ? weighted([[0, 50], [between(1, 3), 50]])
+      : has('EDITOR') ? weighted([[0, 60], [between(1, 2), 40]])
+      : weighted([[0, 22], [between(1, 5), 48], [between(6, 30), 30]]);
+    const orderAmount = Array.from({ length: orderCount }, () => between(80, 600) * 100).reduce((s, v) => s + v, 0);
+    const lastOrderT = orderCount ? lastLoginT - between(0, Math.max(0, Math.floor((lastLoginT - joinT) / DAY))) * DAY * rand() : 0;
+    const lastOrderDate = orderCount ? fmtDate(new Date(Math.max(joinT, lastOrderT))) : '';
+    const orders12m = orderCount && (withdrawT - new Date(lastOrderDate).getTime()) < 365 * DAY ? Math.max(1, Math.round(orderCount * rand())) : 0;
+
+    // 탈퇴 직전 경험
+    const inquiryCount = has('CS') || has('QUALITY') ? between(1, 4) : weighted([[0, 60], [1, 25], [between(2, 3), 15]]);
+    const openInquiry = inquiryCount > 0 && (has('CS') ? rand() < 0.6 : rand() < 0.12);
+    const claimCount = has('QUALITY') ? between(1, 2) : (orderCount && rand() < 0.08 ? 1 : 0);
+    const savedProjects = has('EDITOR') ? between(1, 4) : (rand() < 0.28 ? between(1, 2) : 0);
+    const cartAmount = savedProjects ? between(1, savedProjects + 1) * pick([17500, 21000, 28900, 14000, 9660]) : 0;
+
+    const memberType = weighted([['스탑북회원', 60], ['카카오회원', 18], ['네이버회원', 13], ['구글회원', 9]]);
+    const category = rand() < 0.82 ? '일반' : '단체';
+    const rejoined = reasonType === '자진탈퇴' && rand() < 0.09;
+    const withdrawDate = fmtDate(new Date(withdrawT));
+
     items.push({
       no: i,
       userId: 'out' + String(100 + i),
-      orderCount,
-      orderAmount: orderCount * (8000 + Math.floor(rand() * 20) * 1000),
-      joinDate: fmtDate(join),
-      withdrawDate: fmtDate(withdraw),
-      reasonType,
-      reason: pick(REASONS[reasonType])
+      category, kind: category === '단체' ? pick(KINDS) : '',
+      memberType,
+      grade: orderCount >= 10 ? pick(['홀리커', '마스터', '마스터 VIP']) : orderCount >= 2 ? pick(['일반', '스타터', '스타터']) : '일반',
+      marketing: rand() < 0.45 ? 'Y' : 'N',
+      joinDate: fmtDate(new Date(joinT)), withdrawDate, tenureDays,
+      lastLoginDate: fmtDate(new Date(lastLoginT)), inactiveDays,
+      orderCount, orderAmount, avgOrder: orderCount ? Math.round(orderAmount / orderCount / 10) * 10 : 0,
+      orders12m, lastOrderDate, mainProduct: orderCount ? weighted([['포토북', 50], ['캘린더', 20], ['액자', 15], ['팬시·굿즈', 15]]) : '',
+      inquiryCount, openInquiry, lastInquiryType: inquiryCount ? (has('QUALITY') ? '교환/반품' : pick(INQ_TYPES)) : '',
+      claimCount, savedProjects, cartAmount,
+      lostMileage: rand() < 0.4 ? 0 : between(1, 50) * 100,
+      lostCoupons: weighted([[0, 50], [1, 30], [between(2, 3), 20]]),
+      lostGiftCard: rand() < 0.1 ? pick([10000, 30000, 50000]) : 0,
+      reasonType, reasonCodes,
+      reasonEtc: has('OTHER') || (reasonType === '자진탈퇴' && rand() < 0.25) ? pick(ETC_COMMENTS) : '',
+      channel: reasonType === '강제탈퇴' ? '관리자' : reasonType === '장기미이용' ? '시스템' : weighted([['모바일', 65], ['PC', 35]]),
+      processedBy: reasonType === '강제탈퇴' ? '관리자' : reasonType === '장기미이용' ? '시스템' : '본인',
+      processNote: reasonType === '강제탈퇴' ? FORCE_NOTES[reasonCodes[0]] : '',
+      rejoined, rejoinDate: rejoined ? addDays(withdrawT, between(20, 200)) : '',
+      orderRecordPurgeDate: orderCount ? addDays(withdrawT, 365 * 5 + 1) : ''
     });
   }
+  items.forEach(m => { if (m.rejoinDate && m.rejoinDate > fmtDate(new Date(base))) { m.rejoined = false; m.rejoinDate = ''; } });
 
-  // ===== 상태 =====
+  // ===== 공통 =====
   const state = { filtered: [], page: 1, size: 20, sortKey: 'withdrawDate', sortDir: 'desc' };
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const won = n => n.toLocaleString() + '원';
+  const tenureText = d => (d < 30 ? `${d}일` : d < 365 ? `${Math.floor(d / 30)}개월` : `${Math.floor(d / 365)}년 ${Math.floor((d % 365) / 30)}개월`);
+  const catText = m => (m.kind ? `${m.category} > ${m.kind}` : m.category);
+  const reasonLabels = m => m.reasonCodes.map(c => REASON[c].label);
+  const yn = (v, on, off) => (v ? on : off);
+
+  // 검색 선택지
+  $('sTenure').innerHTML += TENURE_BUCKETS.map(b => `<option value="${b.key}">${b.label}</option>`).join('');
+  $('sReason').innerHTML += ['자진탈퇴', '강제탈퇴', '장기미이용'].map(t =>
+    `<optgroup label="${t}">${REASONS.filter(r => r.type === t).map(r => `<option value="${r.code}">${r.label}</option>`).join('')}</optgroup>`).join('');
 
   // ===== 검색 =====
   function applyFilter() {
-    const kw = $('sKeyword').value.trim().toLowerCase();
-    const from = $('sFrom').value;
-    const to = $('sTo').value;
-    const type = $('sReasonType').value;
-
+    const v = id => $(id).value;
+    const kw = v('sKeyword').trim().toLowerCase();
+    const from = v('sFrom'), to = v('sTo');
     if (from && to && from > to) { toast('탈퇴일 시작일이 종료일보다 늦습니다.'); return false; }
-
+    const tb = TENURE_BUCKETS.find(b => b.key === v('sTenure'));
+    const ynMatch = (val, flag) => !val || (val === 'Y') === flag;
     state.filtered = items.filter(m =>
       (!kw || m.userId.toLowerCase().includes(kw)) &&
-      (!from || m.withdrawDate >= from) &&
-      (!to || m.withdrawDate <= to) &&
-      (!type || m.reasonType === type)
+      (!from || m.withdrawDate >= from) && (!to || m.withdrawDate <= to) &&
+      (!v('sReasonType') || m.reasonType === v('sReasonType')) &&
+      (!v('sCategory') || m.category === v('sCategory')) &&
+      (!v('sMemberType') || m.memberType === v('sMemberType')) &&
+      (!v('sGrade') || m.grade === v('sGrade')) &&
+      (!tb || (m.tenureDays >= tb.min && m.tenureDays <= tb.max)) &&
+      ynMatch(v('sOrder'), m.orderCount > 0) &&
+      (!v('sReason') || m.reasonCodes.includes(v('sReason'))) &&
+      ynMatch(v('sOpenInq'), m.openInquiry) &&
+      ynMatch(v('sLeftover'), m.savedProjects > 0) &&
+      ynMatch(v('sRejoin'), m.rejoined)
     );
     sortData();
     return true;
@@ -189,7 +389,110 @@
     });
   }
 
-  // ===== 렌더링 =====
+  // ===== 분석 (전체 탈퇴 회원 기준, 리스트 탭 검색과 무관) =====
+  const avg = (list, f) => (list.length ? list.reduce((s, m) => s + f(m), 0) / list.length : 0);
+  const sum = (list, f) => list.reduce((s, m) => s + f(m), 0);
+  const pct = (a, b) => (b ? Math.round(a / b * 1000) / 10 : 0);
+
+  function renderAnalysis() {
+    const list = items, n = list.length;
+    $('analysisScope').textContent = `· 전체 탈퇴 회원 ${n}명 · 사유 막대를 누르면 리스트에서 해당 회원을 볼 수 있습니다`;
+
+    const buyers = list.filter(m => m.orderCount > 0).length;
+    const lostMileage = sum(list, m => m.lostMileage), lostGift = sum(list, m => m.lostGiftCard), lostCoupons = sum(list, m => m.lostCoupons);
+    const rejoin = list.filter(m => m.rejoined).length;
+    const tiles = [
+      ['탈퇴 회원', `${n.toLocaleString()}명`, `자진 ${list.filter(m => m.reasonType === '자진탈퇴').length} · 장기미이용 ${list.filter(m => m.reasonType === '장기미이용').length} · 강제 ${list.filter(m => m.reasonType === '강제탈퇴').length}`],
+      ['평균 이용 기간', n ? tenureText(Math.round(avg(list, m => m.tenureDays))) : '-', `30일 미만 이탈 ${pct(list.filter(m => m.tenureDays < 30).length, n)}%`],
+      ['탈퇴 전 미접속', n ? `평균 ${Math.round(avg(list, m => m.inactiveDays))}일` : '-', '마지막 접속 → 탈퇴'],
+      ['구매 경험', `${pct(buyers, n)}%`, `${buyers.toLocaleString()}명 · 주문 없이 탈퇴 ${n - buyers}명`],
+      ['누적 주문금액', won(sum(list, m => m.orderAmount)), `1인 평균 ${won(Math.round(avg(list, m => m.orderAmount) / 10) * 10)}`],
+      ['소멸 혜택', `${lostMileage.toLocaleString()}P`, `상품권 ${won(lostGift)} · 쿠폰 ${lostCoupons}장`],
+      ['재가입', `${pct(rejoin, n)}%`, `${rejoin}명 재가입`]
+    ];
+    $('kpis').innerHTML = tiles.map(([k, v, s]) => `<div class="kpi"><div class="kpi-label">${k}</div><div class="kpi-value">${v}</div><div class="kpi-sub">${s}</div></div>`).join('');
+
+    // 월별 추이: 최근 12개월 (2025-10 ~ 2026-09)
+    const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(2026, 9 - 12 + i, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; });
+    const monthly = months.map(ym => ({ key: ym, label: `${Number(ym.slice(5))}월`, value: list.filter(m => m.withdrawDate.startsWith(ym)).length, tip: `${ym.replace('-', '년 ')}월 · ${list.filter(m => m.withdrawDate.startsWith(ym)).length}명` }));
+    renderColumns($('chartMonthly'), monthly, { labelIdx: [monthly.length - 1, maxIdx(monthly)] });
+
+    // 이용 기간 분포
+    const tenure = TENURE_BUCKETS.map(b => { const c = list.filter(m => bucketOf(m.tenureDays) === b).length; return { key: b.key, label: b.label, value: c, tip: `${b.label} · ${c}명 (${pct(c, n)}%)` }; });
+    renderColumns($('chartTenure'), tenure, { labelIdx: tenure.map((_, i) => i) });
+
+    // 자진탈퇴 사유: 선택한 회원 수 많은 순 (복수 선택이라 합계가 100%를 넘을 수 있음)
+    // 강제탈퇴·장기미이용은 사유가 사실상 하나라 탈퇴 회원 카드의 건수로 대신함
+    const voluntary = list.filter(m => m.reasonType === '자진탈퇴');
+    const reasons = REASONS.filter(r => r.type === '자진탈퇴')
+      .map(r => ({ code: r.code, label: r.label, value: voluntary.filter(m => m.reasonCodes.includes(r.code)).length }))
+      .filter(r => r.value).sort((a, b) => b.value - a.value);
+    const vn = voluntary.length;
+    $('reasonSub').textContent = `복수 선택 · 자진탈퇴 ${vn}명 대비`;
+    const maxR = Math.max(1, ...reasons.map(r => r.value));
+    $('chartReasons').innerHTML = reasons.length ? reasons.map(r => `
+      <div class="hbar-row" data-reason="${r.code}" role="button" tabindex="0" data-tip="${esc(r.label)} · ${r.value}명 (${pct(r.value, vn)}%) · 누르면 이 사유로 검색">
+        <span class="hbar-label">${esc(r.label)}</span>
+        <span class="hbar-track"><span class="hbar" style="width:${r.value / maxR * 100}%"></span></span>
+        <span class="hbar-value">${pct(r.value, vn)}%</span>
+      </div>`).join('') : '<div class="viz-empty">자진탈퇴 회원이 없습니다.</div>';
+  }
+
+  const maxIdx = data => data.reduce((mi, d, i) => (d.value > data[mi].value ? i : mi), 0);
+
+  // 세로 막대: 단일 계열(한 가지 색). 값 라벨은 지정한 막대만, 나머지는 마우스를 올리면 툴팁
+  function renderColumns(el, data, { labelIdx = [] } = {}) {
+    const max = Math.max(1, ...data.map(d => d.value));
+    const show = new Set(labelIdx);
+    el.innerHTML = `<div class="col-plot">${data.map((d, i) => `
+      <div class="col" data-tip="${esc(d.tip)}">
+        <span class="col-bar" style="height:${d.value / max * 100}%"><span class="col-value">${show.has(i) && d.value ? d.value : ''}</span></span>
+      </div>`).join('')}</div>
+      <div class="col-axis">${data.map(d => `<span>${esc(d.label)}</span>`).join('')}</div>`;
+  }
+
+  // 툴팁
+  const tip = $('vizTip');
+  $('analysis').addEventListener('mouseover', e => {
+    const t = e.target.closest('[data-tip]');
+    if (!t) { tip.hidden = true; return; }
+    tip.textContent = t.dataset.tip;
+    tip.hidden = false;
+    const r = t.getBoundingClientRect();
+    tip.style.left = `${Math.min(window.innerWidth - tip.offsetWidth - 8, Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2))}px`;
+    tip.style.top = `${r.top - tip.offsetHeight - 6 + window.scrollY}px`;
+  });
+  $('analysis').addEventListener('mouseleave', () => { tip.hidden = true; });
+
+  // 사유 막대를 누르면 리스트 탭으로 이동해 그 사유로 검색 (다른 검색 조건은 초기화)
+  function searchByReason(code) {
+    $('searchForm').reset();
+    $('sReason').value = code;
+    $('detailSearch').hidden = false;
+    $('btnDetail').setAttribute('aria-expanded', 'true');
+    updateDetailCount();
+    if (applyFilter()) { state.page = 1; render(); }
+    showTab('list');
+  }
+  $('chartReasons').addEventListener('click', e => { const r = e.target.closest('[data-reason]'); if (r) searchByReason(r.dataset.reason); });
+  $('chartReasons').addEventListener('keydown', e => { const r = e.target.closest('[data-reason]'); if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); searchByReason(r.dataset.reason); } });
+
+  // ===== 탭 (분석 / 리스트). 새로고침해도 같은 탭이 보이도록 주소의 ?tab= 사용 =====
+  const TABS = ['analysis', 'list'];
+  function showTab(key) {
+    if (!TABS.includes(key)) key = 'analysis';
+    TABS.forEach(k => {
+      const on = k === key;
+      $('tab-' + k).classList.toggle('active', on);
+      $('tab-' + k).setAttribute('aria-selected', String(on));
+      $(k === 'analysis' ? 'panelAnalysis' : 'panelList').hidden = !on;
+    });
+    tip.hidden = true;
+    try { history.replaceState(null, '', `?tab=${key}`); } catch (err) { /* file:// 등에서 차단될 수 있음 */ }
+  }
+  $('tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) showTab(b.dataset.tab); });
+
+  // ===== 목록 =====
   function render() {
     const total = state.filtered.length;
     const pages = Math.max(1, Math.ceil(total / state.size));
@@ -200,25 +503,29 @@
     $('totalCount').textContent = total.toLocaleString();
     $('allCount').textContent = items.length.toLocaleString();
 
-    $('listBody').innerHTML = rows.length ? rows.map(m => `
-      <tr>
+    $('listBody').innerHTML = rows.length ? rows.map(m => {
+      const labels = reasonLabels(m);
+      return `<tr>
         <td>${m.no}</td>
-        <td>${esc(m.userId)}</td>
+        <td>${esc(catText(m))}</td>
+        <td>${esc(m.memberType.replace('회원', ''))}</td>
+        <td>${esc(m.grade)}</td>
+        <td class="num">${tenureText(m.tenureDays)}</td>
         <td class="num">${m.orderCount.toLocaleString()}</td>
         <td class="num">${won(m.orderAmount)}</td>
-        <td>${m.joinDate}</td>
+        <td>${m.lastOrderDate || '<span class="muted">-</span>'}</td>
         <td>${m.withdrawDate}</td>
-        <td><span class="badge wd-${m.reasonType}">${m.reasonType}</span></td>
-        <td class="reason"><a class="name-link" data-no="${m.no}" title="${esc(m.reason)}">${esc(m.reason)}</a></td>
-      </tr>`).join('')
-      : '<tr><td colspan="8" class="empty">검색 결과가 없습니다.</td></tr>';
+        <td><span class="badge wd-${m.reasonType}">${m.reasonType}</span>${m.rejoined ? ` <span class="tag-rejoin" title="재가입 ${m.rejoinDate}">재가입</span>` : ''}</td>
+        <td class="reason"><a class="name-link" data-no="${m.no}" title="${esc(labels.join(', '))}${m.reasonEtc ? ` / ${esc(m.reasonEtc)}` : ''}">${esc(labels[0])}${labels.length > 1 ? ` <span class="muted">외 ${labels.length - 1}</span>` : ''}</a></td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="11" class="empty">검색 결과가 없습니다.</td></tr>';
+    $('tabListCount').textContent = total.toLocaleString();
 
     document.querySelectorAll('th.sortable').forEach(th => {
       const active = th.dataset.key === state.sortKey;
       const label = th.textContent.replace(/[▲▼↕]/g, '').trim();
       th.innerHTML = `${label}<span class="arrow">${active ? (state.sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>`;
     });
-
     renderPagination(pages);
   }
 
@@ -228,50 +535,101 @@
     const blockEnd = Math.min(pages, blockStart + 9);
     let html = `<button data-page="1" ${cur === 1 ? 'disabled' : ''}>«</button>`;
     html += `<button data-page="${cur - 1}" ${cur === 1 ? 'disabled' : ''}>‹</button>`;
-    for (let p = blockStart; p <= blockEnd; p++) {
-      html += `<button data-page="${p}" class="${p === cur ? 'active' : ''}">${p}</button>`;
-    }
+    for (let p = blockStart; p <= blockEnd; p++) html += `<button data-page="${p}" class="${p === cur ? 'active' : ''}">${p}</button>`;
     html += `<button data-page="${cur + 1}" ${cur === pages ? 'disabled' : ''}>›</button>`;
     html += `<button data-page="${pages}" ${cur === pages ? 'disabled' : ''}>»</button>`;
     $('pagination').innerHTML = html;
   }
 
-  // ===== 상세사유 모달 =====
+  // 분석은 전체 기준이라 처음 한 번만 그림. 검색은 리스트만 다시 그림
+  const renderAll = () => render();
+
+  // ===== 상세 모달 (탈퇴 시점 스냅샷) =====
   function openModal(no) {
     const m = items.find(x => x.no === no);
     if (!m) return;
-    $('mUserId').textContent = m.userId;
-    $('mJoinDate').textContent = m.joinDate;
-    $('mWithdrawDate').textContent = m.withdrawDate;
-    $('mReasonType').textContent = m.reasonType;
-    $('mReason').textContent = m.reason;
+    $('modalTitle').textContent = `탈퇴 상세 - ${m.userId}`;
+    const row = cells => `<tr>${cells.map(([k, v, span]) => `<th>${k}</th><td${span ? ` colspan="${span}"` : ''}>${v}</td>`).join('')}</tr>`;
+    const table = rows => `<table class="form-table multi-col"><colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>${rows.join('')}</table>`;
+    const none = '<span class="muted">없음</span>';
+    $('mBody').innerHTML = `
+      <div class="section-title">탈퇴 처리</div>
+      ${table([
+        row([['탈퇴구분', `<span class="badge wd-${m.reasonType}">${m.reasonType}</span>`], ['탈퇴일', m.withdrawDate]]),
+        row([['탈퇴 사유', reasonLabels(m).map(l => `<span class="chip-sm">${esc(l)}</span>`).join(' '), 3]]),
+        row([['기타 의견', m.reasonEtc ? `<span class="reason-full">${esc(m.reasonEtc)}</span>` : none, 3]]),
+        row([['탈퇴 경로', esc(m.channel)], ['처리자', esc(m.processedBy) + (m.processNote ? ` <span class="readonly">(${esc(m.processNote)})</span>` : '')]]),
+        row([['재가입', m.rejoined ? `재가입 (${m.rejoinDate})` : '미재가입', 3]])
+      ])}
+      <div class="section-title">회원 속성 <span class="section-note">탈퇴 시점</span></div>
+      ${table([
+        row([['구분', esc(catText(m))], ['가입유형', esc(m.memberType)]]),
+        row([['등급', esc(m.grade)], ['마케팅 수신', m.marketing === 'Y' ? '동의' : '거부']])
+      ])}
+      <div class="section-title">이용 기간</div>
+      ${table([
+        row([['가입일', m.joinDate], ['이용 기간', `${tenureText(m.tenureDays)} <span class="readonly">(${m.tenureDays.toLocaleString()}일)</span>`]]),
+        row([['마지막 접속', m.lastLoginDate], ['탈퇴 전 미접속', `${m.inactiveDays}일`]])
+      ])}
+      <div class="section-title">주문</div>
+      ${table([
+        row([['주문건수', `${m.orderCount}건 <span class="readonly">(최근 1년 ${m.orders12m}건)</span>`], ['누적 주문금액', won(m.orderAmount)]]),
+        row([['객단가', m.orderCount ? won(m.avgOrder) : none], ['마지막 주문', m.lastOrderDate || none]]),
+        row([['주 구매 상품', m.mainProduct ? esc(m.mainProduct) : none, 3]])
+      ])}
+      <div class="section-title">탈퇴 직전 경험</div>
+      ${table([
+        row([['문의', m.inquiryCount ? `${m.inquiryCount}건 <span class="readonly">(최근: ${esc(m.lastInquiryType)})</span>` : none], ['미답변 문의', yn(m.openInquiry, '<b class="text-danger">있음</b>', '없음')]]),
+        row([['재제작·반품', m.claimCount ? `${m.claimCount}건` : none], ['남은 작업물', m.savedProjects ? `${m.savedProjects}개 <span class="readonly">(장바구니 ${won(m.cartAmount)})</span>` : none]])
+      ])}
+      <div class="section-title">소멸 혜택</div>
+      ${table([
+        row([['마일리지', `${m.lostMileage.toLocaleString()}P`], ['쿠폰', `${m.lostCoupons}장`]]),
+        row([['상품권', won(m.lostGiftCard), 3]])
+      ])}
+      <div class="section-title">보관</div>
+      ${table([
+        row([['개인정보', '탈퇴 시 파기 완료'], ['주문 기록 파기 예정', m.orderRecordPurgeDate || '<span class="muted">주문 없음</span>']])
+      ])}`;
     $('modal').classList.add('open');
   }
   const closeModal = () => $('modal').classList.remove('open');
 
-  // ===== 엑셀(CSV) 다운로드 =====
+  // ===== 엑셀(CSV) 다운로드: 분석용 전체 항목 =====
   function downloadExcel() {
     if (!state.filtered.length) { toast('다운로드할 데이터가 없습니다.'); return; }
     const cols = [
-      ['no', '번호'], ['userId', '아이디'], ['orderCount', '주문수량'], ['orderAmount', '주문금액'],
-      ['joinDate', '가입일'], ['withdrawDate', '탈퇴일'], ['reasonType', '탈퇴구분'], ['reason', '상세사유']
+      ['no', '번호'], ['userId', '아이디'], ['category', '구분'], ['kind', '종류'], ['memberType', '가입유형'], ['grade', '등급'], ['marketing', '마케팅수신'],
+      ['joinDate', '가입일'], ['withdrawDate', '탈퇴일'], ['tenureDays', '이용기간(일)'], ['tenureBucket', '이용기간구간'], ['lastLoginDate', '마지막접속일'], ['inactiveDays', '탈퇴전미접속(일)'],
+      ['orderCount', '주문건수'], ['orderAmount', '주문금액'], ['avgOrder', '객단가'], ['orders12m', '최근1년주문'], ['lastOrderDate', '마지막주문일'], ['mainProduct', '주구매상품'],
+      ['inquiryCount', '문의건수'], ['openInquiry', '미답변문의'], ['lastInquiryType', '최근문의유형'], ['claimCount', '재제작반품'], ['savedProjects', '남은작업물'], ['cartAmount', '장바구니금액'],
+      ['lostMileage', '소멸마일리지(P)'], ['lostCoupons', '소멸쿠폰(장)'], ['lostGiftCard', '소멸상품권(원)'],
+      ['reasonType', '탈퇴구분'], ['reasonCodes', '탈퇴사유코드'], ['reasonLabels', '탈퇴사유'], ['reasonEtc', '기타의견'],
+      ['channel', '탈퇴경로'], ['processedBy', '처리자'], ['processNote', '처리근거'], ['rejoined', '재가입'], ['rejoinDate', '재가입일'], ['orderRecordPurgeDate', '주문기록파기예정일']
     ];
+    const value = (m, k) => {
+      if (k === 'tenureBucket') return bucketOf(m.tenureDays).label;
+      if (k === 'reasonCodes') return m.reasonCodes.join('|');
+      if (k === 'reasonLabels') return reasonLabels(m).join(', ');
+      if (typeof m[k] === 'boolean') return m[k] ? 'Y' : 'N';
+      return m[k];
+    };
     const cell = v => {
       let s = String(v ?? '');
       if (/^[=+\-@]/.test(s)) s = "'" + s;            // CSV 수식 주입 방지
       return '"' + s.replace(/"/g, '""') + '"';
     };
     const lines = [cols.map(c => cell(c[1])).join(',')];
-    state.filtered.forEach(m => lines.push(cols.map(([k]) => cell(m[k])).join(',')));
+    state.filtered.forEach(m => lines.push(cols.map(([k]) => cell(value(m, k))).join(',')));
     const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `탈퇴회원목록_${fmtDate(new Date()).replace(/-/g, '')}.csv`;
+    a.download = `탈퇴회원분석_${fmtDate(new Date()).replace(/-/g, '')}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(a.href);
-    toast(`${state.filtered.length}명의 탈퇴회원 정보를 다운로드했습니다.`);
+    toast(`${state.filtered.length}명의 탈퇴 분석 데이터를 다운로드했습니다.`);
   }
 
   // ===== 토스트 =====
@@ -284,28 +642,37 @@
     toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
   }
 
-  // ===== 사이드바 하위메뉴 접기/펼치기 =====
+  // ===== 사이드바 / 상세검색 =====
   document.querySelectorAll('.sidebar .menu-parent').forEach(a => a.addEventListener('click', e => {
     e.preventDefault();
     const open = a.parentElement.classList.toggle('open');
     a.setAttribute('aria-expanded', String(open));
   }));
+  function updateDetailCount() {
+    const n = [...$('detailSearch').querySelectorAll('select')].filter(s => s.value).length;
+    $('detailCount').textContent = n ? `(${n})` : '';
+  }
+  $('btnDetail').addEventListener('click', () => {
+    const open = $('detailSearch').hidden;
+    $('detailSearch').hidden = !open;
+    $('btnDetail').setAttribute('aria-expanded', String(open));
+  });
+  $('detailSearch').addEventListener('change', updateDetailCount);
 
   // ===== 이벤트 =====
   $('searchForm').addEventListener('submit', e => {
     e.preventDefault();
-    if (applyFilter()) { state.page = 1; render(); }
+    if (applyFilter()) { state.page = 1; renderAll(); }
   });
   $('btnReset').addEventListener('click', () => {
     $('searchForm').reset();
-    applyFilter(); state.page = 1; render();
+    updateDetailCount();
+    applyFilter(); state.page = 1; renderAll();
   });
-  $('pageSize').addEventListener('change', e => {
-    state.size = Number(e.target.value); state.page = 1; render();
-  });
+  $('pageSize').addEventListener('change', e => { state.size = Number(e.target.value); state.page = 1; render(); });
   $('btnExcel').addEventListener('click', downloadExcel);
 
-  document.querySelector('thead').addEventListener('click', e => {
+  document.querySelector('.wd-table thead').addEventListener('click', e => {
     const th = e.target.closest('th.sortable');
     if (!th) return;
     const key = th.dataset.key;
@@ -329,6 +696,8 @@
   // 초기 로드
   applyFilter();
   render();
+  renderAnalysis();
+  showTab(new URLSearchParams(location.search).get('tab'));
 })();
 </script>
 </body>

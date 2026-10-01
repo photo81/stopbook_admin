@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261009">
+<link rel="stylesheet" href="admin.css?v=20261012">
 </head>
 <body>
 <div class="layout">
@@ -16,7 +16,7 @@
         <ul class="submenu">
           <li><a href="members.html" class="active" aria-current="page">회원 리스트</a></li>
           <li><a href="group-applications.html">단체 회원 신청 리스트</a></li>
-          <li><a href="withdrawn.html">탈퇴회원 리스트</a></li>
+          <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
           <li><a href="member-types.html">회원 유형 관리</a></li>
         </ul>
       </li>
@@ -34,23 +34,29 @@
 
       <!-- 검색 조건 -->
       <form class="panel" id="searchForm">
-        <div class="search-grid">
-          <div class="field">
-            <label for="sType">검색어</label>
-            <select id="sType" style="flex:0 0 90px">
-              <option value="all">전체</option>
-              <option value="name">이름</option>
-              <option value="userId">아이디</option>
-              <option value="email">이메일</option>
-              <option value="phone">휴대폰</option>
-            </select>
-            <input type="text" id="sKeyword" placeholder="검색어 입력">
-          </div>
-          <div class="field">
-            <label>가입일</label>
-            <div class="range">
-              <input type="date" id="sFrom"> ~ <input type="date" id="sTo">
+        <div class="search-row">
+          <div class="search-grid">
+            <div class="field">
+              <label for="sType">검색어</label>
+              <select id="sType" style="flex:0 0 90px">
+                <option value="all">전체</option>
+                <option value="name">이름</option>
+                <option value="userId">아이디</option>
+                <option value="email">이메일</option>
+                <option value="phone">휴대폰</option>
+              </select>
+              <input type="text" id="sKeyword" placeholder="검색어 입력">
             </div>
+            <div class="field">
+              <label>가입일</label>
+              <div class="range">
+                <input type="date" id="sFrom"> ~ <input type="date" id="sTo">
+              </div>
+            </div>
+          </div>
+          <div class="search-actions">
+            <button type="submit" class="btn btn-primary">검색</button>
+            <button type="button" class="btn" id="btnReset">초기화</button>
           </div>
         </div>
 
@@ -94,10 +100,6 @@
               <option value="N">거부</option>
             </select>
           </div>
-        </div>
-        <div class="search-actions">
-          <button type="submit" class="btn btn-primary">검색</button>
-          <button type="button" class="btn" id="btnReset">초기화</button>
         </div>
       </form>
 
@@ -447,9 +449,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261009"></script>
-<script src="member-data.js?v=20261009"></script>
-<script src="member-type-store.js?v=20261009"></script>
+<script src="alimtalk.js?v=20261012"></script>
+<script src="member-data.js?v=20261012"></script>
+<script src="member-type-store.js?v=20261012"></script>
 <script>
 (function () {
   'use strict';
