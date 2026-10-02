@@ -400,7 +400,10 @@
     const total = ord.listPrice + shipFee - ord.discount + extraPay - cancel;
     const point = ['결제완료', '부분취소'].includes(ord.payStatus) ? Math.floor(total * POINT_RATE / 10) * 10 : 0;
     const extraRequests = (EXTRAS[ord.orderNo] || []).slice();   // 관리자 생성 추가결제 (결제대기 — 합계 미반영)
-    return { listPrice: ord.listPrice, shipFee, baseShip, extraShip, freeByCategory, discount: ord.discount, discounts, extraPay, extraRequests, cancel, total, point,
+    // 주문금액 나누기: 상품금액(단가 × 부수 합계) + 옵션 추가금액(페이지 추가·후가공 등) = listPrice
+    const optionExtra = ord.items.reduce((t, it) => t + it.price.extra, 0);
+    const baseAmount = ord.listPrice - optionExtra;
+    return { listPrice: ord.listPrice, baseAmount, optionExtra, shipFee, baseShip, extraShip, freeByCategory, discount: ord.discount, discounts, extraPay, extraRequests, cancel, total, point,
       ...payMethodInfo(ord, m, r) };
   }
 

@@ -473,7 +473,7 @@ table.item-table { table-layout: fixed; min-width: 960px; }
 .item-table .w-chk input, .item-table td.c-chk input { margin: 0; }
 .item-table .w-cat { width: 96px; }
 .item-table .w-qty { width: 64px; text-align: right; }
-.item-table .w-amt { width: 100px; text-align: right; }
+.item-table .w-amt { width: 96px; text-align: right; }   /* 금액 5열 (주문·추가·할인·취소·결제) */
 .item-table .w-st { width: 88px; }
 .item-table .w-maker { width: 120px; }
 .item-table td.ellip { overflow: hidden; text-overflow: ellipsis; }
