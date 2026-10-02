@@ -401,6 +401,48 @@ table.order-table { table-layout: fixed; }
 .pay-table tr.pay-sub-row td.num { color: var(--text-2); font-weight: 500; }
 .pay-table tr.pay-sub-row + tr:not(.pay-sub-row) th, .pay-table tr.pay-sub-row + tr:not(.pay-sub-row) td { border-top: 1px solid var(--border); }
 
+/* 주문 상세 > 관리정보 탭 */
+#panelAdmin .order-memos { max-height: 480px; }
+#memoText { width: 100%; height: 90px; padding: 8px 10px; resize: vertical; line-height: 1.5; }
+.memo-actions { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 12px; }
+.order-memos { margin: 0; padding: 0; list-style: none; max-height: 420px; overflow-y: auto; }
+/* 메모 구분 선택 (입력칸 위) */
+.memo-cats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.memo-cat:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+/* 메모 구분 배지 색 */
+.memo-badge { flex: none; }
+.mc-주문 { --dot: #a855f7; } .mc-결제 { --dot: #16a34a; } .mc-배송 { --dot: #0ea5e9; }
+.mc-취소 { --dot: var(--danger); } .mc-불량 { --dot: #f97316; } .mc-기타 { --dot: #64748b; }
+/* 수정·삭제 버튼 (오른쪽 끝) / 수정 중 */
+.order-memos .memo-btns { flex: none; display: inline-flex; gap: 4px; align-self: center; }
+.order-memos li.memo-editing { align-items: flex-start; background: #fff; border-color: var(--accent); }
+.memo-edit-body { flex: 1; min-width: 0; }
+.memo-edit-text { width: 100%; height: 70px; padding: 6px 8px; resize: vertical; line-height: 1.5; }
+/* 메모 한 줄: [구분] 담당자·일시(고정 폭) | 내용 | 수정·삭제 */
+.order-memos li { display: flex; align-items: baseline; gap: 12px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--subtle); line-height: 1.5; }
+.order-memos li + li { margin-top: 4px; }
+.order-memos .memo-meta { flex: none; width: 190px; color: var(--muted); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.order-memos .memo-meta b { color: var(--text-2); margin-right: 4px; }
+.order-memos .memo-text { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-all; }
+.order-memos li.memo-empty { background: none; border-style: dashed; text-align: center; }
+#panelHistory .history-wrap { max-height: 640px; }
+tr.hist-system td { color: var(--text-2); }
+/* 이력 구분 배지 색: 관리자 변경은 진하게, 시스템 처리는 기본 */
+.hist-메모 { --dot: #64748b; }
+.hist-취소 { --dot: var(--danger); }
+.hist-취소원복 { --dot: #14b8a6; }
+.hist-추가결제 { --dot: #f59e0b; }
+.hist-주문 { --dot: #a855f7; }
+.hist-결제 { --dot: #16a34a; }
+.hist-서류발급 { --dot: #2563eb; }
+.hist-배송 { --dot: #0ea5e9; }
+
+/* 주문 상세 > 배송정보 탭: 배송지 카드 (기본 + 추가) */
+.addr-card + .addr-card { margin-top: 12px; }
+.addr-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
+.addr-btns { display: inline-flex; gap: 4px; }
+.hist-배송지 { --dot: #0ea5e9; }
+
 /* 주문 상세 > 배송정보 탭: 출고 내역 표 */
 .ship-lines-head { margin-top: 20px; }
 .ship-table td.num { text-align: right; }

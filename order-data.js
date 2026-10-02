@@ -26,6 +26,17 @@
   const EXTRA_KEY = 'stopbook.orderExtraPayments.v1';
   let EXTRAS = {};
   try { EXTRAS = JSON.parse(localStorage.getItem(EXTRA_KEY)) || {}; } catch (e) { /* 저장소 사용 불가 시 요청 없음 */ }
+  // 관리자 메모·변경 이력 (주문 상세 > 관리정보 탭)
+  // 관리자가 수정·추가한 배송지 (주문 상세 > 배송정보)
+  // { [orderNo]: { base: { recipient, phone, zip, address, detail, request }, extras: [{ id, ...같은 항목, items: [상품 index] }] } }
+  // TODO: 실서비스에서는 PUT /api/admin/orders/{orderNo}/addresses
+  const ADDR_KEY = 'stopbook.orderAddresses.v1';
+  const ADDRESS_FIELDS = [['recipient', '수취인명'], ['phone', '연락처'], ['zip', '우편번호'], ['address', '주소'], ['detail', '상세주소'], ['request', '배송 요청사항']];
+  let ADDRS = {};
+  try { ADDRS = JSON.parse(localStorage.getItem(ADDR_KEY)) || {}; } catch (e) { /* 저장소 사용 불가 시 변경 없음 */ }
+  const LOG_KEY = 'stopbook.orderAdminLog.v1';
+  let LOGS = {};
+  try { LOGS = JSON.parse(localStorage.getItem(LOG_KEY)) || {}; } catch (e) { /* 저장소 사용 불가 시 기록 없음 */ }
   const TYPE_GROUPS = MemberTypeStore.load();   // 회원 유형 관리 설정 (회원구분 무료배송·할인율, 등급 할인 혜택) — 한 번만 읽음
   const DISCOUNT_KINDS = ['쿠폰', '마일리지', '상품가할인', '배송비할인', '회원할인', '등급할인'];   // 할인금액 세부 항목
   // 방문수령(직접 수령) 장소. TODO: 실서비스에서는 쇼핑몰 설정값
@@ -292,6 +303,7 @@
     };
     ord.payment = paymentOf(ord, m);
     ord.delivery = deliveryOf(ord, m);
+    applyAddressEdits(ord);   // 관리자가 수정·추가한 배송지 반영
     ORDERS.push(ord);
   }));
 
@@ -473,8 +485,105 @@
   window.OrderData = {
     ORDERS, TODAY, PROCESS_STEPS, PROCESS_GROUPS, ITEM_STATUS_ORDER,
     find: orderNo => ORDERS.find(o => o.orderNo === orderNo) || null,
-    saveCancel, restoreCancel, saveExtraRequest
+    saveCancel, restoreCancel, saveExtraRequest,
+    adminLog, addMemo, updateMemo, deleteMemo, addHistory, systemHistory,
+    saveAddress, deleteAddress, ADDRESS_FIELDS,
+    MEMO_CATEGORIES: ['주문', '결제', '배송', '취소', '불량', '기타']
   };
+
+  // ===== 배송지 수정·추가 =====
+  // 기본 배송지(base)는 샘플 배송지를 덮어쓰고, 추가 배송지(extras)는 일부 상품을 다른 곳으로 보내는 분할 배송지
+  // 추가 배송지로 보낸 상품은 기본 배송지 상품에서 빠짐 (delivery.addresses[].items)
+  // ADDRESS_FIELDS(배송지 항목)는 forEach보다 먼저 초기화되도록 파일 위쪽에 둠
+  function applyAddressEdits(ord) {
+    const d = ord.delivery, rec = ADDRS[ord.orderNo] || {};
+    if (rec.base) Object.assign(d, rec.base);
+    const extras = (rec.extras || []).map(x => Object.assign({}, x, { items: (x.items || []).filter(i => i < ord.items.length) }));
+    const taken = new Set(extras.flatMap(x => x.items));
+    const pick = src => Object.fromEntries(ADDRESS_FIELDS.map(([k]) => [k, src[k] || '']));
+    d.addresses = [Object.assign({ id: 'base', label: '기본 배송지', items: ord.items.map((_, i) => i).filter(i => !taken.has(i)) }, pick(d))]
+      .concat(extras.map((x, n) => Object.assign({ id: x.id, label: `추가 배송지 ${n + 1}`, items: x.items }, pick(x))));
+  }
+  // id = 'base' 이면 기본 배송지 수정, 'new' 이면 추가, 그 외는 추가 배송지 수정. data = ADDRESS_FIELDS 값 (+ 추가 배송지는 items)
+  // 반환: { ok, id }
+  function saveAddress(orderNo, id, data) {
+    const rec = ADDRS[orderNo] || (ADDRS[orderNo] = { extras: [] });
+    rec.extras = rec.extras || [];
+    let savedId = id;
+    if (id === 'base') rec.base = Object.assign({}, rec.base, data);
+    else {
+      // 한 상품은 한 배송지에만: 다른 추가 배송지에서 같은 상품을 뺌
+      rec.extras.forEach(x => { if (x.id !== id) x.items = (x.items || []).filter(i => !(data.items || []).includes(i)); });
+      if (id === 'new') { savedId = 'a' + Date.now().toString(36); rec.extras.push(Object.assign({ id: savedId }, data)); }
+      else Object.assign(rec.extras.find(x => x.id === id) || {}, data);
+    }
+    try { localStorage.setItem(ADDR_KEY, JSON.stringify(ADDRS)); return { ok: true, id: savedId }; } catch (e) { return { ok: false, id: savedId }; }
+  }
+  // 추가 배송지 삭제 → 그 배송지 상품은 기본 배송지로 돌아감
+  function deleteAddress(orderNo, id) {
+    const rec = ADDRS[orderNo];
+    if (!rec || !rec.extras) return true;
+    rec.extras = rec.extras.filter(x => x.id !== id);
+    try { localStorage.setItem(ADDR_KEY, JSON.stringify(ADDRS)); return true; } catch (e) { return false; }
+  }
+
+  // ===== 관리정보 (주문 상세 > 관리정보 탭) =====
+  // 관리자 메모와 관리자 변경 이력을 주문별로 localStorage에 보관
+  // { [orderNo]: { memos: [{ text, at, by }], history: [{ at, type, content, by }] } }
+  // TODO: 실서비스에서는 GET/POST /api/admin/orders/{orderNo}/memos, /history (변경 API가 서버에서 이력 기록)
+  function adminLog(orderNo) {
+    const rec = LOGS[orderNo] || { memos: [], history: [] };
+    // 구분·id가 없는 예전 메모 보정 (구분 '기타')
+    rec.memos.forEach((mm, i) => { if (!mm.id) mm.id = `m${i}${mm.at.replace(/\D/g, '')}`; if (!mm.category) mm.category = '기타'; });
+    return { memos: rec.memos.slice(), history: rec.history.slice() };
+  }
+  function saveLogs() {
+    try { localStorage.setItem(LOG_KEY, JSON.stringify(LOGS)); return true; } catch (e) { return false; }
+  }
+  const logOf = orderNo => LOGS[orderNo] || (LOGS[orderNo] = { memos: [], history: [] });
+  const nowText = () => { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${fmtDate(d)} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+  // 관리자 메모: { id, category, text, at, by, editedAt?, editedBy? }. 등록·수정·삭제 모두 주문 히스토리에 남김
+  // category: 주문 / 결제 / 배송 / 취소 / 불량 / 기타. 반환: 저장 성공 여부
+  const cut = t => (t.length > 40 ? t.slice(0, 40) + '…' : t);
+  function addMemo(orderNo, category, text, by) {
+    const at = nowText();
+    logOf(orderNo).memos.push({ id: 'm' + Date.now().toString(36), category, text, at, by });
+    logOf(orderNo).history.push({ at, type: '메모', content: `관리자 메모 등록 [${category}] ${cut(text)}`, by });
+    return saveLogs();
+  }
+  function updateMemo(orderNo, id, category, text, by) {
+    const mm = logOf(orderNo).memos.find(x => x.id === id);
+    if (!mm) return false;
+    const at = nowText();
+    const changes = [mm.category !== category ? `구분 ${mm.category} → ${category}` : '', mm.text !== text ? `내용 "${cut(mm.text)}" → "${cut(text)}"` : ''].filter(Boolean);
+    Object.assign(mm, { category, text, editedAt: at, editedBy: by });
+    logOf(orderNo).history.push({ at, type: '메모', content: `관리자 메모 수정: ${changes.join(', ') || '변경 없음'}`, by });
+    return saveLogs();
+  }
+  function deleteMemo(orderNo, id, by) {
+    const log = logOf(orderNo);
+    const mm = log.memos.find(x => x.id === id);
+    if (!mm) return false;
+    log.memos = log.memos.filter(x => x.id !== id);
+    log.history.push({ at: nowText(), type: '메모', content: `관리자 메모 삭제 [${mm.category}] ${cut(mm.text)} (등록 ${mm.at} ${mm.by})`, by });
+    return saveLogs();
+  }
+  // 관리자 변경 이력 추가 (주문취소·취소원복·추가결제 생성 등). 반환: 저장 성공 여부
+  function addHistory(orderNo, type, content, by) {
+    logOf(orderNo).history.push({ at: nowText(), type, content, by });
+    return saveLogs();
+  }
+  // 주문 처리 과정에서 시스템이 남기는 이력 (샘플 데이터에서 만듦: 주문 접수·입금·증빙 발급·집하·배송완료 등)
+  function systemHistory(ord) {
+    const p = ord.payment, d = ord.delivery, out = [];
+    const add = (at, type, content) => { if (at) out.push({ at, type, content, by: '시스템' }); };
+    add(ord.orderedAt, '주문', `주문 접수 (${ord.payMethod}, 주문금액 ${ord.listPrice.toLocaleString()}원)`);
+    add(p.paidDateTime, '결제', ord.payMethod === '무통장입금' ? `입금 확인 (${p.total.toLocaleString()}원)` : `결제 승인 (${p.pgLog.pg}, 승인번호 ${p.pgLog.approvalNo})`);
+    if (p.docType && p.docAt) add(p.docAt, '서류발급', `${p.docType}${p.docPurpose ? `(${p.docPurpose})` : ''} 발급 완료`);
+    if (d.shippedAt) add(d.shippedAt, '배송', `집하 스캔 (${d.courier}${d.waybill ? ` ${d.waybill}` : ''})`);
+    if (d.doneAt) add(d.doneAt, '배송', '배송 완료');
+    return out;
+  }
 
   // 취소원복: 관리자가 취소한 상품의 취소 기록을 지움 → 다시 열면 취소 전 상태로 돌아감. 반환: 저장 성공 여부
   // (샘플 데이터에 처음부터 취소로 들어 있는 상품은 원복 대상이 아님)

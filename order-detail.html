@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 주문 상세</title>
-<link rel="stylesheet" href="admin.css?v=20261084">
+<link rel="stylesheet" href="admin.css?v=20261090">
 </head>
 <body>
 <div class="layout">
@@ -32,7 +32,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 주문관리 &gt; <a href="orders.html">주문 리스트</a> &gt; <b>주문 상세</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v1.65 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v1.71 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -72,19 +72,46 @@
           </div>
         </section>
 
-        <!-- 탭: 주문 상품 / 결제정보 -->
+        <!-- 탭: 주문정보 / 결제정보 / 배송정보 / 관리자메모 / 주문 히스토리 -->
         <div class="tabs" role="tablist" id="detailTabs">
-          <button type="button" role="tab" class="tab active" aria-selected="true" id="tab-items" data-tab="items" aria-controls="panelItems">상품정보 <span class="tab-count" id="tabItemCount"></span></button>
+          <button type="button" role="tab" class="tab active" aria-selected="true" id="tab-items" data-tab="items" aria-controls="panelItems">주문정보 <span class="tab-count" id="tabItemCount"></span></button>
           <button type="button" role="tab" class="tab" aria-selected="false" id="tab-pay" data-tab="pay" aria-controls="panelPay">결제정보</button>
           <button type="button" role="tab" class="tab" aria-selected="false" id="tab-ship" data-tab="ship" aria-controls="panelShip">배송정보</button>
+          <button type="button" role="tab" class="tab" aria-selected="false" id="tab-admin" data-tab="admin" aria-controls="panelAdmin">관리자메모 <span class="tab-count" id="tabMemoCount"></span></button>
+          <button type="button" role="tab" class="tab" aria-selected="false" id="tab-history" data-tab="history" aria-controls="panelHistory">주문 히스토리 <span class="tab-count" id="tabHistoryCount"></span></button>
         </div>
 
+        <!-- 관리자메모 탭: 구분 선택 + 메모 입력, 아래 메모 목록(수정·삭제) -->
+        <section class="panel" role="tabpanel" id="panelAdmin" aria-labelledby="tab-admin" hidden>
+          <div class="flow-head"><b>관리자 메모</b> <span class="muted">입력일시·담당자가 함께 저장되며, 등록·수정·삭제는 주문 히스토리에 남습니다</span></div>
+          <form id="memoForm" novalidate>
+            <div class="memo-cats" role="radiogroup" aria-label="메모 구분" id="memoCats"></div>
+            <textarea id="memoText" maxlength="500" placeholder="고객 요청, 처리 내용 등 메모를 입력하세요."></textarea>
+            <div class="memo-actions">
+              <span class="readonly" id="memoLen">0 / 500</span>
+              <button type="submit" class="btn btn-primary btn-sm">메모 저장</button>
+            </div>
+          </form>
+          <ul class="order-memos" id="memoList"></ul>
+        </section>
+
+        <!-- 주문 히스토리 탭: 관리자 변경 + 시스템 처리 전체 이력 -->
+        <section class="panel" role="tabpanel" id="panelHistory" aria-labelledby="tab-history" hidden>
+          <div class="flow-head"><b>주문 히스토리</b> <span class="muted">관리자 변경 · 시스템 처리 전체 이력 (최신순)</span></div>
+          <div class="table-wrap history-wrap">
+            <table class="history-table change-table">
+              <thead><tr><th style="width:150px">일시</th><th style="width:90px">구분</th><th>내용</th><th style="width:80px">처리자</th></tr></thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+        </section>
         <!-- 배송정보 탭: 왼쪽 수령인 / 오른쪽 배송, 아래 상품별 출고 내역 -->
         <section class="panel" role="tabpanel" id="panelShip" aria-labelledby="tab-ship" hidden>
           <div class="pay-grid">
             <div class="pay-col">
-              <div class="flow-head"><b>수령인 정보</b></div>
-              <table class="form-table pay-method-table"><tbody id="shipToBody"></tbody></table>
+              <div class="flow-head"><b>수령인 정보</b>
+                <button type="button" class="btn btn-xs" id="btnAddAddr" style="margin-left:auto">+ 배송지 추가</button></div>
+              <div id="addrList"></div>
             </div>
             <div class="pay-col">
               <div class="flow-head"><b>배송 정보</b> <span id="shipStatus"></span></div>
@@ -121,7 +148,7 @@
         <!-- 주문 상품 탭: 상품별 금액·진행상태·제작처 -->
         <section class="panel" role="tabpanel" id="panelItems" aria-labelledby="tab-items">
           <div class="list-head">
-            <div class="count"><b>상품정보</b> <span id="itemSummary"></span>
+            <div class="count"><b>주문정보</b> <span id="itemSummary"></span>
               <span class="item-hint">상품을 누르면 옵션·디자인과 제작 공정을 볼 수 있습니다.</span></div>
           </div>
           <div class="table-wrap">
@@ -232,6 +259,35 @@
   </div>
 </div>
 
+<!-- 배송지 수정·추가 모달: 배송정보 > 수령인 정보 -->
+<div class="modal-bg" id="addrModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addrTitle">
+    <div class="modal-header">
+      <h2 id="addrTitle">배송지</h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <form id="addrForm" class="modal-body" novalidate>
+      <table class="form-table">
+        <tr><th>수취인명 *</th><td><input type="text" id="ad_recipient" maxlength="20"></td></tr>
+        <tr><th>연락처 *</th><td><input type="text" id="ad_phone" maxlength="13" placeholder="010-1234-5678"></td></tr>
+        <tr><th>우편번호 *</th><td><input type="text" id="ad_zip" maxlength="5" inputmode="numeric" style="width:100px"> <span class="readonly">5자리</span></td></tr>
+        <tr><th>주소 *</th><td><input type="text" id="ad_address" maxlength="100" placeholder="도로명 주소"></td></tr>
+        <tr><th>상세주소</th><td><input type="text" id="ad_detail" maxlength="50" placeholder="동·호수 등"></td></tr>
+        <tr><th>배송 요청사항</th><td><input type="text" id="ad_request" maxlength="50" placeholder="예) 문 앞에 놓아주세요"></td></tr>
+        <tr id="adItemsRow"><th>배송 상품 *</th><td>
+          <div class="check-chips" id="adItems"></div>
+          <div class="readonly at-note">이 배송지로 보낼 상품을 고릅니다. 고르지 않은 상품은 기본 배송지로 갑니다.</div>
+        </td></tr>
+      </table>
+      <div class="err" id="adErr"></div>
+    </form>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>닫기</button>
+      <button type="submit" form="addrForm" class="btn btn-primary">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- PG 로그 모달: 결제정보 > 결제 수단 > PG 로그 확인 -->
 <!-- TODO: 실서비스에서는 PG사 거래 조회 API 응답(원문 로그) 표시 -->
 <div class="modal-bg" id="pgModal">
@@ -274,9 +330,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-data.js?v=20261084"></script>
-<script src="member-type-store.js?v=20261084"></script>
-<script src="order-data.js?v=20261084"></script>
+<script src="member-data.js?v=20261090"></script>
+<script src="member-type-store.js?v=20261090"></script>
+<script src="order-data.js?v=20261090"></script>
 <script>
 (function () {
   'use strict';
@@ -366,6 +422,7 @@
       const req = { amount, reason: $('xReason').value, method: $('xMethod').value, memo: $('xMemo').value.trim(),
         at: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`, by: AdminUtil.ADMIN_NAME, status: '결제대기' };
       if (!OrderData.saveExtraRequest(o.orderNo, req)) { AdminUtil.toast('저장소를 사용할 수 없어 추가결제를 저장하지 못했습니다.'); return; }
+      OrderData.addHistory(o.orderNo, '추가결제', `추가결제 생성: ${won(amount)} · ${req.reason} · ${req.method}${req.memo ? ` · ${req.memo}` : ''} (결제대기)`, AdminUtil.ADMIN_NAME);
       location.replace(`order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}&extra=${amount}`);
     });
     const closeExtra = () => $('extraModal').classList.remove('open');
@@ -405,9 +462,77 @@
     $('pgModal').addEventListener('click', e => { if (e.target === $('pgModal')) closePg(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closePg(); });
 
-    // ----- 탭 전환 (상품정보 / 결제정보) -----
+    // ----- 탭 전환 (주문정보 / 결제정보 / 배송정보 / 관리자메모 / 주문 히스토리) -----
     $('tabItemCount').textContent = o.items.length;
-    const TAB_PANELS = { items: 'panelItems', pay: 'panelPay', ship: 'panelShip' };
+    const TAB_PANELS = { items: 'panelItems', pay: 'panelPay', ship: 'panelShip', admin: 'panelAdmin', history: 'panelHistory' };
+
+    // ----- 관리자메모 탭 + 주문 히스토리 탭 -----
+    const CATS = OrderData.MEMO_CATEGORIES;
+    const catChips = (name, sel) => CATS.map(c => `<label class="check-chip memo-cat"><input type="radio" name="${name}" value="${c}"${c === sel ? ' checked' : ''}> ${c}</label>`).join('');
+    $('memoCats').innerHTML = catChips('memoCat', '주문');
+    let editingId = null;   // 수정 중인 메모 id (한 번에 하나)
+
+    function renderAdmin() {
+      const log = OrderData.adminLog(o.orderNo);
+      $('tabMemoCount').textContent = log.memos.length || '';
+      // 한 줄: [구분] 담당자 · 일시 | 메모 내용 | 수정·삭제. 수정 중인 메모는 구분 선택 + 입력칸
+      $('memoList').innerHTML = log.memos.slice().reverse().map(mm => mm.id === editingId
+        ? `<li class="memo-editing" data-id="${esc(mm.id)}">
+            <div class="memo-edit-body">
+              <div class="memo-cats">${catChips('memoEditCat', mm.category)}</div>
+              <textarea class="memo-edit-text" maxlength="500">${esc(mm.text)}</textarea>
+            </div>
+            <span class="memo-btns"><button type="button" class="btn btn-xs btn-primary" data-memo-save>저장</button><button type="button" class="btn btn-xs" data-memo-cancel>취소</button></span>
+          </li>`
+        : `<li data-id="${esc(mm.id)}"><span class="badge memo-badge mc-${esc(mm.category)}">${esc(mm.category)}</span><span class="memo-meta"><b>${esc(mm.by)}</b> ${esc(mm.at)}${mm.editedAt ? ` <span title="수정 ${esc(mm.editedAt)} ${esc(mm.editedBy)}">(수정됨)</span>` : ''}</span><span class="memo-text">${esc(mm.text)}</span><span class="memo-btns"><button type="button" class="btn btn-xs" data-memo-edit>수정</button><button type="button" class="btn btn-xs btn-danger" data-memo-del>삭제</button></span></li>`
+      ).join('') || '<li class="memo-empty muted">등록된 메모가 없습니다.</li>';
+      // 주문 히스토리: 관리자 변경 이력 + 시스템 처리 이력을 최신순으로
+      const all = log.history.concat(OrderData.systemHistory(o)).sort((a, b) => b.at.localeCompare(a.at));
+      $('tabHistoryCount').textContent = all.length || '';
+      $('historyBody').innerHTML = all.map(h => `<tr${h.by === '시스템' ? ' class="hist-system"' : ''}>
+          <td>${esc(h.at)}</td><td><span class="badge hist-${esc(h.type)}">${esc(h.type)}</span></td>
+          <td class="left">${esc(h.content)}</td><td>${esc(h.by)}</td>
+        </tr>`).join('') || '<tr><td colspan="4" class="empty">이력이 없습니다.</td></tr>';
+      if (editingId) { const ta = document.querySelector('.memo-edit-text'); if (ta) ta.focus(); }
+    }
+    const saveMsg = ok => (ok ? '' : ' (저장소를 사용할 수 없어 이 화면에만 반영되었습니다)');
+    $('memoText').addEventListener('input', e => { $('memoLen').textContent = `${e.target.value.length} / 500`; });
+    $('memoForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const text = $('memoText').value.trim();
+      if (!text) { AdminUtil.toast('메모 내용을 입력하세요.'); $('memoText').focus(); return; }
+      const cat = document.querySelector('input[name=memoCat]:checked').value;
+      const saved = OrderData.addMemo(o.orderNo, cat, text, AdminUtil.ADMIN_NAME);
+      $('memoText').value = '';
+      $('memoLen').textContent = '0 / 500';
+      renderAdmin();
+      AdminUtil.toast('메모를 저장했습니다.' + saveMsg(saved));
+    });
+    // 메모 수정·삭제
+    $('memoList').addEventListener('click', e => {
+      const li = e.target.closest('li[data-id]');
+      if (!li) return;
+      const id = li.dataset.id;
+      if (e.target.closest('[data-memo-edit]')) { editingId = id; renderAdmin(); return; }
+      if (e.target.closest('[data-memo-cancel]')) { editingId = null; renderAdmin(); return; }
+      if (e.target.closest('[data-memo-save]')) {
+        const text = li.querySelector('.memo-edit-text').value.trim();
+        if (!text) { AdminUtil.toast('메모 내용을 입력하세요.'); return; }
+        const cat = li.querySelector('input[name=memoEditCat]:checked').value;
+        const saved = OrderData.updateMemo(o.orderNo, id, cat, text, AdminUtil.ADMIN_NAME);
+        editingId = null;
+        renderAdmin();
+        AdminUtil.toast('메모를 수정했습니다.' + saveMsg(saved));
+        return;
+      }
+      if (e.target.closest('[data-memo-del]')) {
+        if (!confirm('이 메모를 삭제하시겠습니까?\n삭제 내역은 주문 히스토리에 남습니다.')) return;
+        const saved = OrderData.deleteMemo(o.orderNo, id, AdminUtil.ADMIN_NAME);
+        renderAdmin();
+        AdminUtil.toast('메모를 삭제했습니다.' + saveMsg(saved));
+      }
+    });
+    renderAdmin();
     function showTab(key) {
       Object.keys(TAB_PANELS).forEach(k => {
         const on = k === key;
@@ -431,12 +556,86 @@
     });
     const SHIP_CLASS = { '배송준비중': 'st-recv', '부분출고': 'st-part', '배송중': 'st-ship', '배송완료': 'st-done', '배송취소': 'st-cancel' };
     $('shipStatus').innerHTML = `<span class="badge ${SHIP_CLASS[dv.status] || ''}">${esc(dv.status)}</span>`;
-    $('shipToBody').innerHTML = [
-      shipRow('수취인명', esc(dv.recipient) + (dv.recipient !== o.name ? ` <span class="muted">(주문자 ${esc(o.name)})</span>` : '')),
-      shipRow('연락처', esc(dv.phone)),
-      shipRow('주소', dv.method === '방문수령' ? '<span class="muted">방문수령 (배송지 없음)</span>' : `[${esc(dv.zip)}] ${esc(dv.address)}<br>${esc(dv.detail)}`),
-      shipRow('배송 요청사항', dash2(dv.request))
-    ].join('');
+    // 수령인 정보: 배송지 카드 목록 (기본 배송지 + 추가 배송지). 배송지가 둘 이상이면 카드마다 보낼 상품 표시
+    const multi = dv.addresses.length > 1;
+    $('addrList').innerHTML = dv.addresses.map(ad => `<div class="addr-card" data-addr="${esc(ad.id)}">
+        <div class="addr-head"><b>${esc(ad.label)}</b>
+          <span class="addr-btns"><button type="button" class="btn btn-xs" data-addr-edit>수정</button>${ad.id !== 'base' ? '<button type="button" class="btn btn-xs btn-danger" data-addr-del>삭제</button>' : ''}</span></div>
+        <table class="form-table pay-method-table"><tbody>
+          ${shipRow('수취인명', esc(ad.recipient) + (ad.recipient !== o.name ? ` <span class="muted">(주문자 ${esc(o.name)})</span>` : ''))}
+          ${shipRow('연락처', dash2(ad.phone))}
+          ${shipRow('주소', dv.method === '방문수령' && ad.id === 'base' ? '<span class="muted">방문수령 (배송지 없음)</span>' : `[${esc(ad.zip)}] ${esc(ad.address)}<br>${esc(ad.detail)}`)}
+          ${shipRow('배송 요청사항', dash2(ad.request))}
+          ${multi ? shipRow('배송 상품', ad.items.length ? ad.items.map(i => `<span class="addon-chip">${esc(o.items[i].name)} <b>${o.items[i].qty}부</b></span>`).join(' ') : '<span class="muted">없음</span>') : ''}
+        </tbody></table>
+      </div>`).join('');
+    $('btnAddAddr').hidden = dv.method === '방문수령';   // 방문수령은 배송지 추가 없음
+
+    // ----- 배송지 수정·추가 모달 -----
+    let addrEditing = null;   // 'base' / 'new' / 추가 배송지 id
+    function openAddr(id) {
+      addrEditing = id;
+      const ad = id === 'new' ? null : dv.addresses.find(x => x.id === id);
+      $('addrTitle').textContent = id === 'new' ? '배송지 추가' : `${ad.label} 수정`;
+      OrderData.ADDRESS_FIELDS.forEach(([k]) => { $('ad_' + k).value = ad ? ad[k] || '' : ''; });
+      // 배송 상품: 추가 배송지만 선택 (기본 배송지는 나머지 상품 자동)
+      $('adItemsRow').hidden = id === 'base';
+      $('adItems').innerHTML = o.items.map((it, i) => {
+        const owner = dv.addresses.find(x => x.items.includes(i));
+        const checked = ad && ad.items.includes(i);
+        return `<label class="check-chip"><input type="checkbox" name="adItem" value="${i}"${checked ? ' checked' : ''}${it.payStatus === '취소' ? ' disabled' : ''}>
+          ${esc(it.name)} <span class="muted">${it.qty}부${owner && owner.id !== id ? ` · ${esc(owner.label)}` : ''}${it.payStatus === '취소' ? ' · 취소' : ''}</span></label>`;
+      }).join('');
+      $('adErr').classList.remove('show');
+      $('addrModal').classList.add('open');
+      $('ad_recipient').focus();
+    }
+    $('btnAddAddr').addEventListener('click', () => openAddr('new'));
+    $('addrList').addEventListener('click', e => {
+      const card = e.target.closest('[data-addr]');
+      if (!card) return;
+      const id = card.dataset.addr;
+      if (e.target.closest('[data-addr-edit]')) openAddr(id);
+      if (e.target.closest('[data-addr-del]')) {
+        const ad = dv.addresses.find(x => x.id === id);
+        if (!confirm(`${ad.label}을(를) 삭제하시겠습니까?\n이 배송지의 상품은 기본 배송지로 돌아갑니다.`)) return;
+        OrderData.deleteAddress(o.orderNo, id);
+        OrderData.addHistory(o.orderNo, '배송지', `${ad.label} 삭제: ${ad.recipient} [${ad.zip}] ${ad.address} ${ad.detail}`, AdminUtil.ADMIN_NAME);
+        location.replace(`order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}&addr=del`);
+      }
+    });
+    $('addrForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const data = Object.fromEntries(OrderData.ADDRESS_FIELDS.map(([k]) => [k, $('ad_' + k).value.trim()]));
+      const items = [...document.querySelectorAll('input[name=adItem]:checked')].map(c => Number(c.value));
+      let msg = '';
+      if (!data.recipient) msg = '수취인명을 입력하세요.';
+      else if (!/^0\d{1,2}-?\d{3,4}-?\d{4}$/.test(data.phone)) msg = '연락처를 정확히 입력하세요. 예) 010-1234-5678';
+      else if (!/^\d{5}$/.test(data.zip)) msg = '우편번호 5자리를 입력하세요.';
+      else if (!data.address) msg = '주소를 입력하세요.';
+      else if (addrEditing !== 'base' && !items.length) msg = '이 배송지로 보낼 상품을 하나 이상 선택하세요.';
+      else if (addrEditing !== 'base' && items.length >= o.items.filter(it => it.payStatus !== '취소').length) msg = '모든 상품을 추가 배송지로 보낼 수는 없습니다. 기본 배송지를 수정하세요.';
+      $('adErr').textContent = msg;
+      $('adErr').classList.toggle('show', !!msg);
+      if (msg) return;
+      if (dv.status !== '배송준비중' && !confirm('이미 출고된 상품이 있습니다. 배송지를 변경해도 출고된 상품에는 적용되지 않습니다.\n계속하시겠습니까?')) return;
+      if (addrEditing !== 'base') data.items = items;
+      const before = addrEditing === 'new' ? null : dv.addresses.find(x => x.id === addrEditing);
+      const res = OrderData.saveAddress(o.orderNo, addrEditing, data);
+      if (!res.ok) { AdminUtil.toast('저장소를 사용할 수 없어 배송지를 저장하지 못했습니다.'); return; }
+      // 주문 히스토리: 바뀐 항목만
+      const label = before ? before.label : `추가 배송지 ${dv.addresses.length}`;
+      const changes = before
+        ? OrderData.ADDRESS_FIELDS.filter(([k]) => (before[k] || '') !== data[k]).map(([k, n]) => `${n} "${before[k] || ''}" → "${data[k]}"`)
+          .concat(data.items && before.items.join() !== items.join() ? [`배송 상품 ${items.map(i => o.items[i].name).join(', ')}`] : [])
+        : [`${data.recipient} [${data.zip}] ${data.address} ${data.detail} · 배송 상품 ${items.map(i => o.items[i].name).join(', ')}`];
+      OrderData.addHistory(o.orderNo, '배송지', `${label} ${before ? '수정' : '추가'}: ${changes.join(', ') || '변경 없음'}`, AdminUtil.ADMIN_NAME);
+      location.replace(`order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}&addr=${before ? 'edit' : 'add'}`);
+    });
+    const closeAddr = () => $('addrModal').classList.remove('open');
+    document.querySelectorAll('#addrModal [data-close]').forEach(b => b.addEventListener('click', closeAddr));
+    $('addrModal').addEventListener('click', e => { if (e.target === $('addrModal')) closeAddr(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAddr(); });
     $('shipBody').innerHTML = [
       shipRow('배송방법', esc(dv.method)),
       dv.method === '방문수령' ? shipRow('수령 장소', esc(dv.pickupPlace))
@@ -674,6 +873,10 @@
         items[idx] = { amount: part, reason, refund: $('cRefund').value, memo: $('cMemo').value.trim(), at, by: AdminUtil.ADMIN_NAME };
       });
       const saved = OrderData.saveCancel(o.orderNo, items);
+      if (saved) {
+        const memo = $('cMemo').value.trim();
+        OrderData.addHistory(o.orderNo, '취소', `주문취소 ${cancelTargets.length}건 (${cancelTargets.map(i => o.items[i].name).join(', ')}) · 취소금액 ${won(amount)} · ${reason} · ${$('cRefund').value}${memo ? ` · ${memo}` : ''}`, AdminUtil.ADMIN_NAME);
+      }
       if (!saved) { AdminUtil.toast('저장소를 사용할 수 없어 취소를 저장하지 못했습니다.'); return; }
       // 다시 불러 반영 (완료 안내는 주소의 canceled 값으로 표시)
       location.replace(`order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}&canceled=${cancelTargets.length}`);
@@ -698,6 +901,7 @@
       const sum = idxs.reduce((t, i) => t + o.items[i].cancel, 0);
       if (!confirm(`선택한 ${idxs.length}건의 취소를 원복하시겠습니까?\n취소금액 ${won(sum)}이 다시 결제금액에 포함됩니다.\n(환불이 이미 처리됐다면 별도로 재결제를 받아야 합니다.)`)) return;
       if (!OrderData.restoreCancel(o.orderNo, idxs)) { AdminUtil.toast('저장소를 사용할 수 없어 원복하지 못했습니다.'); return; }
+      OrderData.addHistory(o.orderNo, '취소원복', `취소원복 ${idxs.length}건 (${idxs.map(i => o.items[i].name).join(', ')}) · 원복금액 ${won(sum)}`, AdminUtil.ADMIN_NAME);
       location.replace(`order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}&restored=${idxs.length}`);
     });
 
@@ -705,10 +909,12 @@
     const qs = new URLSearchParams(location.search);
     const done = qs.get('canceled') ? `${qs.get('canceled')}건을 주문취소했습니다.`
       : qs.get('restored') ? `${qs.get('restored')}건의 취소를 원복했습니다.`
-      : qs.get('extra') ? `추가결제 ${won(Number(qs.get('extra')))}를 생성했습니다. (결제대기)` : '';
+      : qs.get('extra') ? `추가결제 ${won(Number(qs.get('extra')))}를 생성했습니다. (결제대기)`
+      : qs.get('addr') ? { add: '배송지를 추가했습니다.', edit: '배송지를 수정했습니다.', del: '추가 배송지를 삭제했습니다.' }[qs.get('addr')] || '' : '';
     if (done) {
       AdminUtil.toast(done);
       if (qs.get('extra')) showTab('pay');
+      if (qs.get('addr')) showTab('ship');
       try { history.replaceState(null, '', `order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}`); } catch (err) { /* file:// 등 */ }
     }
   }
