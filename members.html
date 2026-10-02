@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261016">
+<link rel="stylesheet" href="admin.css?v=20261017">
 </head>
 <body>
 <div class="layout">
@@ -451,7 +451,7 @@
 
 <script src="alimtalk.js?v=20261014"></script>
 <script src="member-data.js?v=20261014"></script>
-<script src="member-type-store.js?v=20261016"></script>
+<script src="member-type-store.js?v=20261017"></script>
 <script>
 (function () {
   'use strict';
@@ -517,9 +517,17 @@
     sel.value = sub || '';
   }
   // ===== 등급 설명 =====
-  // 회원 유형 관리 > 등급 탭의 각 등급 설명을 그대로 표시 (등급을 바꾸면 설명도 바뀜)
-  const GRADE_DESC = Object.fromEntries((MemberTypeStore.load().find(g => g.key === 'grade') || { items: [] })
-    .items.map(it => [it.name, it.desc || '']));
+  // 회원 유형 관리 > 회원등급 탭의 현재 평가 조건(평가 기준·평가 기간)과 등급별 기준값으로 산정 조건을 만들고, 등급 설명을 뒤에 붙여 표시
+  // (설명 문구에 조건을 직접 적지 않아도 조건을 바꾸면 바로 반영됨)
+  const { GradeCriteria, GradePolicy } = MemberTypeStore;
+  const gradeGroup = MemberTypeStore.load().find(g => g.key === 'grade') || { items: [], policy: {} };
+  const gradePolicy = Object.assign(GradePolicy.empty(), gradeGroup.policy);
+  const gradeCondText = it => {
+    const crit = GradeCriteria.text(Object.assign(GradeCriteria.empty(), it.criteria), gradePolicy.basis);
+    if (crit === '기본 등급') return crit;
+    return gradePolicy.auto ? `${crit} (평가 기간 ${GradePolicy.periodText(gradePolicy)})` : `${crit} (자동 등급 설정 미사용)`;
+  };
+  const GRADE_DESC = Object.fromEntries(gradeGroup.items.map(it => [it.name, [gradeCondText(it), it.desc].filter(Boolean).join(' · ')]));
   const renderGradeDesc = () => { $('fGradeDesc').textContent = GRADE_DESC[$('fGrade').value] || ''; };
   $('fGrade').addEventListener('change', renderGradeDesc);
 

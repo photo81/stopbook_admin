@@ -33,13 +33,13 @@
     // policy: 등급 탭 상단의 회원 등급 평가 조건 (자동 등급 설정, 산정 주기, 평가 기준, 평가 기간)
     { key: 'grade', label: '회원등급', policy: { auto: true, cycle: 'monthly', monthDay: 1, basis: 'count', period: 'monthly' }, items: [
       gradeItem('normal', '일반', '가입 시 기본 등급.', {}, {}),
-      gradeItem('starter', '스타터', '평가 기간 내 구매 1회 이상.', { minCount: 1, minAmount: 50000 },
+      gradeItem('starter', '스타터', '구매를 시작한 회원.',{ minCount: 1, minAmount: 50000 },
         { cycle: 'monthly', monthDay: 1, coupons: ['3,000원 할인'], mileageOn: true, mileage: 500 }),
-      gradeItem('holic', '홀리커', '평가 기간 내 구매 5회 이상.', { minCount: 5, minAmount: 200000 },
+      gradeItem('holic', '홀리커', '꾸준히 구매하는 단골 회원.',{ minCount: 5, minAmount: 200000 },
         { cycle: 'monthly', monthDay: 1, coupons: ['3,000원 할인', '무료배송'], mileageOn: true, mileage: 1000, discountOn: true, discountRate: 2 }),
-      gradeItem('master', '마스터', '평가 기간 내 구매 10회 이상.', { minCount: 10, minAmount: 500000 },
+      gradeItem('master', '마스터', '구매가 많은 우수 회원.',{ minCount: 10, minAmount: 500000 },
         { cycle: 'monthly', monthDay: 1, coupons: ['무료배송', '도서 2권 이상 15% 할인'], mileageOn: true, mileage: 2000, discountOn: true, discountRate: 3 }),
-      gradeItem('master-vip', '마스터 VIP', '평가 기간 내 구매 20회 이상.', { minCount: 20, minAmount: 1000000 },
+      gradeItem('master-vip', '마스터 VIP', '최상위 우수 회원.',{ minCount: 20, minAmount: 1000000 },
         { cycle: 'weekly', weekday: 0, coupons: ['무료배송', '3,000원 할인', '도서 2권 이상 15% 할인'], mileageOn: true, mileage: 3000, discountOn: true, discountRate: 5 })
     ]}
   ];
@@ -99,6 +99,15 @@
     if (cat) cat.items.forEach(it => {
       const def = defCat.items.find(d => d.code === it.code);
       if (!Array.isArray(it.subs) || it.subs.join('|') === OLD_SAMPLE) it.subs = def ? def.subs.slice() : [];
+    });
+    // - 등급 설명에 산정 조건(구매 횟수)을 적어 둔 예전 샘플 문구는 새 샘플 문구로 교체
+    //   (산정 조건은 회원 상세에서 평가 조건·기준값으로 따로 표시하므로 설명과 어긋나지 않게 함. 관리자가 고친 설명은 그대로 둠)
+    const OLD_GRADE_DESC = { starter: '평가 기간 내 구매 1회 이상.', holic: '평가 기간 내 구매 5회 이상.', master: '평가 기간 내 구매 10회 이상.', 'master-vip': '평가 기간 내 구매 20회 이상.' };
+    const grade = groups.find(g => g.key === 'grade');
+    const defGrade = DEFAULTS.find(g => g.key === 'grade');
+    if (grade) grade.items.forEach(it => {
+      const def = defGrade.items.find(d => d.code === it.code);
+      if (def && it.desc === OLD_GRADE_DESC[it.code]) it.desc = def.desc;
     });
     return groups;
   }
