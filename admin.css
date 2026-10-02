@@ -165,9 +165,8 @@ td a.name-link:hover { color: var(--accent); text-decoration: underline; text-un
 
 /* 탈퇴회원 목록: 고정 폭 컬럼 외 남는 공간은 상세사유가 차지 */
 td.reason { overflow: hidden; text-overflow: ellipsis; }
-table.wd-table { table-layout: fixed; min-width: 1480px; }
+table.wd-table { table-layout: fixed; min-width: 1300px; }
 .wd-table .w-id { width: 130px; }
-.wd-table .w-email { width: 180px; }
 .wd-table .w-cat { width: 110px; }
 .wd-table .w-mt { width: 84px; }
 .wd-table .w-grade { width: 90px; }
@@ -206,8 +205,9 @@ table.wd-table { table-layout: fixed; min-width: 1480px; }
 .col-axis span { flex: 1; color: var(--muted); font-size: 11px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 가로 막대 (사유) */
 .hbar-row { display: grid; grid-template-columns: 132px 1fr 48px; align-items: center; gap: 8px; padding: 3px 0; border-radius: 4px; }
-.hbar-row[data-reason] { cursor: pointer; }
-.hbar-row[data-reason]:hover, .hbar-row[data-reason]:focus-visible { background: var(--subtle); outline: none; }
+.hbar-row[data-reason], .hbar-row[data-field] { cursor: pointer; }   /* data-reason: 탈퇴 사유 / data-field: 회원 분석의 검색 조건 */
+.hbar-row[data-reason]:hover, .hbar-row[data-reason]:focus-visible,
+.hbar-row[data-field]:hover, .hbar-row[data-field]:focus-visible { background: var(--subtle); outline: none; }
 .hbar-label { color: var(--text-2); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hbar-track { height: 12px; }
 .hbar { display: block; height: 100%; min-width: 2px; border-radius: 0 4px 4px 0; background: var(--series-1); }

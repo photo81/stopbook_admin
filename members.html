@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261019">
+<link rel="stylesheet" href="admin.css?v=20261022">
 </head>
 <body>
 <div class="layout">
@@ -26,13 +26,18 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>회원 리스트</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v1.0 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v1.3 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
       <h1>회원 리스트</h1>
 
-      <!-- 검색 조건 -->
+      <div class="tabs" role="tablist" id="tabs">
+        <button type="button" role="tab" class="tab" id="tab-list" data-tab="list" aria-controls="panelList">리스트 <span class="tab-count" id="tabListCount"></span></button>
+        <button type="button" role="tab" class="tab" id="tab-analysis" data-tab="analysis" aria-controls="panelAnalysis">분석</button>
+      </div>
+
+      <!-- 검색 조건 (리스트·분석 두 탭 공용: 같은 검색값이 두 탭에 함께 적용) -->
       <form class="panel" id="searchForm">
         <div class="search-row">
           <div class="search-grid">
@@ -103,6 +108,8 @@
         </div>
       </form>
 
+      <!-- 리스트 탭 -->
+      <div role="tabpanel" id="panelList" aria-labelledby="tab-list">
       <!-- 회원 목록 -->
       <section class="panel">
         <div class="list-head">
@@ -136,6 +143,40 @@
         </div>
         <div class="pagination" id="pagination"></div>
       </section>
+      </div>
+
+      <!-- 분석 탭 (검색 결과 기준) -->
+      <div role="tabpanel" id="panelAnalysis" aria-labelledby="tab-analysis" hidden>
+        <section class="panel viz-root" id="analysis" aria-labelledby="analysisTitle">
+          <div class="list-head">
+            <div class="count"><b id="analysisTitle">회원 분석</b> <span id="analysisScope"></span></div>
+          </div>
+          <div class="kpi-row" id="kpis"></div>
+          <div class="viz-grid">
+            <figure class="viz-card viz-wide">
+              <figcaption>월별 신규 가입 <span class="viz-sub">최근 12개월 · 명</span></figcaption>
+              <div class="col-chart" id="chartMonthly"></div>
+            </figure>
+            <figure class="viz-card">
+              <figcaption>회원등급 <span class="viz-sub">명</span></figcaption>
+              <div class="col-chart" id="chartGrade"></div>
+            </figure>
+            <figure class="viz-card">
+              <figcaption>가입유형 <span class="viz-sub">회원 수 많은 순 · 누르면 리스트에서 검색</span></figcaption>
+              <div class="hbar-chart" id="chartMemberType"></div>
+            </figure>
+            <figure class="viz-card">
+              <figcaption>최근 접속 <span class="viz-sub">마지막 접속일 기준 · 명</span></figcaption>
+              <div class="col-chart" id="chartLogin"></div>
+            </figure>
+            <figure class="viz-card">
+              <figcaption>회원구분 <span class="viz-sub">누르면 리스트에서 검색</span></figcaption>
+              <div class="hbar-chart" id="chartCategory"></div>
+            </figure>
+          </div>
+          <p class="readonly at-note">검색 조건이 적용된 회원 기준입니다. 주문·문의·장바구니는 회원 상세 &gt; 이용 정보와 같은 데이터를 집계합니다.</p>
+        </section>
+      </div>
     </main>
   </div>
 </div>
@@ -456,11 +497,12 @@
   </div>
 </div>
 
+<div class="viz-tip" id="vizTip" role="tooltip" hidden></div>
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261019"></script>
-<script src="member-data.js?v=20261019"></script>
-<script src="member-type-store.js?v=20261019"></script>
+<script src="alimtalk.js?v=20261022"></script>
+<script src="member-data.js?v=20261022"></script>
+<script src="member-type-store.js?v=20261022"></script>
 <script>
 (function () {
   'use strict';
@@ -614,7 +656,128 @@
     });
 
     renderPagination(pages);
+    $('tabListCount').textContent = total.toLocaleString();
+    renderAnalysis();   // 분석 탭은 리스트와 같은 검색 결과를 쓰므로 함께 갱신
   }
+
+  // ===== 분석 (검색 결과 기준: 두 탭이 같은 검색 조건을 공유) =====
+  // 집계는 회원 리스트 데이터(members)와 회원 상세 > 이용 정보 데이터(orders/inquiries/cart)를 그대로 사용
+  const TODAY = new Date(2026, 9, 1);   // 샘플 데이터 기준일 (member-data.js base와 동일). TODO: 실서비스에서는 new Date()
+  const daysSince = d => Math.floor((TODAY.getTime() - new Date(d).getTime()) / 86400000);
+  const pct = (a, b) => (b ? Math.round(a / b * 1000) / 10 : 0);
+  const LOGIN_BUCKETS = [['7일 이내', 0, 6], ['30일 이내', 7, 29], ['90일 이내', 30, 89], ['90일 초과', 90, Infinity]];
+
+  function renderAnalysis() {
+    const list = state.filtered, n = list.length;
+    const sum = f => list.reduce((s, m) => s + f(m), 0);
+    $('analysisScope').textContent = `· ${n === members.length ? `전체 회원 ${n}명` : `검색 결과 ${n}명 / 전체 ${members.length}명`} · 가입유형·회원구분 막대를 누르면 리스트에서 해당 회원을 볼 수 있습니다`;
+
+    const groupN = list.filter(m => m.categoryCode === 'group').length;
+    const newest30 = list.filter(m => daysSince(m.joinDate) < 30).length;
+    const buyers = list.filter(m => (m.orders || []).length).length;
+    const orderCount = sum(m => (m.orders || []).length);
+    const orderAmount = sum(m => (m.orders || []).reduce((s, o) => s + o.amount, 0));
+    const sms = list.filter(m => m.marketingSms === 'Y').length, mail = list.filter(m => m.marketingEmail === 'Y').length;
+    const active30 = list.filter(m => daysSince(m.lastLogin) < 30).length;
+    const dormant = list.filter(m => daysSince(m.lastLogin) >= 90).length;
+    const cartMembers = list.filter(m => (m.cart || []).length).length;
+    const waiting = sum(m => (m.inquiries || []).filter(q => q.status === '답변대기').length);
+    const tiles = [
+      ['회원 수', `${n.toLocaleString()}명`, `${NORMAL_NAME} ${(n - groupN).toLocaleString()} · ${MemberTypeStore.categoryName('group') || '단체'} ${groupN.toLocaleString()}`],
+      ['최근 30일 신규 가입', `${newest30.toLocaleString()}명`, `전체 대비 ${pct(newest30, n)}%`],
+      ['구매 회원', `${pct(buyers, n)}%`, `${buyers.toLocaleString()}명 · 주문 ${orderCount.toLocaleString()}건`],
+      ['누적 주문금액', won(orderAmount), `구매 회원 1인 평균 ${won(buyers ? Math.round(orderAmount / buyers / 10) * 10 : 0)}`],
+      ['마케팅 수신 동의', `SMS ${pct(sms, n)}%`, `메일 ${pct(mail, n)}%`],
+      ['최근 30일 접속', `${pct(active30, n)}%`, `${active30.toLocaleString()}명 · 90일 이상 미접속 ${dormant.toLocaleString()}명`],
+      ['장바구니 보유', `${cartMembers.toLocaleString()}명`, `답변대기 문의 ${waiting.toLocaleString()}건`]
+    ];
+    $('kpis').innerHTML = tiles.map(([k, v, s]) => `<div class="kpi"><div class="kpi-label">${k}</div><div class="kpi-value">${v}</div><div class="kpi-sub">${s}</div></div>`).join('');
+
+    // 월별 신규 가입: 기준일 이전 12개월
+    const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(TODAY.getFullYear(), TODAY.getMonth() - 12 + i, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; });
+    const monthly = months.map(ym => { const c = list.filter(m => m.joinDate.startsWith(ym)).length; return { label: `${Number(ym.slice(5))}월`, value: c, tip: `${ym.replace('-', '년 ')}월 · ${c}명` }; });
+    renderColumns($('chartMonthly'), monthly, { labelIdx: [monthly.length - 1, maxIdx(monthly)] });
+
+    // 회원등급 분포 (낮은 등급 → 높은 등급)
+    const grades = GRADE_ORDER.map(g => { const c = list.filter(m => m.grade === g).length; return { label: g, value: c, tip: `${g} · ${c}명 (${pct(c, n)}%)` }; });
+    renderColumns($('chartGrade'), grades, { labelIdx: grades.map((_, i) => i) });
+
+    // 최근 접속 분포
+    const logins = LOGIN_BUCKETS.map(([label, min, max]) => { const c = list.filter(m => { const d = daysSince(m.lastLogin); return d >= min && d <= max; }).length; return { label, value: c, tip: `${label} · ${c}명 (${pct(c, n)}%)` }; });
+    renderColumns($('chartLogin'), logins, { labelIdx: logins.map((_, i) => i) });
+
+    // 가입유형·회원구분: 회원 수 많은 순 가로 막대. 누르면 그 조건으로 검색
+    const types = [...new Set(members.map(m => m.memberType))]
+      .map(t => ({ field: 'sMemberType', key: t, label: t, value: list.filter(m => m.memberType === t).length }));
+    renderBars($('chartMemberType'), types, n);
+    const cats = CAT_TREE.map(c => ({ field: 'sCategory', key: c.code, label: c.label + (c.hidden ? ' (숨김)' : ''), value: list.filter(m => m.categoryCode === c.code).length }));
+    renderBars($('chartCategory'), cats, n);
+  }
+
+  const maxIdx = data => data.reduce((mi, d, i) => (d.value > data[mi].value ? i : mi), 0);
+
+  // 세로 막대: 단일 계열(한 가지 색). 값 라벨은 지정한 막대만, 나머지는 마우스를 올리면 툴팁
+  function renderColumns(el, data, { labelIdx = [] } = {}) {
+    const max = Math.max(1, ...data.map(d => d.value));
+    const show = new Set(labelIdx);
+    el.innerHTML = `<div class="col-plot">${data.map((d, i) => `
+      <div class="col" data-tip="${esc(d.tip)}">
+        <span class="col-bar" style="height:${d.value / max * 100}%"><span class="col-value">${show.has(i) && d.value ? d.value : ''}</span></span>
+      </div>`).join('')}</div>
+      <div class="col-axis">${data.map(d => `<span>${esc(d.label)}</span>`).join('')}</div>`;
+  }
+
+  // 가로 막대: 값이 있는 항목만 많은 순. 누르면 해당 검색 조건(field=value)으로 리스트 검색
+  function renderBars(el, data, total) {
+    const rows = data.filter(d => d.value).sort((a, b) => b.value - a.value);
+    const max = Math.max(1, ...rows.map(d => d.value));
+    el.innerHTML = rows.length ? rows.map(d => `
+      <div class="hbar-row" data-field="${d.field}" data-value="${esc(d.key)}" role="button" tabindex="0" data-tip="${esc(d.label)} · ${d.value}명 (${pct(d.value, total)}%) · 누르면 이 조건으로 검색">
+        <span class="hbar-label">${esc(d.label)}</span>
+        <span class="hbar-track"><span class="hbar" style="width:${d.value / max * 100}%"></span></span>
+        <span class="hbar-value">${pct(d.value, total)}%</span>
+      </div>`).join('') : '<div class="viz-empty">해당 회원이 없습니다.</div>';
+  }
+
+  // 툴팁
+  const tip = $('vizTip');
+  $('analysis').addEventListener('mouseover', e => {
+    const t = e.target.closest('[data-tip]');
+    if (!t) { tip.hidden = true; return; }
+    tip.textContent = t.dataset.tip;
+    tip.hidden = false;
+    const r = t.getBoundingClientRect();
+    tip.style.left = `${Math.min(window.innerWidth - tip.offsetWidth - 8, Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2))}px`;
+    tip.style.top = `${r.top - tip.offsetHeight - 6 + window.scrollY}px`;
+  });
+  $('analysis').addEventListener('mouseleave', () => { tip.hidden = true; });
+
+  // 막대를 누르면 현재 검색 조건에 그 조건을 더해 검색하고 리스트 탭으로 이동
+  function searchByBar(field, value) {
+    $(field).value = value;
+    $('detailSearch').hidden = false;
+    $('btnDetail').setAttribute('aria-expanded', 'true');
+    updateDetailCount();
+    if (applyFilter()) { state.page = 1; render(); }
+    showTab('list');
+  }
+  $('analysis').addEventListener('click', e => { const r = e.target.closest('[data-field]'); if (r) searchByBar(r.dataset.field, r.dataset.value); });
+  $('analysis').addEventListener('keydown', e => { const r = e.target.closest('[data-field]'); if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); searchByBar(r.dataset.field, r.dataset.value); } });
+
+  // ===== 탭 (리스트 / 분석). 기본은 리스트. 새로고침해도 같은 탭이 보이도록 주소의 ?tab= 사용 =====
+  const TABS = ['list', 'analysis'];
+  function showTab(key) {
+    if (!TABS.includes(key)) key = 'list';
+    TABS.forEach(k => {
+      const on = k === key;
+      $('tab-' + k).classList.toggle('active', on);
+      $('tab-' + k).setAttribute('aria-selected', String(on));
+      $(k === 'list' ? 'panelList' : 'panelAnalysis').hidden = !on;
+    });
+    tip.hidden = true;
+    try { history.replaceState(null, '', `?tab=${key}`); } catch (err) { /* file:// 등에서 차단될 수 있음 */ }
+  }
+  $('tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) showTab(b.dataset.tab); });
 
   function renderPagination(pages) {
     const cur = state.page;
@@ -1379,6 +1542,7 @@
   // 초기 로드
   applyFilter();
   render();
+  showTab(new URLSearchParams(location.search).get('tab'));
   if (gradeRun.ran && gradeRun.changes.length) toast(`회원등급 자동 산정 실행: ${gradeRun.changes.length}명의 회원등급이 변경되었습니다.`);
 })();
 </script>
