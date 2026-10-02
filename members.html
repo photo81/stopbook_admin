@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261022">
+<link rel="stylesheet" href="admin.css?v=20261084">
 </head>
 <body>
 <div class="layout">
@@ -20,13 +20,19 @@
           <li><a href="member-types.html">회원 유형 관리</a></li>
         </ul>
       </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="orders.html">주문 리스트</a></li>
+        </ul>
+      </li>
     </ul>
   </aside>
 
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>회원 리스트</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v1.3 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v1.65 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -116,8 +122,8 @@
           <div class="count">검색결과 <b id="totalCount">0</b>명 / 전체 <span id="allCount">0</span>명</div>
           <div class="right">
             <select id="pageSize">
-              <option value="10">10개씩</option>
-              <option value="20" selected>20개씩</option>
+              <option value="10" selected>10개씩</option>
+              <option value="20">20개씩</option>
               <option value="50">50개씩</option>
             </select>
             <button type="button" class="btn btn-excel" id="btnExcel">엑셀 다운로드</button>
@@ -500,15 +506,15 @@
 <div class="viz-tip" id="vizTip" role="tooltip" hidden></div>
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261022"></script>
-<script src="member-data.js?v=20261022"></script>
-<script src="member-type-store.js?v=20261022"></script>
+<script src="alimtalk.js?v=20261084"></script>
+<script src="member-data.js?v=20261084"></script>
+<script src="member-type-store.js?v=20261084"></script>
 <script>
 (function () {
   'use strict';
 
   // ===== 샘플 데이터: member-data.js (단체회원 신청 승인 결과 포함) =====
-  const { members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, revokeBusiness, ageOf } = MemberData;
+  const { members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, revokeBusiness, ageOf, validOrders } = MemberData;
   const ageText = m => { const a = ageOf(m.birth); return a == null ? '' : `만 ${a}세`; };
   // 회원·신청 데이터의 구분 참조(code)를 현재 구분명으로 정리
   MemberTypeStore.normalizeCategoryRefs(MemberData);
@@ -520,7 +526,7 @@
   const gradeRun = MemberTypeStore.GradeEvaluator.run(members, MemberTypeStore.load().find(g => g.key === 'grade'), MemberData.orderStats);
 
   // ===== 상태 =====
-  const state = { filtered: [], page: 1, size: 20, sortKey: 'no', sortDir: 'desc', editing: null };
+  const state = { filtered: [], page: 1, size: 10, sortKey: 'no', sortDir: 'desc', editing: null };
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   // 마케팅 수신: 채운 점 = 동의, 빈 점 = 거부
@@ -674,9 +680,9 @@
 
     const groupN = list.filter(m => m.categoryCode === 'group').length;
     const newest30 = list.filter(m => daysSince(m.joinDate) < 30).length;
-    const buyers = list.filter(m => (m.orders || []).length).length;
-    const orderCount = sum(m => (m.orders || []).length);
-    const orderAmount = sum(m => (m.orders || []).reduce((s, o) => s + o.amount, 0));
+    const buyers = list.filter(m => validOrders(m).length).length;   // 주문은 취소 제외
+    const orderCount = sum(m => validOrders(m).length);
+    const orderAmount = sum(m => validOrders(m).reduce((s, o) => s + o.amount, 0));
     const sms = list.filter(m => m.marketingSms === 'Y').length, mail = list.filter(m => m.marketingEmail === 'Y').length;
     const active30 = list.filter(m => daysSince(m.lastLogin) < 30).length;
     const dormant = list.filter(m => daysSince(m.lastLogin) >= 90).length;
@@ -998,7 +1004,7 @@
   }
 
   function renderUsage(m) {
-    const orders = m.orders || [], inq = m.inquiries || [];
+    const orders = validOrders(m), inq = m.inquiries || [];   // 주문 건수·금액은 취소 주문 제외
     const orderSum = orders.reduce((s, o) => s + o.amount, 0);
     const waiting = inq.filter(q => q.status === '답변대기').length;
     const cs = cartSummary(m);
@@ -1007,7 +1013,7 @@
     $('uCart').textContent = cs.count ? `${cs.count}종 ${cs.qty}개 / ${won(cs.total)}` : '비어 있음';
   }
 
-  const orderStatusBadge = s => `<span class="badge os-${esc(s)}">${esc(s)}</span>`;
+  const orderStatusBadge = s => `<span class="badge ${MemberData.statusClass(s)}">${esc(s)}</span>`;   // 색은 주문 리스트 제작상태와 같음
 
   function openUsage(kind) {
     const m = state.editing;
@@ -1016,14 +1022,15 @@
     $('uCartTotal').hidden = true;
     $('uNote').textContent = '';
     if (kind === 'orders') {
-      const list = (m.orders || []).slice().reverse();   // 최근 주문이 위
-      const sum = list.reduce((s, o) => s + o.amount, 0);
+      const list = (m.orders || []).slice().reverse();   // 최근 주문이 위 (취소 주문도 표시)
+      const valid = validOrders(m), canceled = list.length - valid.length;
+      const sum = valid.reduce((s, o) => s + o.amount, 0);
       $('uTitle').textContent = `주문 내역 - ${who}`;
-      $('uSummary').innerHTML = `총 <b>${list.length.toLocaleString()}</b>건 · 결제금액 <b>${won(sum)}</b>`;
+      $('uSummary').innerHTML = `총 <b>${valid.length.toLocaleString()}</b>건 · 결제금액 <b>${won(sum)}</b>${canceled ? ` <span class="readonly">(취소 ${canceled}건 제외)</span>` : ''}`;
       $('uHead').innerHTML = '<th>주문일</th><th>주문번호</th><th>상품</th><th>수량</th><th>결제금액</th><th>결제수단</th><th>상태</th>';
       $('uBody').innerHTML = list.length ? list.map(o => `<tr>
         <td>${o.at}</td><td class="mono">${esc(o.orderNo)}</td><td class="left" title="${esc(o.title)}">${esc(o.title)}</td>
-        <td class="num">${o.qty}</td><td class="num">${won(o.amount)}</td><td>${esc(o.payMethod)}</td><td>${orderStatusBadge(o.status)}</td>
+        <td class="num">${o.qty}</td><td class="num">${won(o.amount)}</td><td>${esc(o.payMethod)}</td><td>${orderStatusBadge(o.status || o.payStatus)}</td>
       </tr>`).join('') : '<tr><td colspan="7" class="empty">주문 내역이 없습니다.</td></tr>';
       $('uNote').textContent = '최근 1년 주문 기준입니다.';
     } else if (kind === 'inquiries') {
@@ -1411,7 +1418,7 @@
     };
     const lines = [cols.map(c => cell(c[1])).join(',')];
     state.filtered.forEach(m => {
-      const orders = m.orders || [], inq = m.inquiries || [], cs = cartSummary(m);
+      const orders = validOrders(m), inq = m.inquiries || [], cs = cartSummary(m);   // 주문은 취소 제외
       const usage = {
         orderCount: orders.length,
         orderAmount: orders.reduce((s, o) => s + o.amount, 0),

@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스탑북 관리자 - 주문 상세</title>
+<link rel="stylesheet" href="admin.css?v=20261084">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo">STOPBOOK Admin</div>
+    <ul>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">회원관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="members.html">회원 리스트</a></li>
+          <li><a href="group-applications.html">단체회원 신청 리스트</a></li>
+          <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
+          <li><a href="member-types.html">회원 유형 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub open">
+        <a href="#" class="menu-parent" aria-expanded="true">주문관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="orders.html" class="active" aria-current="page">주문 리스트</a></li>
+        </ul>
+      </li>
+    </ul>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">홈 &gt; 주문관리 &gt; <a href="orders.html">주문 리스트</a> &gt; <b>주문 상세</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v1.65 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
+    </header>
+
+    <main class="content">
+      <h1 id="pageTitle">주문 상세</h1>
+
+      <!-- 주문을 찾지 못한 경우 -->
+      <section class="panel" id="notFound" hidden>
+        <div class="empty-page">
+          <b>주문을 찾을 수 없습니다</b>
+          <p id="notFoundMsg"></p>
+        </div>
+      </section>
+
+      <div id="detail" hidden>
+        <!-- 상단: 주문 기본 정보 -->
+        <section class="panel order-head">
+          <dl class="order-meta">
+            <div><dt>주문일시</dt><dd id="dOrderedAt"></dd></div>
+            <div><dt>주문번호</dt><dd class="mono" id="dOrderNo"></dd></div>
+          </dl>
+        </section>
+
+        <!-- 결제 금액 요약 (주문금액 + 배송비 − 할인금액 + 추가결제금액 − 취소금액 = 총결제금액). 결제정보 탭과 같은 값 -->
+        <section class="panel">
+          <div class="pay-summary">
+            <div class="pay-item"><div class="pay-label">주문금액</div><div class="pay-value" id="dListPrice"></div></div>
+            <div class="pay-op" aria-hidden="true">+</div>
+            <div class="pay-item"><div class="pay-label">배송비</div><div class="pay-value" id="dShip"></div></div>
+            <div class="pay-op" aria-hidden="true">−</div>
+            <div class="pay-item"><div class="pay-label">할인금액</div><div class="pay-value" id="dDiscount"></div></div>
+            <div class="pay-op" aria-hidden="true">+</div>
+            <div class="pay-item"><div class="pay-label">추가결제금액</div><div class="pay-value" id="dExtra"></div></div>
+            <div class="pay-op" aria-hidden="true">−</div>
+            <div class="pay-item"><div class="pay-label">취소금액</div><div class="pay-value" id="dCancel"></div></div>
+            <div class="pay-op" aria-hidden="true">=</div>
+            <div class="pay-item pay-total"><div class="pay-label">총결제금액</div><div class="pay-value" id="dTotal"></div></div>
+          </div>
+        </section>
+
+        <!-- 탭: 주문 상품 / 결제정보 -->
+        <div class="tabs" role="tablist" id="detailTabs">
+          <button type="button" role="tab" class="tab active" aria-selected="true" id="tab-items" data-tab="items" aria-controls="panelItems">상품정보 <span class="tab-count" id="tabItemCount"></span></button>
+          <button type="button" role="tab" class="tab" aria-selected="false" id="tab-pay" data-tab="pay" aria-controls="panelPay">결제정보</button>
+          <button type="button" role="tab" class="tab" aria-selected="false" id="tab-ship" data-tab="ship" aria-controls="panelShip">배송정보</button>
+        </div>
+
+        <!-- 배송정보 탭: 왼쪽 수령인 / 오른쪽 배송, 아래 상품별 출고 내역 -->
+        <section class="panel" role="tabpanel" id="panelShip" aria-labelledby="tab-ship" hidden>
+          <div class="pay-grid">
+            <div class="pay-col">
+              <div class="flow-head"><b>수령인 정보</b></div>
+              <table class="form-table pay-method-table"><tbody id="shipToBody"></tbody></table>
+            </div>
+            <div class="pay-col">
+              <div class="flow-head"><b>배송 정보</b> <span id="shipStatus"></span></div>
+              <table class="form-table pay-method-table"><tbody id="shipBody"></tbody></table>
+            </div>
+          </div>
+          <div class="flow-head ship-lines-head"><b>출고 내역</b> <span class="muted">상품별</span></div>
+          <div class="table-wrap">
+            <table class="ship-table">
+              <thead><tr><th>상품 제작번호</th><th>상품명</th><th style="text-align:right">수량</th><th>출고상태</th><th>운송장번호</th><th>출고일시 (집하스캔)</th></tr></thead>
+              <tbody id="shipLines"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 결제정보 탭: 왼쪽 결제 금액(세부 내역) / 오른쪽 결제 수단 -->
+        <section class="panel" role="tabpanel" id="panelPay" aria-labelledby="tab-pay" hidden>
+          <div class="pay-grid">
+            <div class="pay-col">
+              <div class="flow-head"><b>결제 금액</b></div>
+              <table class="pay-table">
+                <tbody id="payBody"></tbody>
+              </table>
+            </div>
+            <div class="pay-col">
+              <div class="flow-head"><b>결제 수단</b></div>
+              <table class="form-table pay-method-table">
+                <tbody id="payMethodBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 주문 상품 탭: 상품별 금액·진행상태·제작처 -->
+        <section class="panel" role="tabpanel" id="panelItems" aria-labelledby="tab-items">
+          <div class="list-head">
+            <div class="count"><b>상품정보</b> <span id="itemSummary"></span>
+              <span class="item-hint">상품을 누르면 옵션·디자인과 제작 공정을 볼 수 있습니다.</span></div>
+          </div>
+          <div class="table-wrap">
+            <table class="item-table">
+              <thead>
+                <tr>
+                  <th class="w-chk"><input type="checkbox" id="chkAllItems" aria-label="주문 상품 전체 선택"></th>
+                  <th class="w-cat">상품카테고리</th>
+                  <th class="w-name">상품명</th>
+                  <th class="w-qty">수량</th>
+                  <th class="w-amt">주문금액</th>
+                  <th class="w-amt">할인금액</th>
+                  <th class="w-amt">취소금액</th>
+                  <th class="w-amt">결제금액</th>
+                  <th class="w-st">결제상태</th>
+                  <th class="w-st">진행상태</th>
+                  <th class="w-maker">제작처</th>
+                </tr>
+              </thead>
+              <tbody id="itemBody"></tbody>
+            </table>
+          </div>
+          <!-- 선택 상품 처리 -->
+          <div class="item-actions">
+            <span class="readonly" id="selCount"></span>
+            <button type="button" class="btn" id="btnRestoreItems">취소원복</button>
+            <button type="button" class="btn btn-danger" id="btnCancelItems">주문취소</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="page-actions">
+        <a class="btn" id="btnList" href="orders.html">목록</a>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- 주문취소 모달: 상품정보 > 체크 > 주문취소 -->
+<div class="modal-bg" id="cancelModal">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="cancelTitle">
+    <div class="modal-header">
+      <h2 id="cancelTitle">주문취소</h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <form id="cancelForm" class="modal-body" novalidate>
+      <div class="section-title">취소 상품</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>상품카테고리</th><th>상품명</th><th style="text-align:right">수량</th><th style="text-align:right">주문금액</th><th style="text-align:right">할인금액</th><th style="text-align:right">결제금액</th></tr></thead>
+          <tbody id="cItems"></tbody>
+        </table>
+      </div>
+      <div class="cancel-sum" id="cTotal"></div>
+
+      <div class="section-title">취소 정보</div>
+      <table class="form-table">
+        <tr><th>취소 사유</th><td>
+          <select id="cReason">
+            <option>단순변심</option><option>상품 불량·파손</option><option>제작·배송 지연</option>
+            <option>주문 정보 오류</option><option>중복 주문</option><option>기타</option>
+          </select>
+        </td></tr>
+        <tr><th>취소 금액</th><td>
+          <div class="inline-row"><input type="text" id="cAmount" inputmode="numeric" class="w-num" style="width:140px"> 원 <span class="readonly" id="cAmountHint"></span></div>
+          <div class="err" id="cErr"></div>
+        </td></tr>
+        <tr><th>환불수단</th><td><select id="cRefund"></select></td></tr>
+        <tr><th>비고</th><td><textarea id="cMemo" maxlength="300" placeholder="고객 요청 내용, 처리 메모 등"></textarea></td></tr>
+      </table>
+    </form>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>닫기</button>
+      <button type="submit" form="cancelForm" class="btn btn-danger">취소 처리</button>
+    </div>
+  </div>
+</div>
+
+<!-- 추가결제 생성 모달: 결제정보 > 추가결제금액 > 추가결제 생성 -->
+<div class="modal-bg" id="extraModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="extraTitle">
+    <div class="modal-header">
+      <h2 id="extraTitle">추가결제 생성</h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <form id="extraForm" class="modal-body" novalidate>
+      <table class="form-table">
+        <tr><th>추가결제 금액 *</th><td>
+          <div class="inline-row"><input type="text" id="xAmount" inputmode="numeric" style="width:140px"> 원</div>
+          <div class="err" id="xErr"></div>
+        </td></tr>
+        <tr><th>사유</th><td>
+          <select id="xReason">
+            <option>페이지 추가</option><option>옵션 변경</option><option>후가공 추가</option><option>추가 배송비</option><option>기타</option>
+          </select>
+        </td></tr>
+        <tr><th>결제 방법</th><td>
+          <select id="xMethod"><option>결제 링크 발송 (문자·알림톡)</option><option>무통장 입금 안내</option><option>관리자 직접 결제 처리</option></select>
+        </td></tr>
+        <tr><th>비고</th><td><textarea id="xMemo" maxlength="300" placeholder="고객 안내 내용, 처리 메모 등"></textarea></td></tr>
+      </table>
+      <p class="readonly at-note">생성하면 '결제대기'로 등록되며, 고객 결제가 끝난 뒤 총 결제금액에 반영됩니다.</p>
+    </form>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>닫기</button>
+      <button type="submit" form="extraForm" class="btn btn-primary">생성</button>
+    </div>
+  </div>
+</div>
+
+<!-- PG 로그 모달: 결제정보 > 결제 수단 > PG 로그 확인 -->
+<!-- TODO: 실서비스에서는 PG사 거래 조회 API 응답(원문 로그) 표시 -->
+<div class="modal-bg" id="pgModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pgTitle">
+    <div class="modal-header">
+      <h2 id="pgTitle">PG 로그</h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <table class="form-table"><tbody id="pgBody"></tbody></table>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 상품 정보 모달: 주문 상품 > 상품 코드를 누르면 열림 -->
+<div class="modal-bg" id="productModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="productTitle">
+    <div class="modal-header">
+      <h2 id="productTitle">상품 정보</h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <table class="form-table">
+        <tr><th>상품 코드</th><td class="mono" id="pCode"></td></tr>
+        <tr><th>상품명</th><td id="pName"></td></tr>
+        <tr><th>상품카테고리</th><td id="pCategory"></td></tr>
+        <tr><th>제작처</th><td id="pMaker"></td></tr>
+      </table>
+      <!-- TODO: 상품 관리 메뉴 구성 시 판매가·옵션·제작처 설정 등 상품 상세 정보로 채움 (GET /api/admin/products/{code}) -->
+      <p class="readonly at-note">판매가·옵션 등 상품 상세 정보는 상품 관리 메뉴를 구성할 때 채워집니다.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="member-data.js?v=20261084"></script>
+<script src="member-type-store.js?v=20261084"></script>
+<script src="order-data.js?v=20261084"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const won = n => `${Number(n).toLocaleString()}원`;
+  // 주문 리스트에서 주문번호를 눌러 들어옴: order-detail.html?orderNo=...
+  const orderNo = new URLSearchParams(location.search).get('orderNo') || '';
+  const o = OrderData.find(orderNo);
+  if (orderNo) {
+    $('pageTitle').textContent = `주문 상세 - ${orderNo}`;
+    document.title = `스탑북 관리자 - 주문 상세 (${orderNo})`;
+  }
+  if (!o) {
+    $('notFound').hidden = false;
+    $('notFoundMsg').textContent = orderNo ? `주문번호 ${orderNo}에 해당하는 주문이 없습니다. 주문 리스트에서 다시 선택해 주세요.` : '주문 리스트에서 주문번호를 눌러 들어와 주세요.';
+  } else {
+    $('detail').hidden = false;
+    $('dOrderedAt').textContent = o.orderedAt;
+    $('dOrderNo').textContent = o.orderNo;
+    // 할인·취소는 빼는 금액이라 '-'를 붙여 표시 (0원이면 흐리게)
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const minus = (id, v) => { $(id).innerHTML = v ? `-${won(v)}` : `<span class="muted">${won(0)}</span>`; };
+    const pay = o.payment;
+    const plus = (id, v) => { $(id).innerHTML = v ? won(v) : `<span class="muted">${won(0)}</span>`; };
+    $('dListPrice').textContent = won(pay.listPrice);
+    plus('dShip', pay.shipFee);
+    minus('dDiscount', pay.discount);
+    plus('dExtra', pay.extraPay);
+    minus('dCancel', pay.cancel);
+    $('dTotal').textContent = won(pay.total);
+
+    // ----- 결제정보 탭 -----
+    // 총 결제금액을 맨 위에 강조하고, 그 아래 계산 항목(+/−)과 적립금액(계산과 별도)을 나열
+    const shipNote = o.shipMethod === '방문수령' ? '방문수령'
+      : o.shipMethod === '퀵서비스' ? '퀵서비스'
+      : pay.baseShip ? `택배 · 할인 후 ${won(15000)} 미만` : pay.freeByCategory ? '택배 · 회원구분 무료배송' : `택배 · 할인 후 ${won(15000)} 이상 무료`;
+    const payRow = (label, value, note = '', cls = '') =>
+      `<tr class="${cls}"><th>${label}</th><td class="pay-note">${note}</td><td class="num">${value}</td></tr>`;
+    const amt = (v, sign) => (v ? `${sign}${won(v)}` : `<span class="muted">${won(0)}</span>`);
+    // 세부 항목 행: 들여쓰기 + 작은 글씨, 금액은 부호 없이
+    const subRow = (label, v, note = '') =>
+      `<tr class="pay-sub-row"><th>${label}</th><td class="pay-note">${note}</td><td class="num">${v ? won(v) : `<span class="muted">${won(0)}</span>`}</td></tr>`;
+    $('payBody').innerHTML = [
+      payRow('총 결제금액', won(pay.total), `${esc(o.payMethod)} · ${esc(o.payStatus)}${o.paidAt ? ` · 결제일 ${o.paidAt}` : ''}`, 'pay-row-total'),
+      payRow('주문금액', won(pay.listPrice), `상품 ${o.items.length}건 / ${o.qty}부`),
+      payRow('배송비', amt(pay.shipFee, '+'), '', 'pay-row-group'),
+      subRow('기본배송비', pay.baseShip, esc(shipNote)),
+      subRow('추가배송비', pay.extraShip, pay.extraShip ? '도서산간 지역' : ''),
+      payRow('할인금액', amt(pay.discount, '−'), '', 'pay-row-group'),
+      ...pay.discounts.map(([k, v]) => subRow(k, v)),
+      // 추가결제금액: 오른쪽에 [추가결제 생성] 버튼. 생성한 요청은 아래 세부 행에 '결제대기'로 표시 (합계 미반영)
+      payRow('추가결제금액', amt(pay.extraPay, '+'),
+        `<div class="spec-title"><span>${pay.extraPay ? '주문 후 옵션 변경 등 별도 결제' : ''}</span>
+          ${o.payStatus === '전체취소' ? '' : '<button type="button" class="btn btn-xs" id="btnExtraPay">+ 추가결제 생성</button>'}</div>`,
+        pay.extraRequests.length ? 'pay-row-group' : ''),
+      ...pay.extraRequests.map(q => `<tr class="pay-sub-row"><th>${esc(q.reason)}</th>
+        <td class="pay-note"><span class="badge ps-입금대기">${esc(q.status)}</span> ${esc(q.method)} · ${esc(q.at)}${q.memo ? ` · ${esc(q.memo)}` : ''} <span class="muted">(합계 미반영)</span></td>
+        <td class="num">${won(q.amount)}</td></tr>`),
+      payRow('취소금액', amt(pay.cancel, '−'), o.payStatus === '전체취소' ? '전체취소 (배송비·추가결제 포함)' : o.canceledItems ? `상품 ${o.canceledItems}건 취소` : ''),
+      payRow('적립금액', pay.point ? `${won(pay.point)}` : `<span class="muted">${won(0)}</span>`,
+        pay.point ? '총 결제금액의 1% · 결제금액에 포함되지 않음' : o.payStatus === '입금대기' ? '입금 후 적립' : '적립 없음', 'pay-row-point')
+    ].join('');
+
+    // ----- 추가결제 생성 모달 -----
+    // 금액(필수)·사유·결제 방법·비고 입력 → 결제대기 요청으로 저장 후 다시 불러 결제정보 탭에 표시
+    if ($('btnExtraPay')) $('btnExtraPay').addEventListener('click', () => {
+      $('xAmount').value = '';
+      $('xReason').value = '페이지 추가';
+      $('xMethod').value = '결제 링크 발송 (문자·알림톡)';
+      $('xMemo').value = '';
+      $('xErr').classList.remove('show');
+      $('extraModal').classList.add('open');
+      $('xAmount').focus();
+    });
+    $('xAmount').addEventListener('input', e => {
+      const n = e.target.value.replace(/[^\d]/g, '');
+      e.target.value = n ? Number(n).toLocaleString() : '';
+    });
+    $('extraForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const amount = Number($('xAmount').value.replace(/,/g, '') || 0);
+      const msg = amount < 100 ? '추가결제 금액을 100원 이상 입력하세요.' : amount > 10000000 ? '추가결제 금액은 1,000만원 이하로 입력하세요.' : '';
+      $('xErr').textContent = msg;
+      $('xErr').classList.toggle('show', !!msg);
+      if (msg) return;
+      const d = new Date(), p2 = n => String(n).padStart(2, '0');
+      const req = { amount, reason: $('xReason').value, method: $('xMethod').value, memo: $('xMemo').value.trim(),
+        at: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`, by: AdminUtil.ADMIN_NAME, status: '결제대기' };
+      if (!OrderData.saveExtraRequest(o.orderNo, req)) { AdminUtil.toast('저장소를 사용할 수 없어 추가결제를 저장하지 못했습니다.'); return; }
+      location.replace(`order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}&extra=${amount}`);
+    });
+    const closeExtra = () => $('extraModal').classList.remove('open');
+    document.querySelectorAll('#extraModal [data-close]').forEach(b => b.addEventListener('click', closeExtra));
+    $('extraModal').addEventListener('click', e => { if (e.target === $('extraModal')) closeExtra(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeExtra(); });
+
+    // ----- 결제 수단 (결제정보 탭 오른쪽) -----
+    const docBadge = s => `<span class="badge ${s === '발급완료' ? 'ps-결제완료' : s === '발급취소' ? 'ps-전체취소' : 'ps-입금대기'}">${esc(s)}</span>`;
+    const mRow = (label, html) => `<tr><th>${label}</th><td>${html}</td></tr>`;
+    const none = '<span class="muted">-</span>';
+    $('payMethodBody').innerHTML = [
+      mRow('입금일시', pay.paidDateTime ? esc(pay.paidDateTime) : `${none} <span class="muted">(${esc(o.payStatus)})</span>`),
+      mRow('결제수단', `<div class="spec-title"><span>${esc(o.payMethod)} <span class="muted">· ${esc(pay.pgLog.pg)}</span></span>
+        <button type="button" class="btn btn-xs" id="btnPgLog">PG 로그 확인</button></div>`),
+      mRow('증빙발급 요청', pay.docType ? `<b>${esc(pay.docType)}</b>${pay.docPurpose ? ` <span class="muted">(${esc(pay.docPurpose)})</span>` : ''}` : '요청 안 함'),
+      // 발급 정보: 항목명 | 값 목록 (현금영수증 소득공제는 휴대폰/주민번호, 지출증빙은 사업자등록 정보, 세금계산서는 사업자 정보 전체)
+      mRow('발급 정보', pay.docInfo.length
+        ? `<dl class="doc-info">${pay.docInfo.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`
+        : none),
+      mRow('서류 발급상태', pay.docStatus ? `${docBadge(pay.docStatus)}${pay.docAt ? ` <span class="muted">${esc(pay.docAt)}</span>` : ''}` : none)
+    ].join('');
+
+    // PG 로그 모달
+    $('btnPgLog').addEventListener('click', () => {
+      const lg = pay.pgLog;
+      $('pgBody').innerHTML = [
+        ['PG사', esc(lg.pg)], ['결제수단', esc(o.payMethod)], ['거래번호(TID)', `<span class="mono">${esc(lg.tid)}</span>`],
+        ['승인번호', lg.approvalNo ? `<span class="mono">${esc(lg.approvalNo)}</span>` : none],
+        ['승인일시', pay.paidDateTime ? esc(pay.paidDateTime) : none],
+        ['결과', esc(lg.result)], ['결제금액', won(pay.total + pay.cancel)], ['취소금액', pay.cancel ? `-${won(pay.cancel)}` : none]
+      ].map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('');
+      $('pgModal').classList.add('open');
+    });
+    const closePg = () => $('pgModal').classList.remove('open');
+    document.querySelectorAll('#pgModal [data-close]').forEach(b => b.addEventListener('click', closePg));
+    $('pgModal').addEventListener('click', e => { if (e.target === $('pgModal')) closePg(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closePg(); });
+
+    // ----- 탭 전환 (상품정보 / 결제정보) -----
+    $('tabItemCount').textContent = o.items.length;
+    const TAB_PANELS = { items: 'panelItems', pay: 'panelPay', ship: 'panelShip' };
+    function showTab(key) {
+      Object.keys(TAB_PANELS).forEach(k => {
+        const on = k === key;
+        $('tab-' + k).classList.toggle('active', on);
+        $('tab-' + k).setAttribute('aria-selected', String(on));
+        $(TAB_PANELS[k]).hidden = !on;
+      });
+    }
+
+    // ----- 배송정보 탭 -----
+    const dv = o.delivery;
+    const shipRow = (label, html) => `<tr><th>${label}</th><td>${html}</td></tr>`;
+    const dash2 = v => (v ? esc(v) : '<span class="muted">-</span>');
+    // 운송장번호: 누르면 택배사 배송조회를 새 창(팝업)으로. 팝업이 막히면 링크의 target=_blank로 새 탭
+    const trackLink = no => `<a class="name-link mono" href="${esc(dv.trackingUrl)}" target="_blank" rel="noopener" data-track title="${esc(dv.courier)} 배송조회">${esc(no)} ↗</a>`;
+    $('panelShip').addEventListener('click', e => {
+      const a = e.target.closest('[data-track]');
+      if (!a) return;
+      const w = window.open(a.href, 'stopbookTracking', 'width=1000,height=800,resizable=yes,scrollbars=yes');
+      if (w) { w.opener = null; w.focus(); e.preventDefault(); }
+    });
+    const SHIP_CLASS = { '배송준비중': 'st-recv', '부분출고': 'st-part', '배송중': 'st-ship', '배송완료': 'st-done', '배송취소': 'st-cancel' };
+    $('shipStatus').innerHTML = `<span class="badge ${SHIP_CLASS[dv.status] || ''}">${esc(dv.status)}</span>`;
+    $('shipToBody').innerHTML = [
+      shipRow('수취인명', esc(dv.recipient) + (dv.recipient !== o.name ? ` <span class="muted">(주문자 ${esc(o.name)})</span>` : '')),
+      shipRow('연락처', esc(dv.phone)),
+      shipRow('주소', dv.method === '방문수령' ? '<span class="muted">방문수령 (배송지 없음)</span>' : `[${esc(dv.zip)}] ${esc(dv.address)}<br>${esc(dv.detail)}`),
+      shipRow('배송 요청사항', dash2(dv.request))
+    ].join('');
+    $('shipBody').innerHTML = [
+      shipRow('배송방법', esc(dv.method)),
+      dv.method === '방문수령' ? shipRow('수령 장소', esc(dv.pickupPlace))
+        : shipRow(dv.method === '택배' ? '택배사' : '퀵 업체', dash2(dv.courier)),
+      dv.method === '택배' ? shipRow('운송장번호', dv.waybill ? trackLink(dv.waybill) : '<span class="muted">출고 전</span>') : '',
+      shipRow('배송비', o.payment.shipFee ? won(o.payment.shipFee) : '<span class="muted">무료</span>'),
+      shipRow('배송 시작일', dv.shippedAt ? `${esc(dv.shippedAt)} <span class="muted">(집하스캔)</span>` : dash2('')),
+      shipRow('배송 완료일', dv.doneAt ? `${esc(dv.doneAt)} <span class="muted">(배송완료 처리)</span>` : dash2(''))
+    ].join('');
+    const LINE_CLASS = { '출고대기': 'st-recv', '출고완료': 'st-ship', '배송완료': 'st-done', '취소': 'st-cancel' };
+    $('shipLines').innerHTML = dv.lines.map(l => `<tr>
+        <td class="mono">${esc(l.makeNo)}</td><td class="left">${esc(l.name)}</td><td class="num">${l.qty}부</td>
+        <td><span class="badge ${LINE_CLASS[l.state] || ''}">${esc(l.state)}</span></td>
+        <td>${l.waybill ? trackLink(l.waybill) : dash2('')}</td><td>${dash2(l.at)}</td>
+      </tr>`).join('');
+    $('detailTabs').addEventListener('click', e => {
+      const b = e.target.closest('[data-tab]');
+      if (b) showTab(b.dataset.tab);
+    });
+
+    // ----- 주문 상품 -----
+    const minusCell = v => (v ? `-${won(v)}` : `<span class="muted">${won(0)}</span>`);
+    const sum = k => o.items.reduce((t, it) => t + it[k], 0);
+    $('itemSummary').textContent = `· ${o.items.length}건 / ${sum('qty')}부`;
+    // 상품명을 누르면 바로 아래 행에 상품 제작 상세가 펼쳐짐 (아코디언, 여러 개 동시에 펼칠 수 있음)
+    const dash = v => (v ? esc(v) : '<span class="muted">-</span>');
+    // 제작 공정 플로우: 지난 단계 ✓(채움) · 현재 단계(강조) · 남은 단계(빈 원). 단계 아래 처리 시각
+    // 취소된 상품은 멈춘 단계 뒤를 흐리게 하고 '취소' 표시
+    // 상품 가격: 상품단가 × 수량 + 추가금액 − 할인금액 − 취소금액 = 결제금액 (위쪽 결제 금액 요약과 같은 모양, 작게)
+    const priceHtml = it => {
+      const pr = it.price;
+      const item = (label, value, sub = '', cls = '') =>
+        `<div class="pay-item${cls}"><div class="pay-label">${label}</div><div class="pay-value">${value}</div>${sub ? `<div class="pay-sub">${sub}</div>` : ''}</div>`;
+      const op = s => `<div class="pay-op" aria-hidden="true">${s}</div>`;
+      return `<div class="item-price">
+        <div class="flow-head"><b>결제정보</b></div>
+        <div class="pay-summary">
+          ${item('상품단가', won(pr.unitPrice), `× ${it.qty}부 = ${won(pr.unitPrice * it.qty)}`)}
+          ${op('+')}
+          ${item('추가금액', pr.extra ? won(pr.extra) : `<span class="muted">${won(0)}</span>`, esc(pr.extraItems.join(' · ')))}
+          ${op('−')}
+          ${item('할인금액', minusCell(it.discount))}
+          ${op('−')}
+          ${item('취소금액', minusCell(it.cancel))}
+          ${op('=')}
+          ${item('결제금액', won(it.paid), '', ' pay-total')}
+        </div>
+      </div>`;
+    };
+    // 공정과 진행상태 연결은 위쪽 문구의 진행상태 배지로 보여줌 (구간: 주문접수 | 합성완료~제본완료=제작중 | 출고완료=배송중)
+    const flowHtml = f => {
+      const steps = OrderData.PROCESS_STEPS;
+      // 배송완료: 출고완료까지 모두 끝남 → 전 단계 ✓
+      const cls = k => (k < f.step || (f.delivered && k === f.step) ? 'done' : k === f.step ? (f.canceled ? 'stopped' : 'current') : 'todo');
+      const statusBadge = f.status ? `<span class="badge ${MemberData.statusClass(f.status)}">${esc(f.status)}</span>` : '';
+      const head = f.canceled
+        ? `<span class="badge ps-취소">취소</span> ${esc(steps[f.step])} 단계에서 취소되었습니다.`
+        : f.delivered
+          ? `${statusBadge} 출고 후 배송까지 완료되었습니다.`
+          : `${statusBadge} 현재 공정 <b>${esc(steps[f.step])}</b> <span class="muted">(${f.step + 1}/${steps.length}단계)</span>`;
+      return `<div class="flow${f.canceled ? ' is-canceled' : ''}">
+        <div class="flow-head"><b>제작 공정</b> <span class="flow-now">${head}</span></div>
+        <ol class="flow-steps">${steps.map((name, k) => `
+          <li class="flow-step ${cls(k)}"${k === f.step ? ' aria-current="step"' : ''}>
+            <span class="flow-dot">${k < f.step ? '✓' : k + 1}</span>
+            <span class="flow-label">${esc(name)}</span>
+            <span class="flow-time">${f.times[k] || ''}</span>
+          </li>`).join('')}
+        </ol>
+      </div>`;
+    };
+    // 페이지: 기본 페이지수(추가 페이지수). 예) 24p(+6p), 추가 없으면 24p
+    const pagesText = sp => (sp.basePages ? `${sp.basePages}p${sp.addPages ? `(+${sp.addPages}p)` : ''}` : '');
+    // 펼친 상세 순서: 상품정보 → 결제정보 → 제작 공정
+    const specRow = (it, i) => {
+      const sp = it.spec;
+      const opts = [['상품형태', sp.form], ['사이즈', sp.size], ['커버종류', sp.cover], ['코팅종류', sp.coating], ['페이지', pagesText(sp)], ['후가공', sp.finishing]];
+      // 항목명 칸(회색)과 값 칸(흰색)을 테두리로 나눈 표 (항목명+값 3쌍 = 6칸). 주문사양은 사양명 아래 값이 오는 6칸
+      // 상품 코드: 누르면 상품 정보 페이지를 새 탭으로 (주문 상세는 그대로 유지)
+      // 편집 서비스: 직접편집 / 편집메이트, 오른쪽 끝에 편집내용보기(스탑북 뷰어)
+      const editorCell = `<div class="spec-title"><span class="badge edit-${sp.editService === '편집메이트' ? 'mate' : 'self'}">${esc(sp.editService)}</span>
+        <a class="btn btn-xs" href="${esc(sp.viewerUrl)}" target="_blank" rel="noopener" data-viewer>편집내용보기</a></div>`;
+      return `<tr class="item-detail" id="itemDetail${i}" hidden><td colspan="11">
+        <div class="spec-box">
+        <div class="flow-head"><b>상품정보</b></div>
+        <!-- 첫 줄은 항목 3쌍(6칸), 아래 줄들은 항목 2쌍(4칸)이라 표를 나눠 각 표 안에서 칸 폭을 같게 맞춤 -->
+        <table class="spec-table">
+          <colgroup><col class="c-th"><col><col class="c-th"><col><col class="c-th"><col></colgroup>
+          <tr>
+            <th>상품 제작 번호</th><td class="mono">${esc(sp.makeNo)}</td>
+            <th>상품 코드</th><td><button type="button" class="link-btn mono" data-product="${i}" title="상품 정보 보기">${esc(it.code)}</button></td>
+            <th>편집 서비스 이용</th><td>${editorCell}</td>
+          </tr>
+        </table>
+        <table class="spec-table spec-table-sub">
+          <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
+          <tr><th>주문사양</th><td colspan="3" class="spec-opts-cell">
+            <div class="spec-opts">${opts.map(([k, v]) => `<div><span>${k}</span><b>${dash(v)}</b></div>`).join('')}</div>
+          </td></tr>
+          <tr>
+            <th>부가서비스</th><td>${dash(sp.services.join(', '))}</td>
+            <th>추가상품 구매</th><td>${sp.addons.length
+              ? `<div class="addon-list">${sp.addons.map(a => `<span class="addon-chip">${esc(a.name)} <b>${a.qty}개</b></span>`).join('')}</div>`
+              : dash('')}</td>
+          </tr>
+          <tr><th>표지 디자인</th><td>${dash(sp.coverDesign)}</td><th>내지 디자인</th><td>${dash(sp.innerDesign)}</td></tr>
+          <tr><th>최초 편집 시작일</th><td>${esc(sp.editStartedAt)}</td><th>편집 완료일</th><td>${esc(sp.editDoneAt)}</td></tr>
+        </table>
+        </div>
+        ${priceHtml(it)}
+        ${flowHtml(it.flow)}
+      </td></tr>`;
+    };
+    // 펼칠 수 있음을 알 수 있게: 상품 행 전체를 누를 수 있고(마우스 올리면 강조), 상품명 칸 오른쪽에 '상세보기 ▾' 버튼 표시
+    $('itemBody').innerHTML = o.items.map((it, i) => `<tr class="item-row" data-item="${i}">
+        <td class="c-chk"><input type="checkbox" class="item-chk" value="${i}" aria-label="${esc(it.name)} 선택"${it.payStatus === '취소' && !it.cancelInfo ? ' disabled title="원복할 수 없는 취소 상품"' : ''}></td>
+        <td>${esc(it.category)}</td>
+        <td class="left"><button type="button" class="item-toggle" data-item="${i}" aria-expanded="false" aria-controls="itemDetail${i}"
+          title="${esc(it.name)}"><span class="item-name">${esc(it.name)}</span><span class="item-more"></span></button></td>
+        <td class="num">${it.qty}부</td>
+        <td class="num">${won(it.listPrice)}</td>
+        <td class="num">${minusCell(it.discount)}</td>
+        <td class="num">${minusCell(it.cancel)}</td>
+        <td class="num"><b>${won(it.paid)}</b></td>
+        <td><span class="badge ps-${esc(it.payStatus)}">${esc(it.payStatus)}</span></td>
+        <td>${it.status ? `<span class="badge ${MemberData.statusClass(it.status)}">${esc(it.status)}</span>` : '<span class="muted">-</span>'}</td>
+        <td>${esc(it.maker)}</td>
+      </tr>${specRow(it, i)}`).join('');
+
+    $('itemBody').addEventListener('click', e => {
+      // 편집내용보기: 스탑북 뷰어를 새 창(팝업)으로. 팝업이 막히면 링크의 target=_blank로 새 탭에서 열림
+      const v = e.target.closest('[data-viewer]');
+      if (v) {
+        const w = window.open(v.href, 'stopbookViewer', 'width=1100,height=900,resizable=yes,scrollbars=yes');
+        if (w) { w.opener = null; w.focus(); e.preventDefault(); }
+        return;
+      }
+      // 상품 코드: 상품 정보 모달
+      const pc = e.target.closest('[data-product]');
+      if (pc) { openProduct(o.items[Number(pc.dataset.product)]); return; }
+      // 체크박스 칸은 선택만 (펼침 안 함)
+      if (e.target.closest('.c-chk')) return;
+      // 상품 행 어디를 눌러도 펼침/접힘 (펼친 상세 칸 안을 누를 때는 제외)
+      const tr = e.target.closest('tr.item-row');
+      if (!tr) return;
+      const b = tr.querySelector('.item-toggle');
+      const row = $('itemDetail' + tr.dataset.item);
+      row.hidden = !row.hidden;
+      b.setAttribute('aria-expanded', String(!row.hidden));
+      tr.classList.toggle('open', !row.hidden);
+    });
+
+    // ----- 상품 정보 모달 -----
+    function openProduct(it) {
+      $('productTitle').textContent = `상품 정보 - ${it.code}`;
+      $('pCode').textContent = it.code;
+      $('pName').textContent = it.name;
+      $('pCategory').textContent = it.category;
+      $('pMaker').textContent = it.maker;
+      $('productModal').classList.add('open');
+    }
+    const closeProduct = () => $('productModal').classList.remove('open');
+    document.querySelectorAll('#productModal [data-close]').forEach(b => b.addEventListener('click', closeProduct));
+    $('productModal').addEventListener('click', e => { if (e.target === $('productModal')) closeProduct(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeProduct(); });
+
+    // 체크박스: 전체 선택 ↔ 개별 선택 동기화
+    // 관리자가 취소한 상품은 선택 가능(취소원복용), 샘플 데이터에 처음부터 취소로 들어 있는 상품은 선택 불가(disabled)
+    const itemChecks = () => [...document.querySelectorAll('.item-chk:not(:disabled)')];
+    const syncChecks = () => {
+      const all = itemChecks(), on = all.filter(c => c.checked).length;
+      $('chkAllItems').checked = all.length > 0 && on === all.length;
+      $('chkAllItems').indeterminate = on > 0 && on < all.length;
+      $('selCount').textContent = on ? `${on}건 선택` : '';
+    };
+    $('chkAllItems').disabled = !itemChecks().length;
+    $('chkAllItems').addEventListener('change', e => { itemChecks().forEach(c => { c.checked = e.target.checked; }); syncChecks(); });
+    $('itemBody').addEventListener('change', e => { if (e.target.classList.contains('item-chk')) syncChecks(); });
+
+    // ===== 주문취소 (선택 상품) =====
+    // 상단: 선택 상품과 금액 확인 / 하단: 취소 사유·취소 금액·환불수단·비고 입력
+    // 미입력 시 기본값: 사유 단순변심, 취소 금액 = 선택 상품 결제금액 합계, 환불수단 = 원결제수단 (모두 관리자가 수정 가능)
+    // 저장: OrderData.saveCancel → 화면을 다시 불러 상품·결제 금액·결제상태에 반영
+    let cancelTargets = [];
+    const selectedIdx = () => itemChecks().filter(c => c.checked).map(c => Number(c.value));
+    $('btnCancelItems').addEventListener('click', () => {
+      cancelTargets = selectedIdx();
+      if (!cancelTargets.length) { AdminUtil.toast('취소할 상품을 선택하세요.'); return; }
+      if (cancelTargets.some(i => o.items[i].payStatus === '취소')) { AdminUtil.toast('이미 취소된 상품이 선택되어 있습니다. 취소원복을 사용하거나 선택을 해제하세요.'); return; }
+      const sel = cancelTargets.map(i => o.items[i]);
+      const sumOf = k => sel.reduce((t, it) => t + it[k], 0);
+      $('cItems').innerHTML = sel.map(it => `<tr>
+          <td>${esc(it.category)}</td><td class="left">${esc(it.name)}</td><td class="num">${it.qty}부</td>
+          <td class="num">${won(it.listPrice)}</td><td class="num">${minusCell(it.discount)}</td><td class="num"><b>${won(it.paid)}</b></td>
+        </tr>`).join('');
+      $('cTotal').innerHTML = `선택 ${sel.length}건 · 주문금액 ${won(sumOf('listPrice'))} · 할인금액 ${minusCell(sumOf('discount'))} · 결제금액 <b>${won(sumOf('paid'))}</b>`;
+      // 입력 기본값
+      $('cReason').value = '단순변심';
+      $('cAmount').value = sumOf('paid').toLocaleString();
+      $('cAmount').dataset.max = sumOf('paid');
+      $('cAmountHint').textContent = `최대 ${won(sumOf('paid'))} (비우면 결제금액 전액)`;
+      $('cRefund').innerHTML = (o.payStatus === '입금대기'
+        ? ['환불 없음 (미입금)']
+        : [`원결제수단 (${o.payMethod})`, '계좌 환불', '마일리지 환불']).map(v => `<option>${esc(v)}</option>`).join('');
+      $('cMemo').value = '';
+      $('cErr').classList.remove('show');
+      $('cancelModal').classList.add('open');
+      $('cReason').focus();
+    });
+
+    function submitCancel(e) {
+      e.preventDefault();
+      const max = Number($('cAmount').dataset.max);
+      const raw = $('cAmount').value.replace(/,/g, '').trim();
+      const amount = raw === '' ? max : Number(raw);   // 미입력 시 결제금액 전액
+      let msg = '';
+      if (!/^\d*$/.test(raw) || !Number.isInteger(amount) || amount < 0) msg = '취소 금액은 숫자로 입력하세요.';
+      else if (amount > max) msg = `취소 금액은 선택 상품 결제금액(${won(max)})을 넘을 수 없습니다.`;
+      $('cErr').textContent = msg;
+      $('cErr').classList.toggle('show', !!msg);
+      if (msg) return;
+      const reason = $('cReason').value || '단순변심';
+      if (!confirm(`선택한 ${cancelTargets.length}건을 주문취소하시겠습니까?\n취소 금액 ${won(amount)} · ${$('cRefund').value}\n취소 후에는 되돌릴 수 없습니다.`)) return;
+      // 취소 금액을 상품별 결제금액 비율로 나눔 (10원 단위, 끝전은 마지막 상품)
+      const sel = cancelTargets.map(i => o.items[i]);
+      const paidSum = sel.reduce((t, it) => t + it.paid, 0) || 1;
+      let left = amount;
+      const now = new Date();
+      const at = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const items = {};
+      cancelTargets.forEach((idx, k) => {
+        const it = o.items[idx];
+        const part = k === cancelTargets.length - 1 ? left : Math.min(it.paid, Math.floor(amount * it.paid / paidSum / 10) * 10);
+        left -= part;
+        items[idx] = { amount: part, reason, refund: $('cRefund').value, memo: $('cMemo').value.trim(), at, by: AdminUtil.ADMIN_NAME };
+      });
+      const saved = OrderData.saveCancel(o.orderNo, items);
+      if (!saved) { AdminUtil.toast('저장소를 사용할 수 없어 취소를 저장하지 못했습니다.'); return; }
+      // 다시 불러 반영 (완료 안내는 주소의 canceled 값으로 표시)
+      location.replace(`order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}&canceled=${cancelTargets.length}`);
+    }
+    $('cancelForm').addEventListener('submit', submitCancel);
+    // 취소 금액: 입력하면서 천 단위 쉼표
+    $('cAmount').addEventListener('input', e => {
+      const n = e.target.value.replace(/[^\d]/g, '');
+      e.target.value = n ? Number(n).toLocaleString() : '';
+    });
+    const closeCancel = () => $('cancelModal').classList.remove('open');
+    document.querySelectorAll('#cancelModal [data-close]').forEach(b => b.addEventListener('click', closeCancel));
+    $('cancelModal').addEventListener('click', e => { if (e.target === $('cancelModal')) closeCancel(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCancel(); });
+
+    // ===== 취소원복 (관리자가 취소한 상품만) =====
+    // 취소 기록을 지우고 다시 불러 취소 전 상태(결제상태·진행상태·금액)로 되돌림
+    $('btnRestoreItems').addEventListener('click', () => {
+      const idxs = selectedIdx();
+      if (!idxs.length) { AdminUtil.toast('원복할 취소 상품을 선택하세요.'); return; }
+      if (idxs.some(i => !o.items[i].cancelInfo)) { AdminUtil.toast('취소된 상품만 원복할 수 있습니다. 취소되지 않은 상품의 선택을 해제하세요.'); return; }
+      const sum = idxs.reduce((t, i) => t + o.items[i].cancel, 0);
+      if (!confirm(`선택한 ${idxs.length}건의 취소를 원복하시겠습니까?\n취소금액 ${won(sum)}이 다시 결제금액에 포함됩니다.\n(환불이 이미 처리됐다면 별도로 재결제를 받아야 합니다.)`)) return;
+      if (!OrderData.restoreCancel(o.orderNo, idxs)) { AdminUtil.toast('저장소를 사용할 수 없어 원복하지 못했습니다.'); return; }
+      location.replace(`order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}&restored=${idxs.length}`);
+    });
+
+    // 취소·원복·추가결제 처리 후 다시 불러온 경우 안내 (주소의 값은 안내 후 지움)
+    const qs = new URLSearchParams(location.search);
+    const done = qs.get('canceled') ? `${qs.get('canceled')}건을 주문취소했습니다.`
+      : qs.get('restored') ? `${qs.get('restored')}건의 취소를 원복했습니다.`
+      : qs.get('extra') ? `추가결제 ${won(Number(qs.get('extra')))}를 생성했습니다. (결제대기)` : '';
+    if (done) {
+      AdminUtil.toast(done);
+      if (qs.get('extra')) showTab('pay');
+      try { history.replaceState(null, '', `order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}`); } catch (err) { /* file:// 등 */ }
+    }
+  }
+  // 목록: 주문 리스트에서 왔으면 뒤로 가기(검색 조건·페이지 유지), 아니면 주문 리스트로 이동
+  $('btnList').addEventListener('click', e => {
+    if (document.referrer && /\/orders\.html/.test(document.referrer) && history.length > 1) { e.preventDefault(); history.back(); }
+  });
+  AdminUtil.initSidebar();
+})();
+</script>
+</body>
+</html>

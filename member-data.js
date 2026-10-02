@@ -166,7 +166,8 @@
   const VIEWER_SAMPLE = { mskey: '612574', userId: 'jy811228' };
   const viewerUrl = (mskey, userId) =>
     `https://www.stopbook.com/viewer/viewer_mobile.asp?mskey=${encodeURIComponent(mskey)}&user_id=${encodeURIComponent(userId)}`;
-  const PAY_METHODS = ['신용카드', '신용카드', '카카오페이', '네이버페이', '무통장입금', '마일리지+카드'];
+  // 결제수단 샘플 (신용카드는 두 번 넣어 비중을 높임). TODO: 실서비스에서는 결제 설정값 사용
+  const PAY_METHODS = ['신용카드', '신용카드', '무통장입금', '계좌이체', '휴대폰결제', '네이버페이', '토스페이', '카카오페이'];
   const INQ_TYPES = ['주문/결제', '배송', '상품', '교환/반품', '회원정보', '기타'];
   const INQ_SAMPLES = {
     '주문/결제': ['결제 수단을 변경하고 싶어요', '주문 후 영수증 발급 문의', '카드 결제가 두 번 된 것 같아요'],
@@ -184,8 +185,8 @@
     const daysAgo = d => Math.floor((base - new Date(d).getTime()) / 86400000);
 
     // 주문 상세: 일자·금액은 기존 값 유지(등급 산정용), 상품명·수량·상태·결제수단만 채움
-    // 상태(주문 제작 흐름): 주문완료 → 제작중 → 발송완료
-    //   2일 이내 주문완료·제작중 / 3~6일 제작중·발송완료 / 7일 이상 발송완료
+    // 제작상태(주문 제작 흐름): 접수완료 → 제작중 → 배송중(전체) (접수대기·배송중(부분)·배송완료는 아래에서 지정)
+    //   2일 이내 접수완료·제작중 / 3~6일 제작중·배송중 / 7일 이상 배송중
     (m.orders || []).forEach((o, i) => {
       const p = pickR(PRODUCTS);
       const qty = 1 + Math.floor(r() * 3);
@@ -196,7 +197,7 @@
         title: kinds > 1 ? `${p[0]} 외 ${kinds - 1}종` : p[0],
         productCategory: p[1],
         qty: qty + kinds - 1,
-        status: d <= 2 ? pickR(['주문완료', '제작중']) : d <= 6 ? pickR(['제작중', '발송완료']) : '발송완료',
+        status: d <= 2 ? pickR(['접수완료', '제작중']) : d <= 6 ? pickR(['제작중', '배송중(전체)']) : '배송중(전체)',
         payMethod: pickR(PAY_METHODS)
       });
     });
@@ -237,9 +238,42 @@
   }
   members.forEach(makeUsage);
 
-  // 기간(YYYY-MM-DD, 양끝 포함) 내 주문횟수·주문금액 합계
+  // ===== 결제상태·제작상태 샘플 =====
+  // 결제상태(payStatus): 입금대기(무통장입금 접수 후 미입금) / 결제완료 / 전체취소 (부분취소는 주문 상품별로 order-data.js에서 정함)
+  // 제작상태(status, 주문 단위):
+  //   접수대기      입금 전
+  //   접수완료      입금 완료 후 제작 시작 전
+  //   제작중        제작 진행 중
+  //   배송중(부분)  주문 상품 중 일부만 출고 (상품이 2종 이상인 주문만)
+  //   배송중(전체)  전체 상품 출고
+  //   배송완료      전체 상품 배송 완료
+  //   전체취소 주문은 제작상태 없음('')
+  // 주문번호별 별도 난수로 정하므로 다른 샘플 값에는 영향 없음
+  //   약 5% → 전체취소 / 출고 후 10일 이상 지난 주문 대부분 → 배송완료 / 2종 이상 출고 주문 일부 → 배송중(부분)
+  // 취소 주문은 주문 실적(회원등급 산정·주문 합계)에서 제외 → validOrders 사용
+  // TODO: 실서비스에서는 상품별 제작·출고 상태 사용
+  members.forEach(m => (m.orders || []).forEach(o => {
+    let s = [...o.orderNo].reduce((h, c) => (h * 37 + c.charCodeAt(0)) % 233280, 11);
+    const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    const days = Math.floor((base - new Date(o.at).getTime()) / 86400000);
+    if (r() < 0.05) o.payStatus = '전체취소';
+    else {
+      o.payStatus = o.payMethod === '무통장입금' && o.status === '접수완료' ? '입금대기' : '결제완료';
+      if (o.status === '배송중(전체)' && days >= 10 && r() < 0.85) o.status = '배송완료';
+    }
+    if (o.payStatus === '입금대기') o.status = '접수대기';
+    else if (o.payStatus === '전체취소') o.status = '';
+    else if (o.status === '배송중(전체)' && /외 \d+종/.test(o.title) && r() < 0.4) o.status = '배송중(부분)';
+  }));
+  // 제작상태·결제상태 → 배지 색 클래스 (값에 괄호가 있어 CSS 클래스명으로 직접 쓰지 않음)
+  const STATUS_CLASS = { '접수대기': 'st-wait', '접수완료': 'st-recv', '제작중': 'st-make', '배송중(부분)': 'st-part', '배송중(전체)': 'st-ship', '배송완료': 'st-done', '전체취소': 'st-cancel',
+    '배송중': 'st-ship', '취소': 'st-cancel' };   // 아래 두 개는 주문 상세 > 주문 상품의 상품별 진행상태
+  const statusClass = s => STATUS_CLASS[s] || '';
+  const validOrders = m => (m.orders || []).filter(o => o.payStatus !== '전체취소');
+
+  // 기간(YYYY-MM-DD, 양끝 포함) 내 주문횟수·주문금액 합계 (취소 주문 제외)
   function orderStats(m, from, to) {
-    return (m.orders || []).filter(o => o.at >= from && o.at <= to)
+    return validOrders(m).filter(o => o.at >= from && o.at <= to)
       .reduce((acc, o) => ({ count: acc.count + 1, amount: acc.amount + o.amount }), { count: 0, amount: 0 });
   }
 
@@ -391,7 +425,7 @@
   });
 
   window.MemberData = {
-    members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, orderStats, ageOf,
+    members, GRADE_ORDER, BENEFITS, COUPONS, PRODUCTS, PROJECT_NAMES, VIEWER_SAMPLE, viewerUrl, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, orderStats, validOrders, statusClass, ageOf,
     applications, saveApplication, applyApproval, revokeBusiness, GROUP_TYPES: typeKeys
   };
 })();
