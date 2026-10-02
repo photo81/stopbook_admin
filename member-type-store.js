@@ -162,6 +162,7 @@
     };
     (data.members || []).forEach(m => fix(m, 'categoryCode', 'category'));
     (data.applications || []).forEach(a => {
+      if (a.reqCategoryCode) fix(a, 'reqCategoryCode', 'reqCategory');
       if (a.expireTo) fix(a, 'expireToCode', 'expireTo');
       if (a.assignCategoryCode) fix(a, 'assignCategoryCode', 'assignCategory');
     });

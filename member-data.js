@@ -317,8 +317,11 @@
   // ===== 단체회원 신청 =====
   // 기본 신청 데이터는 고정 생성, 관리자 처리 결과(승인/반려/히스토리)만 localStorage에 저장해 덮어씀
   // TODO: 실서비스에서는 GET /api/admin/group-applications, POST .../{no}/approve|reject 로 대체
-  const APP_KEY = 'stopbook.groupApplications.v3';   // v3: 승인 시 회원 구분·종류 지정(assign*) 저장, 고객 단체 유형은 변경 안 함
-  // 단체 유형별 샘플 사업자 정보. 고객이 고르는 단체 유형은 '단체' 구분의 현재 종류 목록이며, 아래에 없는 종류는 이름으로 사업자 정보를 만듦
+  const APP_KEY = 'stopbook.groupApplications.v4';   // v3: 승인 시 회원 구분·종류 지정(assign*) 저장 / v4: 고객이 단체 유형 대신 회원구분(req*)을 신청, 이전 처리 결과는 초기화
+  // 신청 건의 구분 참조
+  //   reqCategoryCode / reqCategory / groupType: 고객이 신청한 회원구분(code·표시명)과 그 구분의 종류 (승인 대기·반려 목록에 표시)
+  //   assignCategoryCode / assignCategory / assignKind: 관리자가 승인하며 지정한 회원구분·종류 (승인·해제·만료 목록에 표시)
+  // 종류별 샘플 사업자 정보. 아래에 없는 종류(또는 종류가 없는 구분)는 이름으로 사업자 정보를 만듦
   const GROUP_TYPES = {
     '기관':     { names: ['가람시 평생학습관', '나래구 청소년수련관', '책마루도서관'], bizType: '공공행정', bizItem: '평생교육' },
     '회사':     { names: ['(주)새벽북스', '(주)온누리교육', '누리소프트(주)'], bizType: '도소매업', bizItem: '서적' },
@@ -329,6 +332,8 @@
     '기타':     { names: ['지혜샘학원', '글빛논술학원'], bizType: '교육 서비스업', bizItem: '교습학원' }
   };
   const ADDRESSES = ['서울특별시 마포구 월드컵북로 12', '경기도 성남시 분당구 판교로 45', '부산광역시 해운대구 센텀로 8', '대전광역시 유성구 대학로 99', '인천광역시 연수구 송도과학로 31'];
+  // 고객이 신청할 수 있는 회원구분 = 기본 구분을 뺀 현재 구분 (없으면 '단체' 구분)
+  const applyCats = otherCats.length ? otherCats : [groupCat];
   const groupKinds = groupCat.subs.length ? groupCat.subs : Object.keys(GROUP_TYPES);
   const bizOf = kind => GROUP_TYPES[kind] || { names: ['가람', '나래', '다온'].map(p => p + kind), bizType: '서비스업', bizItem: kind };
 
@@ -339,12 +344,17 @@
 
   // 기본 구분 회원 중 일부가 신청한 것으로 생성 (최근 신청이 위)
   const applications = members.filter(m => m.categoryCode === mainCat.code).filter((_, i) => i % 8 === 3).map((m, k) => {
-    const groupType = groupKinds[k % groupKinds.length];
-    const t = bizOf(groupType);
+    // 고객이 신청한 회원구분·종류: 신청 가능한 구분을 번갈아, 종류가 있는 구분은 종류도 번갈아
+    const reqCat = applyCats[k % applyCats.length];
+    const groupType = subOf(reqCat, k);
+    const t = bizOf(groupType || reqCat.name);
+    const reqText = `${reqCat.name}${groupType ? ` > ${groupType}` : ''}`;
     const appliedAt = new Date(base - k * 2 * 86400000 - (k * 37 % 600) * 60000);
     const app = {
       appNo: 501 + k,
       userId: m.userId,
+      reqCategoryCode: reqCat.code,
+      reqCategory: reqCat.name,
       groupType,
       appliedAt: fmtDateTime(appliedAt),
       business: {
@@ -363,7 +373,7 @@
       // 예시: 일부는 이미 처리된 상태
       status: k % 5 === 4 ? '승인' : k % 7 === 6 ? '반려' : '대기',
       processedAt: '', processedBy: '', rejectReason: '', periodFrom: '', periodTo: '', expireTo: '',
-      history: [{ at: fmtDateTime(appliedAt), content: `단체회원 신청 (${groupType})`, by: '고객' }]
+      history: [{ at: fmtDateTime(appliedAt), content: `단체회원 신청 (회원구분: ${reqText})`, by: '고객' }]
     };
     if (app.status !== '대기') {
       const at = fmtDateTime(new Date(appliedAt.getTime() + 86400000));
@@ -377,10 +387,10 @@
           : fmtDate(new Date(d.getFullYear() + 1, d.getMonth(), d.getDate() - 1));
         app.expireTo = mainCat.name;
         app.expireToCode = mainCat.code;
-        // 승인 시 관리자가 지정한 회원 구분·종류 (샘플은 '단체' 구분 + 고객이 고른 단체 유형)
-        Object.assign(app, { assignCategoryCode: groupCat.code, assignCategory: groupCat.name, assignKind: groupType });
+        // 승인 시 관리자가 지정한 회원 구분·종류 (샘플은 고객이 신청한 그대로 승인)
+        Object.assign(app, { assignCategoryCode: reqCat.code, assignCategory: reqCat.name, assignKind: groupType });
       }
-      app.history.push({ at, content: app.status === '승인' ? `승인 처리 (적용 기간 ${app.periodFrom} ~ ${app.periodTo}, 만료 후 '${app.expireTo}' 전환)` : `반려 처리 (사유: ${app.rejectReason})`, by: '관리자' });
+      app.history.push({ at, content: app.status === '승인' ? `승인 처리 (적용 기간 ${app.periodFrom} ~ ${app.periodTo}, 만료 후 '${app.expireTo}' 전환) → 회원 구분 '${reqText}' 지정` : `반려 처리 (사유: ${app.rejectReason})`, by: '관리자' });
     }
     return Object.assign(app, appOverlay[app.appNo] || {});
   });
@@ -400,7 +410,7 @@
     m.categoryCode = app.assignCategoryCode || groupCat.code;
     m.category = app.assignCategory || groupCat.name;   // 표시명은 화면에서 code 기준으로 다시 맞춤
     m.subCategory = app.assignKind !== undefined ? app.assignKind : app.groupType;
-    m.business = Object.assign({ groupType: app.groupType, approvedAt: app.processedAt, appNo: app.appNo,
+    m.business = Object.assign({ reqCategory: app.reqCategory, groupType: app.groupType, approvedAt: app.processedAt, appNo: app.appNo,
       periodFrom: app.periodFrom, periodTo: app.periodTo, expireTo: app.expireTo || mainCat.name }, app.business);
     m.history.push({ at: app.processedAt, content: `단체 회원 승인: ${app.business.companyName} (${app.business.bizNo}), 적용 기간 ${app.periodFrom} ~ ${app.periodTo}`, by: app.processedBy });
   }

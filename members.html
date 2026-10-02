@@ -247,7 +247,7 @@
         <div class="section-title">사업자 정보 <span class="section-note" id="bizApproved"></span></div>
         <table class="form-table multi-col">
           <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
-          <tr><th>상호(단체명)</th><td id="bizCompany"></td><th>단체 유형</th><td id="bizGroupType"></td></tr>
+          <tr><th>상호(단체명)</th><td id="bizCompany"></td><th>신청 회원구분</th><td id="bizGroupType"></td></tr>
           <tr><th>사업자번호</th><td id="bizNo" class="mono"></td><th>대표자</th><td id="bizCeo"></td></tr>
           <tr><th>업태 / 종목</th><td id="bizKind"></td><th>개업일</th><td id="bizOpen"></td></tr>
           <tr><th>사업장 주소</th><td id="bizAddress" colspan="3"></td></tr>
@@ -1303,7 +1303,8 @@
     if (!b) return;
     $('bizApproved').textContent = `${b.approvedAt} 승인 · 신청번호 ${b.appNo}`;
     $('bizCompany').textContent = b.companyName;
-    $('bizGroupType').textContent = b.groupType;
+    // 고객이 신청 시 고른 회원구분 > 종류 (승인 시 지정한 구분은 기본 정보의 회원구분에 표시)
+    $('bizGroupType').textContent = `${b.reqCategory || ''}${b.groupType ? `${b.reqCategory ? ' > ' : ''}${b.groupType}` : ''}` || '-';
     $('bizNo').textContent = b.bizNo;
     $('bizCeo').textContent = b.ceo;
     $('bizKind').textContent = `${b.bizType} / ${b.bizItem}`;

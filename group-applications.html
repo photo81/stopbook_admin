@@ -64,8 +64,8 @@
               </div>
             </div>
             <div class="field">
-              <label for="sGroupType">단체유형</label>
-              <select id="sGroupType"><option value="">전체</option></select>
+              <label for="sCategory">회원구분</label>
+              <select id="sCategory"><option value="">전체</option></select>
             </div>
             <div class="field">
               <label for="sMemberType">가입유형</label>
@@ -113,7 +113,7 @@
       <table class="form-table multi-col">
         <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
         <tr><th>이름</th><td id="dName"></td><th>아이디</th><td id="dUserId"></td></tr>
-        <tr><th>가입유형</th><td id="dType"></td><th>단체 유형</th><td><span id="dGroupType"></span> <span class="section-note">고객 선택</span></td></tr>
+        <tr><th>가입유형</th><td id="dType"></td><th>회원 구분</th><td><span id="dReqCategory"></span> <span class="section-note">고객 신청</span></td></tr>
         <tr><th>이메일</th><td id="dEmail"></td><th>휴대폰번호</th><td id="dPhone"></td></tr>
         <tr><th>신청일시</th><td id="dAppliedAt" colspan="3"></td></tr>
       </table>
@@ -224,11 +224,25 @@
   const catOf = code => CAT_TREE.find(c => c.code === code);
   const catOptions = list => list.map(c => `<option value="${esc(c.code)}">${esc(c.label)}</option>`).join('');
 
+  // ===== 회원 구분 표시 =====
+  // 승인 대기·반려: 고객이 신청한 구분 > 종류 / 승인·해제·만료: 관리자가 승인하며 지정한 구분 > 종류
+  // 배지 색은 회원 리스트와 같게 (기본 구분·단체는 고정색, 그 외는 기본 점). 삭제된 구분은 저장된 이름에 '(삭제됨)'
+  const ALL_CATS = MemberTypeStore.categoryTree();
+  const catClass = code => (code === 'normal' ? '일반' : code === 'group' ? '단체' : 'etc');
+  const shownCategory = a => (a.status === '대기' || a.status === '반려' || !a.assignCategoryCode)
+    ? { code: a.reqCategoryCode, name: a.reqCategory, kind: a.groupType }
+    : { code: a.assignCategoryCode, name: a.assignCategory, kind: a.assignKind };
+  const catLabelOf = (code, name) => { const c = ALL_CATS.find(x => x.code === code); return c ? c.label : `${name || ''} (삭제됨)`; };
+  const catText = ({ code, name, kind }) => `${catLabelOf(code, name)}${kind ? ` > ${kind}` : ''}`;
+  const catBadge = ({ code, name, kind }) =>
+    `<span class="badge ct-${catClass(code)}">${esc(catLabelOf(code, name))}</span>${kind ? `<span class="cat-sub">${esc(kind)}</span>` : ''}`;
+  const reqText = a => catText({ code: a.reqCategoryCode, name: a.reqCategory, kind: a.groupType });
+
   // ===== 승인 시 회원 구분·종류 지정 =====
-  // 기본값: 단체(code: group) + 고객이 고른 단체 유형과 같은 이름의 종류가 있으면 그 종류
+  // 기본값: 고객이 신청한 구분(사용 중이면) + 신청한 종류와 같은 이름의 종류가 있으면 그 종류. 신청 구분을 쓸 수 없으면 단체(code: group)
   function fillAssign(a) {
     $('assignCategory').innerHTML = catOptions(CAT_TREE);
-    $('assignCategory').value = catOf('group') ? 'group' : (CAT_TREE[0] || {}).code || '';
+    $('assignCategory').value = catOf(a.reqCategoryCode) ? a.reqCategoryCode : catOf('group') ? 'group' : (CAT_TREE[0] || {}).code || '';
     fillAssignKind(a.groupType);
   }
 
@@ -241,8 +255,9 @@
       ? '<option value="">종류 선택</option>' + kinds.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('')
       : '<option value="">종류 없음</option>';
     sel.value = kinds.includes(prefer) ? prefer : '';
-    $('assignNote').textContent = kinds.length && !kinds.includes(current && current.groupType)
-      ? `고객 선택 '${current ? current.groupType : ''}'과 같은 종류가 없습니다. 맞는 종류를 골라 주세요.` : '';
+    const reqKind = current ? current.groupType : '';
+    $('assignNote').textContent = kinds.length && reqKind && !kinds.includes(reqKind)
+      ? `고객이 신청한 종류 '${reqKind}'이(가) 이 구분에 없습니다. 맞는 종류를 골라 주세요.` : '';
     fillExpireTo();
   }
 
@@ -261,16 +276,15 @@
   const processedTime = a => (a.status === '해제' ? a.revokedAt : a.status === '만료' ? a.expiredAt : a.processedAt);
 
   // ===== 검색 =====
-  // 단체 유형: 고객이 신청 시 고른 값 (신청 건에 있는 값으로 선택지 구성)
-  const searchTypes = applications.map(a => a.groupType).filter((t, i, arr) => t && arr.indexOf(t) === i);
-  $('sGroupType').innerHTML += searchTypes.map(t => `<option>${esc(t)}</option>`).join('');
+  // 회원구분: 목록에 표시되는 구분(대기·반려는 신청 구분, 그 외는 승인 구분) 기준. 숨긴 구분의 신청도 찾을 수 있도록 모두 표시
+  $('sCategory').innerHTML += ALL_CATS.map(c => `<option value="${esc(c.code)}">${esc(c.label)}${c.hidden ? ' (숨김)' : ''}</option>`).join('');
   let search = null;   // 검색 버튼을 눌렀을 때의 조건 (null = 조건 없음)
 
   function readSearch() {
     const s = {
       type: $('sType').value, kw: $('sKeyword').value.trim().toLowerCase(),
       from: $('sFrom').value, to: $('sTo').value,
-      groupType: $('sGroupType').value, memberType: $('sMemberType').value
+      category: $('sCategory').value, memberType: $('sMemberType').value
     };
     if (s.from && s.to && s.from > s.to) { toast('신청일 시작일이 종료일보다 늦습니다.'); return null; }
     return s;
@@ -285,7 +299,7 @@
     return (!search.kw || targets.some(v => v.toLowerCase().includes(search.kw) || (v === b.bizNo && v.replace(/-/g, '').includes(search.kw.replace(/-/g, ''))))) &&
       (!search.from || day >= search.from) &&
       (!search.to || day <= search.to) &&
-      (!search.groupType || a.groupType === search.groupType) &&
+      (!search.category || shownCategory(a).code === search.category) &&
       (!search.memberType || m.memberType === search.memberType);
   }
 
@@ -305,7 +319,9 @@
 
     // 승인 대기 탭을 제외하면 신청일시 옆에 처리일시 표시
     const showProcessed = filter !== '대기';
-    const heads = ['번호', '가입유형', '이름', '이메일', '단체유형', '신청일시', ...(showProcessed ? ['처리일시'] : []), '상태', '관리'];
+    // 회원구분 열: 대기·반려 탭은 고객이 신청한 구분, 승인·해제·만료 탭은 관리자가 승인한 구분 (전체 탭은 건별 상태에 따름)
+    const catHead = filter === '대기' || filter === '반려' ? '회원구분 (신청)' : filter === '전체' ? '회원구분' : '회원구분 (승인)';
+    const heads = ['번호', '가입유형', '이름', '이메일', catHead, '신청일시', ...(showProcessed ? ['처리일시'] : []), '상태', '관리'];
     $('headRow').innerHTML = heads.map(h =>
       `<th${h === '번호' ? ' class="col-no"' : h === '관리' ? ' style="width:72px"' : ''}>${h}</th>`).join('');
 
@@ -316,7 +332,7 @@
         <td>${typeBadge(m.memberType)}</td>
         <td><b>${esc(m.name)}</b></td>
         <td class="email" title="${esc(m.email)}">${esc(m.email)}</td>
-        <td>${esc(a.groupType)}</td>
+        <td>${catBadge(shownCategory(a))}</td>
         <td>${a.appliedAt}</td>
         ${showProcessed ? `<td>${processedTime(a) || '<span class="muted">-</span>'}</td>` : ''}
         <td>${statusBadge(a.status)}</td>
@@ -359,7 +375,7 @@
     $('dName').textContent = m.name;
     $('dUserId').textContent = m.userId;
     $('dType').innerHTML = typeBadge(m.memberType);
-    $('dGroupType').textContent = a.groupType;
+    $('dReqCategory').textContent = reqText(a);
     $('dEmail').textContent = m.email;
     $('dPhone').textContent = m.phone;
     $('dAppliedAt').textContent = a.appliedAt;
@@ -377,12 +393,7 @@
   }
 
   // 승인 건 표시용: 지정한 회원 구분 > 종류 (같은 이름의 구분이 있으면 순번이 붙은 표시명)
-  const ALL_CATS = MemberTypeStore.categoryTree();
-  const assignText = a => {
-    if (!a.assignCategory) return '';
-    const c = ALL_CATS.find(x => x.code === a.assignCategoryCode);
-    return `${c ? c.label : a.assignCategory}${a.assignKind ? ` > ${a.assignKind}` : ''}`;
-  };
+  const assignText = a => (a.assignCategory ? catText({ code: a.assignCategoryCode, name: a.assignCategory, kind: a.assignKind }) : '');
 
   function renderStatus() {
     const a = current;
@@ -492,7 +503,7 @@
   });
   ['chkInfo', 'chkCert'].forEach(id => $(id).addEventListener('change', syncApprove));
   $('btnApprove').addEventListener('click', approve);
-  // 회원 구분을 바꾸면 그 구분의 종류로 다시 구성 (고객 선택과 같은 종류가 있으면 미리 선택)
+  // 회원 구분을 바꾸면 그 구분의 종류로 다시 구성 (고객이 신청한 종류와 같은 이름이 있으면 미리 선택)
   $('assignCategory').addEventListener('change', () => fillAssignKind(current ? current.groupType : ''));
   $('btnReject').addEventListener('click', reject);
   document.querySelectorAll('#modal [data-close]').forEach(b => b.addEventListener('click', closeDetail));
