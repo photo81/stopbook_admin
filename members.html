@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261014">
+<link rel="stylesheet" href="admin.css?v=20261016">
 </head>
 <body>
 <div class="layout">
@@ -15,9 +15,9 @@
         <a href="#" class="menu-parent" aria-expanded="true">회원관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="members.html" class="active" aria-current="page">회원 리스트</a></li>
-          <li><a href="group-applications.html">단체 회원 신청 리스트</a></li>
-          <li><a href="member-types.html">회원 유형 관리</a></li>
+          <li><a href="group-applications.html">단체회원 신청 리스트</a></li>
           <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
+          <li><a href="member-types.html">회원 유형 관리</a></li>
         </ul>
       </li>
     </ul>
@@ -26,7 +26,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>회원 리스트</b></div>
-      <div>관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v1.0 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -65,20 +65,20 @@
         </button>
         <div class="search-grid detail-search" id="detailSearch" hidden>
           <div class="field">
-            <label for="sCategory">구분</label>
+            <label for="sCategory">회원구분</label>
             <select id="sCategory">
               <option value="">전체</option>
             </select>
           </div>
           <div class="field">
-            <label for="sMemberType">유형</label>
+            <label for="sMemberType">가입유형</label>
             <select id="sMemberType">
               <option value="">전체</option>
               <option>스탑북회원</option><option>카카오회원</option><option>네이버회원</option><option>구글회원</option>
             </select>
           </div>
           <div class="field">
-            <label for="sGrade">등급</label>
+            <label for="sGrade">회원등급</label>
             <select id="sGrade">
               <option value="">전체</option>
               <option>일반</option><option>스타터</option><option>홀리커</option><option>마스터</option><option>마스터 VIP</option>
@@ -121,13 +121,13 @@
             <thead>
               <tr>
                 <th class="sortable col-no" data-key="no">번호</th>
-                <th class="sortable" data-key="category">구분</th>
-                <th class="sortable" data-key="memberType">유형</th>
+                <th class="sortable" data-key="category">회원구분</th>
+                <th class="sortable" data-key="memberType">가입유형</th>
                 <th class="sortable" data-key="name">이름</th>
                 <th>이메일</th>
                 <th>휴대폰</th>
                 <th class="sortable" data-key="userId">아이디</th>
-                <th class="sortable" data-key="grade">등급</th>                <th>마케팅</th>
+                <th class="sortable" data-key="grade">회원등급</th>                <th>마케팅</th>
                 <th class="sortable" data-key="joinDate">가입일</th>
                 <th class="sortable" data-key="lastLogin">최근접속일</th>              </tr>
             </thead>
@@ -186,7 +186,7 @@
         </td></tr>
       </table>
 
-      <!-- 단체 회원 승인 시 표시 (단체 회원 신청에서 승인한 사업자 정보) -->
+      <!-- 단체 회원 승인 시 표시 (단체회원 신청에서 승인한 사업자 정보) -->
       <div id="bizSection" hidden>
         <div class="section-title">사업자 정보 <span class="section-note" id="bizApproved"></span></div>
         <table class="form-table multi-col">
@@ -208,8 +208,8 @@
           <th>최근접속일</th><td class="readonly" id="fLastLogin" colspan="3"></td>
         </tr>
         <tr>
-          <th>유형</th><td class="readonly" id="fMemberType"></td>
-          <th>구분</th><td><select id="fCategory" aria-label="구분"></select></td>
+          <th>가입유형</th><td class="readonly" id="fMemberType"></td>
+          <th>회원구분</th><td><select id="fCategory" aria-label="회원구분"></select></td>
           <th>종류</th><td><select id="fSubCategory" aria-label="종류"></select></td>
         </tr>
         <tr>
@@ -228,7 +228,7 @@
       <table class="form-table multi-col">
         <colgroup><col class="c-th"><col><col class="c-th"><col><col class="c-th"><col></colgroup>
         <tr>
-          <th>등급</th><td colspan="5">
+          <th>회원등급</th><td colspan="5">
             <div class="inline-row">
               <select id="fGrade" class="w-auto"><option>일반</option><option>스타터</option><option>홀리커</option><option>마스터</option><option>마스터 VIP</option></select>
               <span class="readonly" id="fGradeDesc"></span>
@@ -451,12 +451,12 @@
 
 <script src="alimtalk.js?v=20261014"></script>
 <script src="member-data.js?v=20261014"></script>
-<script src="member-type-store.js?v=20261014"></script>
+<script src="member-type-store.js?v=20261016"></script>
 <script>
 (function () {
   'use strict';
 
-  // ===== 샘플 데이터: member-data.js (단체 회원 신청 승인 결과 포함) =====
+  // ===== 샘플 데이터: member-data.js (단체회원 신청 승인 결과 포함) =====
   const { members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, revokeBusiness } = MemberData;
   // 회원·신청 데이터의 구분 참조(code)를 현재 구분명으로 정리
   MemberTypeStore.normalizeCategoryRefs(MemberData);
@@ -1093,7 +1093,7 @@
       `<li><span class="memo-text">${esc(x.text)}</span> <span class="memo-meta">(${x.at} · ${esc(x.by)})</span></li>`).join('');
   }
 
-  // ===== 사업자 정보 (단체 회원 신청 승인 시에만) =====
+  // ===== 사업자 정보 (단체회원 신청 승인 시에만) =====
   function fillBusiness(m) {
     const b = m.business;
     $('bizSection').hidden = !b;
@@ -1162,13 +1162,13 @@
       marketingEmail: document.querySelector('input[name=fMkEmail]:checked').value,
       ...postpay
     };
-    const changes = [['grade', '등급', String],
+    const changes = [['grade', '회원등급', String],
       ['marketingSms', 'SMS 수신', mkText], ['marketingEmail', '메일 수신', mkText]]
       .filter(([k]) => m[k] !== next[k])
       .map(([k, label, f]) => `${label} 변경: ${f(m[k])} → ${f(next[k])}`);
     if (m.categoryCode !== next.categoryCode || (m.subCategory || '') !== next.subCategory) {
       const after = selCat ? selCat.label : next.category;
-      changes.unshift(`구분 변경: ${categoryText(catLabel(m), m.subCategory || '')} → ${categoryText(after, next.subCategory)}`);
+      changes.unshift(`회원구분 변경: ${categoryText(catLabel(m), m.subCategory || '')} → ${categoryText(after, next.subCategory)}`);
     }
     if (postpayText(m) !== postpayText(next)) changes.push(`후불 결제 변경: ${postpayText(m)} → ${postpayText(next)}`);
     const memoText = $('fMemo').value.trim();
@@ -1177,7 +1177,7 @@
 
     // 단체(사업자 정보 보유) → 일반: 승인 때 등록된 사업자 정보 삭제
     const dropBusiness = m.business && m.categoryCode !== 'normal' && next.categoryCode === 'normal';
-    if (dropBusiness && !confirm(`구분을 '${NORMAL_NAME}'(으)로 바꾸면 등록된 사업자 정보(${m.business.companyName})가 삭제됩니다.\n계속하시겠습니까?`)) return;
+    if (dropBusiness && !confirm(`회원구분을 '${NORMAL_NAME}'(으)로 바꾸면 등록된 사업자 정보(${m.business.companyName})가 삭제됩니다.\n계속하시겠습니까?`)) return;
 
     // TODO: 실서비스에서는 PUT /api/admin/members/{no} 호출 (서버에서 히스토리 기록)
     Object.assign(m, next);
@@ -1185,7 +1185,7 @@
     if (dropBusiness) {
       const b = m.business;
       revokeBusiness(m, ADMIN_NAME);
-      addHistory(m, `사업자 정보 삭제: ${b.companyName} (${b.bizNo}) - 구분 ${NORMAL_NAME} 변경`);
+      addHistory(m, `사업자 정보 삭제: ${b.companyName} (${b.bizNo}) - 회원구분 ${NORMAL_NAME} 변경`);
       fillBusiness(m);
     }
     if (memoText) {
@@ -1204,8 +1204,8 @@
   function downloadExcel() {
     if (!state.filtered.length) { toast('다운로드할 데이터가 없습니다.'); return; }
     const cols = [
-      ['no', '번호'], ['category', '구분'], ['subCategory', '종류'], ['memberType', '유형'], ['name', '이름'], ['email', '이메일'], ['phone', '휴대폰'], ['userId', '아이디'],
-      ['grade', '등급'], ['marketingSms', 'SMS수신'], ['marketingEmail', '메일수신'], ['joinDate', '가입일'],
+      ['no', '번호'], ['category', '회원구분'], ['subCategory', '종류'], ['memberType', '가입유형'], ['name', '이름'], ['email', '이메일'], ['phone', '휴대폰'], ['userId', '아이디'],
+      ['grade', '회원등급'], ['marketingSms', 'SMS수신'], ['marketingEmail', '메일수신'], ['joinDate', '가입일'],
       ['lastLogin', '최근접속일'],
       ['mileage', '마일리지(P)'], ['giftCard', '상품권(원)'], ['coupon', '쿠폰(장)'],   // 단위 없이 숫자만 → 엑셀 합계·정렬 가능
       ['memos', '관리자메모']
@@ -1336,7 +1336,7 @@
   // 초기 로드
   applyFilter();
   render();
-  if (gradeRun.ran && gradeRun.changes.length) toast(`등급 자동 산정 실행: ${gradeRun.changes.length}명의 등급이 변경되었습니다.`);
+  if (gradeRun.ran && gradeRun.changes.length) toast(`회원등급 자동 산정 실행: ${gradeRun.changes.length}명의 회원등급이 변경되었습니다.`);
 })();
 </script>
 </body>

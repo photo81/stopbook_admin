@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 탈퇴 회원 관리</title>
-<link rel="stylesheet" href="admin.css?v=20261014">
+<link rel="stylesheet" href="admin.css?v=20261016">
 </head>
 <body>
 <div class="layout">
@@ -15,9 +15,9 @@
         <a href="#" class="menu-parent" aria-expanded="true">회원관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="members.html">회원 리스트</a></li>
-          <li><a href="group-applications.html">단체 회원 신청 리스트</a></li>
-          <li><a href="member-types.html">회원 유형 관리</a></li>
+          <li><a href="group-applications.html">단체회원 신청 리스트</a></li>
           <li><a href="withdrawn.html" class="active" aria-current="page">탈퇴 회원 관리</a></li>
+          <li><a href="member-types.html">회원 유형 관리</a></li>
         </ul>
       </li>
     </ul>
@@ -26,7 +26,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>탈퇴 회원 관리</b></div>
-      <div>관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v1.0 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -55,7 +55,6 @@
               <label for="sReasonType">탈퇴구분</label>
               <select id="sReasonType">
                 <option value="">전체</option>
-                <option>자진탈퇴</option><option>강제탈퇴</option><option>장기미이용</option>
               </select>
             </div>
           </div>
@@ -70,7 +69,7 @@
         </button>
         <div class="search-grid detail-search" id="detailSearch" hidden>
           <div class="field">
-            <label for="sCategory">구분</label>
+            <label for="sCategory">회원구분</label>
             <select id="sCategory"><option value="">전체</option><option>일반</option><option>단체</option></select>
           </div>
           <div class="field">
@@ -81,7 +80,7 @@
             </select>
           </div>
           <div class="field">
-            <label for="sGrade">등급</label>
+            <label for="sGrade">회원등급</label>
             <select id="sGrade">
               <option value="">전체</option>
               <option>일반</option><option>스타터</option><option>홀리커</option><option>마스터</option><option>마스터 VIP</option>
@@ -162,9 +161,9 @@
             <thead>
               <tr>
                 <th class="sortable col-no" data-key="no">번호</th>
-                <th class="sortable w-cat" data-key="category">구분</th>
+                <th class="sortable w-cat" data-key="category">회원구분</th>
                 <th class="sortable w-mt" data-key="memberType">가입유형</th>
-                <th class="sortable w-grade" data-key="grade">등급</th>
+                <th class="sortable w-grade" data-key="grade">회원등급</th>
                 <th class="sortable w-cnt" data-key="tenureDays">이용기간</th>
                 <th class="sortable w-cnt" data-key="orderCount">주문건수</th>
                 <th class="sortable w-amt" data-key="orderAmount">주문금액</th>
@@ -202,6 +201,7 @@
 <div class="viz-tip" id="vizTip" role="tooltip" hidden></div>
 <div class="toast" id="toast"></div>
 
+<script src="member-type-store.js?v=20261016"></script>
 <script>
 (function () {
   'use strict';
@@ -226,21 +226,26 @@
   // ======================================================================
 
   // 탈퇴 사유 코드 (선택형). 자진탈퇴는 복수 선택 가능
-  const REASONS = [
-    { code: 'EDITOR',   label: '편집기 사용이 어려움',        type: '자진탈퇴' },
-    { code: 'QUALITY',  label: '인쇄 품질·색감 불만',         type: '자진탈퇴' },
-    { code: 'LEADTIME', label: '제작·배송 기간이 김',         type: '자진탈퇴' },
-    { code: 'PRICE',    label: '가격이 비쌈',                type: '자진탈퇴' },
-    { code: 'PRODUCT',  label: '원하는 상품·옵션 없음',       type: '자진탈퇴' },
-    { code: 'CS',       label: '상담·응대 불만',              type: '자진탈퇴' },
-    { code: 'NOUSE',    label: '더 이상 이용하지 않음',       type: '자진탈퇴' },
-    { code: 'PRIVACY',  label: '개인정보 보호',              type: '자진탈퇴' },
-    { code: 'OTHER',    label: '기타',                       type: '자진탈퇴' },
-    { code: 'ABUSE',    label: '부정 거래',                  type: '강제탈퇴' },
-    { code: 'TOS',      label: '이용약관 위반',              type: '강제탈퇴' },
-    { code: 'IDENTITY', label: '명의 도용',                  type: '강제탈퇴' },
-    { code: 'DORMANT',  label: '휴면 1년 경과',              type: '장기미이용' }
+  // 표시명·탈퇴구분은 회원 유형 관리 > 탈퇴회원 탭 설정(WithdrawStore)을 따름.
+  // 아래 목록은 샘플 탈퇴 기록이 쓰는 코드로, 설정에서 삭제된 사유를 '(삭제됨)'으로 표시할 때만 사용
+  const SAMPLE_REASONS = [
+    { code: 'EDITOR',   label: '편집기 사용이 어려움',        typeCode: 'voluntary' },
+    { code: 'QUALITY',  label: '인쇄 품질·색감 불만',         typeCode: 'voluntary' },
+    { code: 'LEADTIME', label: '제작·배송 기간이 김',         typeCode: 'voluntary' },
+    { code: 'PRICE',    label: '가격이 비쌈',                typeCode: 'voluntary' },
+    { code: 'PRODUCT',  label: '원하는 상품·옵션 없음',       typeCode: 'voluntary' },
+    { code: 'CS',       label: '상담·응대 불만',              typeCode: 'voluntary' },
+    { code: 'NOUSE',    label: '더 이상 이용하지 않음',       typeCode: 'voluntary' },
+    { code: 'PRIVACY',  label: '개인정보 보호',              typeCode: 'voluntary' },
+    { code: 'OTHER',    label: '기타',                       typeCode: 'voluntary' },
+    { code: 'ABUSE',    label: '부정 거래',                  typeCode: 'forced' },
+    { code: 'TOS',      label: '이용약관 위반',              typeCode: 'forced' },
+    { code: 'IDENTITY', label: '명의 도용',                  typeCode: 'forced' },
+    { code: 'DORMANT',  label: '장기 미접속',                typeCode: 'dormant' }
   ];
+  const WD = MemberTypeStore.WithdrawStore.load();
+  const REASONS = WD.reasons.map(r => ({ code: r.code, label: r.name, typeCode: r.type }))
+    .concat(SAMPLE_REASONS.filter(s => !WD.reasons.some(r => r.code === s.code)).map(s => Object.assign({}, s, { label: `${s.label} (삭제됨)` })));
   const REASON = Object.fromEntries(REASONS.map(r => [r.code, r]));
 
   // 이용 기간 구간 (일)
@@ -369,8 +374,17 @@
 
   // 검색 선택지
   $('sTenure').innerHTML += TENURE_BUCKETS.map(b => `<option value="${b.key}">${b.label}</option>`).join('');
-  $('sReason').innerHTML += ['자진탈퇴', '강제탈퇴', '장기미이용'].map(t =>
-    `<optgroup label="${t}">${REASONS.filter(r => r.type === t).map(r => `<option value="${r.code}">${r.label}</option>`).join('')}</optgroup>`).join('');
+  // 탈퇴구분: 설정의 탈퇴구분 + 설정에서 삭제됐지만 기록에 남아 있는 탈퇴구분명 (기록은 탈퇴 시점의 이름을 보관)
+  const typeNames = [...new Set([...WD.types.map(t => t.name), ...items.map(m => m.reasonType)])];
+  $('sReasonType').innerHTML += typeNames.map(t => `<option>${esc(t)}</option>`).join('');
+  const inStore = r => WD.reasons.some(x => x.code === r.code);
+  const reasonGroups = [...WD.types.map(t => [t.name, REASONS.filter(r => inStore(r) && r.typeCode === t.code)]),
+    ['삭제된 사유', REASONS]];   // 위 그룹에 없는 나머지 (삭제된 사유, 삭제된 탈퇴구분의 사유)
+  const shown = new Set();
+  $('sReason').innerHTML += reasonGroups.map(([label, list]) => {
+    const opts = list.filter(r => !shown.has(r.code) && shown.add(r.code));
+    return opts.length ? `<optgroup label="${esc(label)}">${opts.map(r => `<option value="${esc(r.code)}">${esc(r.label)}</option>`).join('')}</optgroup>` : '';
+  }).join('');
 
   // ===== 검색 =====
   function applyFilter() {
@@ -441,7 +455,7 @@
     // 자진탈퇴 사유: 선택한 회원 수 많은 순 (복수 선택이라 합계가 100%를 넘을 수 있음)
     // 강제탈퇴·장기미이용은 사유가 사실상 하나라 탈퇴 회원 카드의 건수로 대신함
     const voluntary = list.filter(m => m.reasonType === '자진탈퇴');
-    const reasons = REASONS.filter(r => r.type === '자진탈퇴')
+    const reasons = REASONS.filter(r => r.typeCode === 'voluntary')
       .map(r => ({ code: r.code, label: r.label, value: voluntary.filter(m => m.reasonCodes.includes(r.code)).length }))
       .filter(r => r.value).sort((a, b) => b.value - a.value);
     const vn = voluntary.length;
@@ -584,8 +598,8 @@
       ])}
       <div class="section-title">회원 속성 <span class="section-note">탈퇴 시점</span></div>
       ${table([
-        row([['구분', esc(catText(m))], ['가입유형', esc(m.memberType)]]),
-        row([['등급', esc(m.grade)], ['마케팅 수신', m.marketing === 'Y' ? '동의' : '거부']])
+        row([['회원구분', esc(catText(m))], ['가입유형', esc(m.memberType)]]),
+        row([['회원등급', esc(m.grade)], ['마케팅 수신', m.marketing === 'Y' ? '동의' : '거부']])
       ])}
       <div class="section-title">이용 기간</div>
       ${table([
@@ -620,7 +634,7 @@
   function downloadExcel() {
     if (!state.filtered.length) { toast('다운로드할 데이터가 없습니다.'); return; }
     const cols = [
-      ['no', '번호'], ['userId', '아이디'], ['emailMasked', '이메일(마스킹)'], ['category', '구분'], ['kind', '종류'], ['memberType', '가입유형'], ['grade', '등급'], ['marketing', '마케팅수신'],
+      ['no', '번호'], ['userId', '아이디'], ['emailMasked', '이메일(마스킹)'], ['category', '회원구분'], ['kind', '종류'], ['memberType', '가입유형'], ['grade', '회원등급'], ['marketing', '마케팅수신'],
       ['joinDate', '가입일'], ['withdrawDate', '탈퇴일'], ['tenureDays', '이용기간(일)'], ['tenureBucket', '이용기간구간'], ['lastLoginDate', '마지막접속일'], ['inactiveDays', '탈퇴전미접속(일)'],
       ['orderCount', '주문건수'], ['orderAmount', '주문금액'], ['avgOrder', '객단가'], ['orders12m', '최근1년주문'], ['lastOrderDate', '마지막주문일'], ['mainProduct', '주구매상품'],
       ['inquiryCount', '문의건수'], ['openInquiry', '미답변문의'], ['lastInquiryType', '최근문의유형'], ['claimCount', '재제작반품'], ['savedProjects', '남은작업물'], ['cartAmount', '장바구니금액'],

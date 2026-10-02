@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 유형 관리</title>
-<link rel="stylesheet" href="admin.css?v=20261014">
+<link rel="stylesheet" href="admin.css?v=20261016">
 </head>
 <body>
 <div class="layout">
@@ -15,9 +15,9 @@
         <a href="#" class="menu-parent" aria-expanded="true">회원관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="members.html">회원 리스트</a></li>
-          <li><a href="group-applications.html">단체 회원 신청 리스트</a></li>
-          <li><a href="member-types.html" class="active" aria-current="page">회원 유형 관리</a></li>
+          <li><a href="group-applications.html">단체회원 신청 리스트</a></li>
           <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
+          <li><a href="member-types.html" class="active" aria-current="page">회원 유형 관리</a></li>
         </ul>
       </li>
     </ul>
@@ -26,7 +26,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>회원 유형 관리</b></div>
-      <div>관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v1.0 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -67,6 +67,44 @@
           </table>
         </div>
       </section>
+
+      <!-- 탈퇴회원 탭: 탈퇴구분 + 탈퇴 사유 -->
+      <div id="withdrawPanel" role="tabpanel" hidden>
+        <section class="panel">
+          <div class="list-head">
+            <div class="count"><b>탈퇴구분</b> · 탈퇴 처리 방식과 조건을 설정합니다. 이름을 누르면 설정을 수정할 수 있습니다.</div>
+            <div class="right">
+              <button type="button" class="btn btn-primary" id="btnAddWType">+ 탈퇴구분 추가</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>탈퇴구분</th><th>처리 방식</th><th>탈퇴 조건</th><th>사유 선택</th><th>재가입 제한</th><th>탈퇴 사유</th><th class="col-desc">설명</th><th>사용</th><th>관리</th></tr>
+              </thead>
+              <tbody id="wTypeBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="list-head">
+            <div class="count"><b>탈퇴 사유</b> · 탈퇴 시 선택하는 사유입니다. 사유를 누르면 설정을 수정할 수 있습니다. 사용 안 함으로 바꾸면 선택지에서 빠지며, 이미 기록된 탈퇴 정보는 그대로 유지됩니다.</div>
+            <div class="right">
+              <select id="wReasonFilter" aria-label="탈퇴구분으로 보기"></select>
+              <button type="button" class="btn btn-primary" id="btnAddWReason">+ 탈퇴 사유 추가</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>탈퇴 사유</th><th>탈퇴구분</th><th>의견 입력</th><th class="col-desc">설명</th><th>사용</th><th>관리</th></tr>
+              </thead>
+              <tbody id="wReasonBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
     </main>
   </div>
 </div>
@@ -121,15 +159,103 @@
   </div>
 </div>
 
+<!-- 탈퇴구분 추가/설정 모달 -->
+<div class="modal-bg" id="wTypeModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="wTypeTitle">
+    <div class="modal-header">
+      <h2 id="wTypeTitle"></h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <form id="wTypeForm" class="modal-body" novalidate>
+      <div class="section-title">기본 정보</div>
+      <table class="form-table">
+        <tr><th>탈퇴구분명 *</th><td>
+          <input type="text" id="wtName" maxlength="20">
+          <div class="err" id="wtNameErr"></div>
+        </td></tr>
+        <tr><th>설명</th><td><textarea id="wtDesc" maxlength="300"></textarea></td></tr>
+      </table>
+
+      <div class="section-title">탈퇴 조건</div>
+      <table class="form-table">
+        <tr><th>처리 방식</th><td>
+          <div class="inline-row" id="wtActors"></div>
+        </td></tr>
+        <tr id="wtAutoRow"><th>자동 탈퇴 조건</th><td>
+          <div class="inline-row">
+            마지막 접속 후 <input type="text" id="wtInactive" inputmode="numeric" class="w-num"> 일 동안 이용하지 않으면 자동 탈퇴
+          </div>
+          <div class="inline-row" style="margin-top:6px">
+            탈퇴 <input type="text" id="wtNotice" inputmode="numeric" class="w-num"> 일 전 이메일·알림톡 안내
+            <span class="readonly">0 입력 시 안내하지 않음</span>
+          </div>
+        </td></tr>
+        <tr id="wtMemoRow"><th>처리 메모</th><td>
+          <label><input type="radio" name="wtMemo" value="Y"> 필수</label>
+          <label style="margin-left:12px"><input type="radio" name="wtMemo" value="N"> 선택</label>
+          <span class="readonly" style="margin-left:8px">관리자가 탈퇴 처리 시 남기는 처리 근거</span>
+        </td></tr>
+        <tr><th>사유 선택</th><td>
+          <div class="inline-row" id="wtModes"></div>
+          <div class="inline-row" style="margin-top:6px">
+            <label><input type="checkbox" id="wtMulti"> 복수 선택 허용</label>
+          </div>
+          <div class="readonly at-note">자동 지정: 이 탈퇴구분에서 사용 중인 첫 번째 탈퇴 사유를 자동으로 기록합니다.</div>
+        </td></tr>
+        <tr><th>재가입 제한</th><td>
+          <div class="inline-row">
+            탈퇴 후 <input type="text" id="wtRejoin" inputmode="numeric" class="w-num"> 일 동안 같은 아이디로 재가입 불가
+            <span class="readonly">0 입력 시 제한 없음</span>
+          </div>
+          <div class="err" id="wtCondErr"></div>
+        </td></tr>
+      </table>
+    </form>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>취소</button>
+      <button type="submit" form="wTypeForm" class="btn btn-primary" id="wtSubmit"></button>
+    </div>
+  </div>
+</div>
+
+<!-- 탈퇴 사유 추가/설정 모달 -->
+<div class="modal-bg" id="wReasonModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="wReasonTitle">
+    <div class="modal-header">
+      <h2 id="wReasonTitle"></h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <form id="wReasonForm" class="modal-body" novalidate>
+      <table class="form-table">
+        <tr><th>탈퇴구분 *</th><td><select id="wrType"></select></td></tr>
+        <tr><th>탈퇴 사유 *</th><td>
+          <input type="text" id="wrName" maxlength="30" placeholder="예) 가격이 비쌈">
+          <div class="err" id="wrNameErr"></div>
+        </td></tr>
+        <tr><th>설명</th><td><textarea id="wrDesc" maxlength="300" placeholder="어떤 경우에 해당하는 사유인지 적어 주세요."></textarea></td></tr>
+        <tr><th>의견 입력</th><td>
+          <label><input type="radio" name="wrEtc" value="Y"> 받음</label>
+          <label style="margin-left:12px"><input type="radio" name="wrEtc" value="N"> 받지 않음</label>
+          <span class="readonly" style="margin-left:8px">받음: 이 사유를 고르면 의견 입력란을 함께 표시</span>
+        </td></tr>
+      </table>
+    </form>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>취소</button>
+      <button type="submit" form="wReasonForm" class="btn btn-primary" id="wrSubmit"></button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="member-data.js?v=20261014"></script>
-<script src="member-type-store.js?v=20261014"></script>
+<script src="member-type-store.js?v=20261016"></script>
 <script>
 (function () {
   'use strict';
   const { esc, toast, fmtDateTime, initSidebar, ADMIN_NAME } = AdminUtil;
-  const { load, save, flagsFor, checkSub, checkCategoryName, normalizeCategoryRefs, GradeBenefit, GradePolicy, GradeCriteria, GradeEvaluator } = MemberTypeStore;
+  const { load, save, flagsFor, checkSub, checkCategoryName, normalizeCategoryRefs, GradeBenefit, GradePolicy, GradeCriteria, GradeEvaluator, WithdrawStore } = MemberTypeStore;
   const $ = id => document.getElementById(id);
   const groups = load();
   const gradeGroup = groups.find(x => x.key === 'grade');
@@ -144,13 +270,21 @@
 
   // 상세에서 돌아올 때 같은 탭을 유지하도록 ?tab= 사용
   const params = new URLSearchParams(location.search);
-  let current = groups.some(g => g.key === params.get('tab')) ? params.get('tab') : groups[0].key;
+  // 탭: 회원구분 / 가입유형 / 회원등급 (groups) + 탈퇴회원 (WithdrawStore)
+  const WITHDRAW = 'withdraw';
+  const wd = WithdrawStore.load();
+  let current = groups.some(g => g.key === params.get('tab')) || params.get('tab') === WITHDRAW ? params.get('tab') : groups[0].key;
 
   function render() {
+    const tabs = [...groups.map(x => [x.key, x.label, x.items.length]), [WITHDRAW, '탈퇴회원', wd.types.length]];
+    $('tabs').innerHTML = tabs.map(([key, label, count]) => `
+      <button type="button" role="tab" class="tab ${key === current ? 'active' : ''}"
+        aria-selected="${key === current}" data-tab="${key}">${esc(label)} <span class="tab-count">${count}</span></button>`).join('');
+    const isWithdraw = current === WITHDRAW;
+    $('withdrawPanel').hidden = !isWithdraw;
+    $('tabPanel').hidden = isWithdraw;
+    if (isWithdraw) { $('policyPanel').hidden = true; renderWithdraw(); return; }
     const g = groups.find(x => x.key === current);
-    $('tabs').innerHTML = groups.map(x => `
-      <button type="button" role="tab" class="tab ${x.key === current ? 'active' : ''}"
-        aria-selected="${x.key === current}" data-tab="${x.key}">${esc(x.label)} <span class="tab-count">${x.items.length}</span></button>`).join('');
     const isGrade = g.key === 'grade';
     const isCategory = g.key === 'category';
     $('policyPanel').hidden = !isGrade;
@@ -166,7 +300,7 @@
     }).join('');
     $('btnAdd').textContent = `+ ${g.label} 추가`;
     $('tabGuide').textContent = isGrade
-      ? '등급별 정기 지급 혜택 · 등급 이름을 누르면 상세 설정으로 이동합니다.'
+      ? '회원등급별 정기 지급 혜택 · 회원등급 이름을 누르면 상세 설정으로 이동합니다.'
       : `${g.label}별 혜택 설정 · ${g.label} 이름을 누르면 상세 설정으로 이동합니다.`;
 
     const nameCell = it => `<td><a class="name-link" href="member-type-detail.html?group=${encodeURIComponent(g.key)}&code=${encodeURIComponent(it.code)}">${SNS_TYPES.includes(it.name) ? `<span class="type-logo ty-${esc(it.name)}"></span>` : ''}${esc(it.name)}</a></td>`;
@@ -215,13 +349,13 @@
     if (!it) return;
     const hide = !it.hidden;
     // 회원 정보에서 고를 구분이 하나도 없어지지 않도록 마지막 사용 구분은 숨길 수 없음
-    if (hide && g.items.filter(x => !x.hidden).length <= 1) { toast('사용 중인 구분이 하나 이상 있어야 합니다.'); return; }
-    if (hide && !confirm(`'${it.name}' 구분을 숨기시겠습니까?\n회원 정보와 단체 회원 신청의 선택지에서 빠집니다. 이미 이 구분인 회원은 그대로 유지됩니다.`)) return;
+    if (hide && g.items.filter(x => !x.hidden).length <= 1) { toast('사용 중인 회원구분이 하나 이상 있어야 합니다.'); return; }
+    if (hide && !confirm(`'${it.name}' 회원구분을 숨기시겠습니까?\n회원 정보와 단체회원 신청의 선택지에서 빠집니다. 이미 이 회원구분인 회원은 그대로 유지됩니다.`)) return;
     it.hidden = hide;
     it.history.push({ at: fmtDateTime(new Date()), content: `사용 상태 변경: ${hide ? '사용 → 숨김' : '숨김 → 사용'}`, by: ADMIN_NAME });
     const saved = save(groups);
     render();
-    toast(saved ? `'${it.name}' 구분을 ${hide ? '숨겼습니다' : '사용합니다'}.` : '저장소를 사용할 수 없어 이 화면에만 반영되었습니다.');
+    toast(saved ? `'${it.name}' 회원구분을 ${hide ? '숨겼습니다' : '사용합니다'}.` :'저장소를 사용할 수 없어 이 화면에만 반영되었습니다.');
   });
 
   $('tabs').addEventListener('click', e => {
@@ -364,10 +498,215 @@
   $('addModal').addEventListener('click', e => { if (e.target === $('addModal')) closeAdd(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAdd(); });
 
+  // ===== 탈퇴회원 탭 (탈퇴구분 / 탈퇴 사유) =====
+  // TODO: 실서비스에서는 각 저장·삭제 시 /api/admin/withdraw-types, /api/admin/withdraw-reasons 호출
+  const wdSave = msg => { const saved = WithdrawStore.save(wd); render(); toast(saved ? msg : '저장소를 사용할 수 없어 이 화면에만 반영되었습니다.'); };
+  const wdTypeName = code => { const t = WithdrawStore.typeByCode(wd, code); return t ? t.name : '(삭제된 탈퇴구분)'; };
+  const useToggle = (kind, it) => `<button type="button" class="use-toggle" role="switch" aria-checked="${!it.hidden}" data-kind="${kind}" data-code="${esc(it.code)}"
+    aria-label="${esc(it.name)} ${it.hidden ? '사용 안 함' : '사용'}"><span class="use-track"></span><span class="use-label">${it.hidden ? '사용 안 함' : '사용'}</span></button>`;
+  // 설정은 이름을 눌러 열기 때문에 관리 열에는 삭제만 둠
+  const rowActions = (kind, it) => `<button type="button" class="btn btn-sm btn-danger" data-del="${kind}" data-code="${esc(it.code)}">삭제</button>`;
+  const offText = t => `<span class="yn-off">${t}</span>`;
+
+  function renderWithdraw() {
+    $('wTypeBody').innerHTML = wd.types.map(t => {
+      const n = wd.reasons.filter(r => r.type === t.code).length;
+      return `<tr${t.hidden ? ' class="row-hidden"' : ''}>
+        <td><button type="button" class="link-btn" data-edit="type" data-code="${esc(t.code)}">${esc(t.name)}</button></td>
+        <td>${esc(WithdrawStore.actorText(t.actor))}</td>
+        <td>${esc(WithdrawStore.condText(t))}</td>
+        <td>${esc(WithdrawStore.reasonModeText(t.cond))}</td>
+        <td>${t.cond.rejoinDays ? esc(WithdrawStore.rejoinText(t.cond)) : offText('제한 없음')}</td>
+        <td>${n ? `${n}개` : offText('없음')}</td>
+        <td class="left cat-desc" title="${esc(t.desc)}">${esc(t.desc)}</td>
+        <td class="keep">${useToggle('type', t)}</td>
+        <td class="keep">${rowActions('type', t)}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="9" class="readonly">등록된 탈퇴구분이 없습니다.</td></tr>';
+
+    // 탈퇴구분 보기 선택지 (선택값 유지, 삭제된 구분이면 전체로)
+    const f = $('wReasonFilter').value;
+    $('wReasonFilter').innerHTML = `<option value="">전체 탈퇴구분</option>` + wd.types.map(t => `<option value="${esc(t.code)}">${esc(t.name)}</option>`).join('');
+    $('wReasonFilter').value = wd.types.some(t => t.code === f) ? f : '';
+    const filter = $('wReasonFilter').value;
+    // 탈퇴구분 순서 → 등록 순서로 표시
+    const order = code => { const i = wd.types.findIndex(t => t.code === code); return i < 0 ? wd.types.length : i; };
+    const list = wd.reasons.filter(r => !filter || r.type === filter)
+      .map((r, i) => [r, i]).sort((a, b) => (order(a[0].type) - order(b[0].type)) || (a[1] - b[1])).map(x => x[0]);
+    $('wReasonBody').innerHTML = list.map(r => `<tr${r.hidden ? ' class="row-hidden"' : ''}>
+        <td><button type="button" class="link-btn" data-edit="reason" data-code="${esc(r.code)}">${esc(r.name)}</button></td>
+        <td>${esc(wdTypeName(r.type))}</td>
+        <td>${r.etcInput ? '<span class="yn-on">받음</span>' : offText('받지 않음')}</td>
+        <td class="left cat-desc" title="${esc(r.desc)}">${esc(r.desc)}</td>
+        <td class="keep">${useToggle('reason', r)}</td>
+        <td class="keep">${rowActions('reason', r)}</td>
+      </tr>`).join('') || '<tr><td colspan="6" class="readonly">등록된 탈퇴 사유가 없습니다.</td></tr>';
+  }
+  $('wReasonFilter').addEventListener('change', renderWithdraw);
+
+  // 사용 / 설정 / 삭제 (두 표 공통)
+  $('withdrawPanel').addEventListener('click', e => {
+    const tg = e.target.closest('.use-toggle');
+    if (tg) return toggleWithdraw(tg.dataset.kind, tg.dataset.code);
+    const ed = e.target.closest('[data-edit]');
+    if (ed) return ed.dataset.edit === 'type' ? openWType(ed.dataset.code) : openWReason(ed.dataset.code);
+    const del = e.target.closest('[data-del]');
+    if (del) return del.dataset.del === 'type' ? deleteWType(del.dataset.code) : deleteWReason(del.dataset.code);
+  });
+
+  function toggleWithdraw(kind, code) {
+    const isType = kind === 'type';
+    const it = (isType ? wd.types : wd.reasons).find(x => x.code === code);
+    if (!it) return;
+    const hide = !it.hidden;
+    if (hide && isType && wd.types.filter(x => !x.hidden).length <= 1) { toast('사용 중인 탈퇴구분이 하나 이상 있어야 합니다.'); return; }
+    if (hide && !confirm(isType
+      ? `'${it.name}' 탈퇴구분을 사용 안 함으로 바꾸시겠습니까?\n이 탈퇴구분으로 새로 탈퇴 처리할 수 없게 됩니다. 이미 탈퇴한 회원의 기록은 그대로 유지됩니다.`
+      : `'${it.name}' 사유를 사용 안 함으로 바꾸시겠습니까?\n탈퇴 시 선택지에서 빠집니다. 이미 기록된 탈퇴 정보는 그대로 유지됩니다.`)) return;
+    it.hidden = hide;
+    wdSave(`'${it.name}' ${isType ? '탈퇴구분' : '탈퇴 사유'}을(를) ${hide ? '사용 안 함으로 바꿨습니다' : '사용합니다'}.`);
+  }
+
+  function deleteWType(code) {
+    const t = WithdrawStore.typeByCode(wd, code);
+    if (!t) return;
+    const n = wd.reasons.filter(r => r.type === code).length;
+    if (n) { toast(`'${t.name}'에 속한 탈퇴 사유 ${n}개를 먼저 삭제하거나 다른 탈퇴구분으로 옮겨 주세요.`); return; }
+    if (wd.types.length <= 1) { toast('탈퇴구분이 하나 이상 있어야 합니다.'); return; }
+    if (!wd.types.some(x => x.code !== code && !x.hidden)) { toast('사용 중인 탈퇴구분이 하나 이상 있어야 합니다.'); return; }
+    if (!confirm(`'${t.name}' 탈퇴구분을 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다. 이미 탈퇴한 회원의 기록은 그대로 유지됩니다.`)) return;
+    wd.types = wd.types.filter(x => x.code !== code);
+    wdSave(`'${t.name}' 탈퇴구분이 삭제되었습니다.`);
+  }
+
+  function deleteWReason(code) {
+    const r = wd.reasons.find(x => x.code === code);
+    if (!r) return;
+    if (!confirm(`'${r.name}' 탈퇴 사유를 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다. 이미 기록된 탈퇴 정보는 그대로 유지됩니다.`)) return;
+    wd.reasons = wd.reasons.filter(x => x.code !== code);
+    wdSave(`'${r.name}' 탈퇴 사유가 삭제되었습니다.`);
+  }
+
+  // ----- 탈퇴구분 추가/설정 모달 -----
+  $('wtActors').innerHTML = WithdrawStore.ACTORS.map(([v, t]) => `<label><input type="radio" name="wtActor" value="${v}"> ${t}</label>`).join('');
+  $('wtModes').innerHTML = WithdrawStore.REASON_MODES.map(([v, t]) => `<label><input type="radio" name="wtMode" value="${v}"> ${t}</label>`).join('');
+  const radioVal = name => (document.querySelector(`input[name=${name}]:checked`) || {}).value;
+  const setRadio = (name, v) => { const el = document.querySelector(`input[name=${name}][value="${v}"]`); if (el) el.checked = true; };
+  let editTypeCode = null;
+
+  // 처리 방식에 따라 조건 입력란 표시. 자동 지정이면 복수 선택 불가
+  function syncWType() {
+    const actor = radioVal('wtActor');
+    $('wtAutoRow').hidden = actor !== 'system';
+    $('wtMemoRow').hidden = actor !== 'admin';
+    const auto = radioVal('wtMode') === 'auto';
+    $('wtMulti').disabled = auto;
+    if (auto) $('wtMulti').checked = false;
+  }
+  document.querySelectorAll('input[name=wtActor], input[name=wtMode]').forEach(r => r.addEventListener('change', syncWType));
+
+  function openWType(code) {
+    const t = code ? WithdrawStore.typeByCode(wd, code) : null;
+    editTypeCode = t ? t.code : null;
+    const c = t ? t.cond : WithdrawStore.emptyCond();
+    $('wTypeTitle').textContent = t ? '탈퇴구분 설정' : '탈퇴구분 추가';
+    $('wtSubmit').textContent = t ? '저장' : '추가';
+    $('wtName').value = t ? t.name : '';
+    $('wtDesc').value = t ? t.desc : '';
+    setRadio('wtActor', t ? t.actor : 'member');
+    setRadio('wtMode', c.reasonMode);
+    setRadio('wtMemo', c.memoRequired ? 'Y' : 'N');
+    $('wtMulti').checked = c.multi;
+    $('wtInactive').value = c.inactiveDays;
+    $('wtNotice').value = c.noticeDays;
+    $('wtRejoin').value = c.rejoinDays;
+    ['wtNameErr', 'wtCondErr'].forEach(id => $(id).classList.remove('show'));
+    syncWType();
+    $('wTypeModal').classList.add('open');
+    $('wtName').focus();
+  }
+
+  $('wTypeForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('wtName').value.trim();
+    const nameMsg = WithdrawStore.checkTypeName(wd, name, editTypeCode);
+    $('wtNameErr').textContent = nameMsg;
+    $('wtNameErr').classList.toggle('show', !!nameMsg);
+
+    const actor = radioVal('wtActor');
+    const num = id => $(id).value.replace(/,/g, '').trim();
+    const cond = Object.assign(WithdrawStore.emptyCond(), {
+      reasonMode: radioVal('wtMode'), multi: $('wtMulti').checked, memoRequired: radioVal('wtMemo') === 'Y'
+    });
+    let condMsg = '';
+    if (actor === 'system') {
+      if (!/^\d{1,4}$/.test(num('wtInactive')) || Number(num('wtInactive')) < 30 || Number(num('wtInactive')) > 3650) condMsg = '자동 탈퇴 미접속 기간은 30~3,650일 사이로 입력하세요.';
+      else if (!/^\d{1,3}$/.test(num('wtNotice')) || Number(num('wtNotice')) >= Number(num('wtInactive'))) condMsg = '사전 안내일은 0 이상, 미접속 기간보다 짧게 입력하세요.';
+      else { cond.inactiveDays = Number(num('wtInactive')); cond.noticeDays = Number(num('wtNotice')); }
+    }
+    if (!condMsg && !(/^\d{1,4}$/.test(num('wtRejoin')) && Number(num('wtRejoin')) <= 3650)) condMsg = '재가입 제한 기간은 0~3,650일 사이로 입력하세요.';
+    else if (!condMsg) cond.rejoinDays = Number(num('wtRejoin'));
+    $('wtCondErr').textContent = condMsg;
+    $('wtCondErr').classList.toggle('show', !!condMsg);
+    if (nameMsg || condMsg) return;
+
+    const desc = $('wtDesc').value.trim();
+    if (editTypeCode) {
+      Object.assign(WithdrawStore.typeByCode(wd, editTypeCode), { name, desc, actor, cond });
+    } else {
+      wd.types.push({ code: 'w' + Date.now().toString(36), name, desc, actor, hidden: false, cond });
+    }
+    closeModal('wTypeModal');
+    wdSave(`'${name}' 탈퇴구분이 ${editTypeCode ? '저장' : '추가'}되었습니다.`);
+  });
+
+  // ----- 탈퇴 사유 추가/설정 모달 -----
+  let editReasonCode = null;
+
+  function openWReason(code) {
+    const r = code ? wd.reasons.find(x => x.code === code) : null;
+    editReasonCode = r ? r.code : null;
+    $('wReasonTitle').textContent = r ? '탈퇴 사유 설정' : '탈퇴 사유 추가';
+    $('wrSubmit').textContent = r ? '저장' : '추가';
+    $('wrType').innerHTML = wd.types.map(t => `<option value="${esc(t.code)}">${esc(t.name)}${t.hidden ? ' (사용 안 함)' : ''}</option>`).join('');
+    // 추가 시에는 목록에서 보고 있는 탈퇴구분을 기본값으로
+    $('wrType').value = r ? r.type : ($('wReasonFilter').value || (wd.types[0] || {}).code || '');
+    $('wrName').value = r ? r.name : '';
+    $('wrDesc').value = r ? r.desc : '';
+    setRadio('wrEtc', r && r.etcInput ? 'Y' : 'N');
+    $('wrNameErr').classList.remove('show');
+    $('wReasonModal').classList.add('open');
+    $('wrName').focus();
+  }
+
+  $('wReasonForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('wrName').value.trim();
+    const type = $('wrType').value;
+    const msg = !type ? '탈퇴구분을 먼저 추가하세요.' : WithdrawStore.checkReasonName(wd, name, type, editReasonCode);
+    $('wrNameErr').textContent = msg;
+    $('wrNameErr').classList.toggle('show', !!msg);
+    if (msg) return;
+    const v = { name, type, desc: $('wrDesc').value.trim(), etcInput: radioVal('wrEtc') === 'Y' };
+    if (editReasonCode) Object.assign(wd.reasons.find(x => x.code === editReasonCode), v);
+    else wd.reasons.push(Object.assign({ code: 'R' + Date.now().toString(36).toUpperCase(), hidden: false }, v));
+    closeModal('wReasonModal');
+    wdSave(`'${name}' 탈퇴 사유가 ${editReasonCode ? '저장' : '추가'}되었습니다.`);
+  });
+
+  const closeModal = id => $(id).classList.remove('open');
+  $('btnAddWType').addEventListener('click', () => openWType(null));
+  $('btnAddWReason').addEventListener('click', () => openWReason(null));
+  ['wTypeModal', 'wReasonModal'].forEach(id => {
+    document.querySelectorAll(`#${id} [data-close]`).forEach(b => b.addEventListener('click', () => closeModal(id)));
+    $(id).addEventListener('click', e => { if (e.target === $(id)) closeModal(id); });
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') ['wTypeModal', 'wReasonModal'].forEach(closeModal); });
+
   initSidebar();
   render();
   // 상세에서 삭제 후 돌아온 경우 안내
-  if (params.get('deleted')) toast(`'${params.get('deleted')}' 구분이 삭제되었습니다.`);
+  if (params.get('deleted')) toast(`'${params.get('deleted')}' 회원구분이 삭제되었습니다.`);
 })();
 </script>
 </body>

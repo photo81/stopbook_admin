@@ -1,4 +1,4 @@
-// 회원 샘플 데이터 (회원 리스트 / 단체 회원 신청 화면 공유)
+// 회원 샘플 데이터 (회원 리스트 / 단체회원 신청 화면 공유)
 // TODO: 실서비스에서는 회원 API 응답으로 대체
 (function () {
   'use strict';
@@ -229,7 +229,7 @@
     Object.assign(m, { postpay: on ? 'Y' : 'N', postpayFrom: on ? '2026-01-01' : '', postpayTo: on ? '2026-12-31' : '' });
   });
 
-  // ===== 단체 회원 신청 =====
+  // ===== 단체회원 신청 =====
   // 기본 신청 데이터는 고정 생성, 관리자 처리 결과(승인/반려/히스토리)만 localStorage에 저장해 덮어씀
   // TODO: 실서비스에서는 GET /api/admin/group-applications, POST .../{no}/approve|reject 로 대체
   const APP_KEY = 'stopbook.groupApplications.v3';   // v3: 승인 시 회원 구분·종류 지정(assign*) 저장, 고객 단체 유형은 변경 안 함
@@ -285,7 +285,7 @@
       // 예시: 일부는 이미 처리된 상태
       status: k % 5 === 4 ? '승인' : k % 7 === 6 ? '반려' : '대기',
       processedAt: '', processedBy: '', rejectReason: '', periodFrom: '', periodTo: '', expireTo: '',
-      history: [{ at: fmtDateTime(appliedAt), content: `단체 회원 신청 (${groupType})`, by: '고객' }]
+      history: [{ at: fmtDateTime(appliedAt), content: `단체회원 신청 (${groupType})`, by: '고객' }]
     };
     if (app.status !== '대기') {
       const at = fmtDateTime(new Date(appliedAt.getTime() + 86400000));

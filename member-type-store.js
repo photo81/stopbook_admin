@@ -16,14 +16,14 @@
   // 탭 순서 = 배열 순서
   const DEFAULTS = [
     // 구분의 각 항목은 subs = 종류 목록을 가짐
-    // (회원 정보 상세의 구분 > 종류 선택지, 단체 회원 신청 승인 시 지정하는 종류 선택지로 사용)
-    { key: 'category', label: '구분', items: [
+    // (회원 정보 상세의 구분 > 종류 선택지, 단체회원 신청 승인 시 지정하는 종류 선택지로 사용)
+    { key: 'category', label: '회원구분', items: [
       item('normal', '일반', 0, '개인 회원 기본 구분. 마일리지 적립·사용과 쿠폰 사용이 가능합니다.', { subs: [] }),
       item('group', '단체', 10, '기관·회사·학교 등 단체 구매 회원. 단체 할인율과 무료배송을 적용하는 대신 마일리지·쿠폰 혜택은 제외합니다.',
         { mileageEarn: false, mileageUse: false, couponUse: false, stackEvent: false, freeShipping: true,
           subs: ['기관', '회사', '학교', '유치원', '어린이집', '동호회', '기타'] })
     ]},
-    { key: 'memberType', label: '유형', items: [
+    { key: 'memberType', label: '가입유형', items: [
       item('stopbook', '스탑북회원', 0, '스탑북 아이디/패스워드로 가입한 회원.'),
       item('kakao', '카카오회원', 0, '카카오 간편 로그인으로 가입한 회원.'),
       item('naver', '네이버회원', 0, '네이버 간편 로그인으로 가입한 회원.'),
@@ -31,7 +31,7 @@
     ]},
     // 등급은 혜택 플래그/할인율 대신 평가 기준(criteria)·정기 지급 혜택(benefit)·설명을 가짐
     // policy: 등급 탭 상단의 회원 등급 평가 조건 (자동 등급 설정, 산정 주기, 평가 기준, 평가 기간)
-    { key: 'grade', label: '등급', policy: { auto: true, cycle: 'monthly', monthDay: 1, basis: 'count', period: 'monthly' }, items: [
+    { key: 'grade', label: '회원등급', policy: { auto: true, cycle: 'monthly', monthDay: 1, basis: 'count', period: 'monthly' }, items: [
       gradeItem('normal', '일반', '가입 시 기본 등급.', {}, {}),
       gradeItem('starter', '스타터', '평가 기간 내 구매 1회 이상.', { minCount: 1, minAmount: 50000 },
         { cycle: 'monthly', monthDay: 1, coupons: ['3,000원 할인'], mileageOn: true, mileage: 500 }),
@@ -88,6 +88,8 @@
       if (raw) groups = JSON.parse(raw);
     } catch (e) { /* 저장소 사용 불가 시 기본값 */ }
     groups = groups || clone(DEFAULTS);
+    // 탭 이름(label)은 관리자가 바꾸는 값이 아니므로 항상 기본값 사용 (예전 이름 '구분/유형/등급'으로 저장된 데이터 보정)
+    groups.forEach(g => { const d = DEFAULTS.find(x => x.key === g.key); if (d) g.label = d.label; });
     // 저장된 데이터 보정 (기존 수정 내용은 유지)
     // - 종류(subs) 도입 전 데이터: 기본값으로 채움
     // - 이전 샘플 목록을 그대로 쓰고 있으면 새 샘플 목록으로 교체 (관리자가 수정한 목록은 그대로 둠)
@@ -159,8 +161,8 @@
   // 구분명 검증 (중복 이름 허용). 반환: 오류 메시지 또는 ''
   function checkCategoryName(name) {
     const v = String(name).trim();
-    if (!v) return '구분명을 입력하세요.';
-    if (v.length > CATEGORY_NAME_MAX) return `구분명은 ${CATEGORY_NAME_MAX}자 이내로 입력하세요.`;
+    if (!v) return '회원구분명을 입력하세요.';
+    if (v.length > CATEGORY_NAME_MAX) return `회원구분명은 ${CATEGORY_NAME_MAX}자 이내로 입력하세요.`;
     return '';
   }
 
@@ -619,7 +621,107 @@
     lastRun: loadRun
   };
 
+  // ===== 탈퇴회원 (탈퇴구분 + 탈퇴 사유) =====
+  // 탈퇴구분: 처리 방식(actor)과 탈퇴 조건(cond)을 가짐. 탈퇴 사유는 하나의 탈퇴구분(type = 탈퇴구분 code)에 속함
+  // 탈퇴 회원 관리(withdrawn.html)의 검색 선택지·사유 표시에 사용. 탈퇴 기록은 탈퇴 시점의 탈퇴구분명을 그대로 보관
+  // hidden = 사용 안 함 (회원 탈퇴 화면·관리자 탈퇴 처리의 선택지에서 빠짐)
+  // TODO: 실서비스에서는 GET/PUT /api/admin/withdraw-types, /api/admin/withdraw-reasons 로 대체
+  const WD_KEY = 'stopbook.withdrawTypes.v1';
+  const WD_ACTORS = [['member', '회원 신청'], ['system', '시스템 자동'], ['admin', '관리자 처리']];
+  const WD_REASON_MODES = [['required', '필수'], ['optional', '선택'], ['auto', '자동 지정']];
+  const WD_NAME_MAX = 20, WD_REASON_MAX = 30;
+
+  // inactiveDays/noticeDays: 시스템 자동일 때만 사용 · memoRequired: 관리자 처리일 때만 사용
+  // reasonMode: required(사유 선택 필수) / optional(선택 사항) / auto(사용 중인 첫 번째 사유를 자동 지정)
+  // rejoinDays: 탈퇴 후 같은 아이디로 재가입할 수 없는 기간 (0 = 제한 없음)
+  const emptyWdCond = () => ({ inactiveDays: 365, noticeDays: 30, reasonMode: 'required', multi: false, memoRequired: false, rejoinDays: 0 });
+  const wdType = (code, name, actor, desc, cond) => ({ code, name, actor, desc, hidden: false, cond: Object.assign(emptyWdCond(), cond) });
+  const wdReason = (code, name, type, desc, etcInput) => ({ code, name, type, desc, etcInput: !!etcInput, hidden: false });
+
+  // 사유 code는 탈퇴 기록(reasonCodes)과 같은 값
+  const WD_DEFAULTS = {
+    types: [
+      wdType('voluntary', '자진탈퇴', 'member', '회원이 마이페이지에서 직접 탈퇴를 신청합니다. 탈퇴 사유를 선택하고 의견을 남길 수 있습니다.',
+        { reasonMode: 'required', multi: true, rejoinDays: 30 }),
+      wdType('dormant', '장기미이용', 'system', '오랫동안 접속하지 않은 회원을 시스템이 자동으로 탈퇴 처리합니다. 처리 전에 이메일·알림톡으로 미리 안내합니다.',
+        { inactiveDays: 365, noticeDays: 30, reasonMode: 'auto' }),
+      wdType('forced', '강제탈퇴', 'admin', '약관 위반·부정 거래 등이 확인된 회원을 관리자가 탈퇴 처리합니다. 처리 근거를 메모로 남깁니다.',
+        { reasonMode: 'required', memoRequired: true, rejoinDays: 180 })
+    ],
+    reasons: [
+      wdReason('PRICE',    '가격이 비쌈',            'voluntary', '상품 가격이나 배송비가 부담되어 다른 업체를 이용하려는 경우.'),
+      wdReason('NOUSE',    '더 이상 이용하지 않음',    'voluntary', '필요한 제작을 마쳐 더 이상 서비스를 이용할 계획이 없는 경우.'),
+      wdReason('EDITOR',   '편집기 사용이 어려움',     'voluntary', '사진 배치·텍스트 입력 등 편집기 사용이 어렵거나 오류가 잦은 경우.'),
+      wdReason('LEADTIME', '제작·배송 기간이 김',      'voluntary', '주문 후 제작·배송까지 걸리는 기간이 길어 원하는 날짜에 받기 어려운 경우.'),
+      wdReason('QUALITY',  '인쇄 품질·색감 불만',      'voluntary', '인쇄 결과물의 화질·색감·제본 상태가 기대에 못 미친 경우.'),
+      wdReason('PRODUCT',  '원하는 상품·옵션 없음',    'voluntary', '원하는 사이즈·용지·상품 종류가 없는 경우.'),
+      wdReason('CS',       '상담·응대 불만',          'voluntary', '문의 답변이 늦거나 상담 응대에 만족하지 못한 경우.'),
+      wdReason('PRIVACY',  '개인정보 보호',           'voluntary', '개인정보 유출이 걱정되어 계정을 정리하려는 경우.'),
+      wdReason('OTHER',    '기타',                   'voluntary', '위 항목에 해당하지 않는 경우. 회원이 의견을 직접 입력합니다.', true),
+      wdReason('DORMANT',  '장기 미접속',             'dormant',   '마지막 접속 후 설정한 기간 동안 이용하지 않아 자동 탈퇴된 경우.'),
+      wdReason('ABUSE',    '부정 거래',              'forced',    '쿠폰·마일리지 부정 사용, 허위 주문 등 부정한 방법으로 거래한 경우.'),
+      wdReason('TOS',      '이용약관 위반',           'forced',    '욕설·비방, 저작권 침해 등 이용약관을 반복해서 위반한 경우.'),
+      wdReason('IDENTITY', '명의 도용',              'forced',    '타인의 명의나 정보로 가입한 사실이 확인된 경우.')
+    ]
+  };
+
+  const WithdrawStore = {
+    ACTORS: WD_ACTORS,
+    REASON_MODES: WD_REASON_MODES,
+    NAME_MAX: WD_NAME_MAX,
+    REASON_MAX: WD_REASON_MAX,
+    emptyCond: emptyWdCond,
+
+    load() {
+      let data = null;
+      try { const raw = localStorage.getItem(WD_KEY); if (raw) data = JSON.parse(raw); } catch (e) { /* 저장소 사용 불가 시 기본값 */ }
+      data = data && Array.isArray(data.types) && Array.isArray(data.reasons) ? data : clone(WD_DEFAULTS);
+      data.types.forEach(t => { t.cond = Object.assign(emptyWdCond(), t.cond); });
+      return data;
+    },
+    save(data) {
+      try { localStorage.setItem(WD_KEY, JSON.stringify(data)); return true; } catch (e) { return false; }
+    },
+
+    typeByCode: (data, code) => data.types.find(t => t.code === code) || null,
+    actorText: actor => labelOf(WD_ACTORS, actor),
+
+    // 목록 '탈퇴 조건' 열
+    condText(t) {
+      const c = t.cond;
+      if (t.actor === 'system') return `미접속 ${c.inactiveDays.toLocaleString()}일 경과 · ${c.noticeDays ? `${c.noticeDays}일 전 안내` : '사전 안내 없음'}`;
+      if (t.actor === 'admin') return `관리자 판단 · 처리 메모 ${c.memoRequired ? '필수' : '선택'}`;
+      return '회원 본인 신청';
+    },
+    reasonModeText(c) {
+      if (c.reasonMode === 'auto') return '자동 지정';
+      return `${labelOf(WD_REASON_MODES, c.reasonMode)} · ${c.multi ? '복수 선택' : '1개 선택'}`;
+    },
+    rejoinText: c => (c.rejoinDays ? `${c.rejoinDays.toLocaleString()}일` : '제한 없음'),
+
+    // 이름 검증. 반환: 오류 메시지 또는 ''
+    checkTypeName(data, name, selfCode) {
+      const v = String(name).trim();
+      if (!v) return '탈퇴구분명을 입력하세요.';
+      if (v.length > WD_NAME_MAX) return `탈퇴구분명은 ${WD_NAME_MAX}자 이내로 입력하세요.`;
+      if (data.types.some(t => t.name === v && t.code !== selfCode)) return '이미 등록된 탈퇴구분명입니다.';
+      return '';
+    },
+    // 탈퇴 사유는 같은 탈퇴구분 안에서만 중복 불가
+    checkReasonName(data, name, typeCode, selfCode) {
+      const v = String(name).trim();
+      if (!v) return '탈퇴 사유를 입력하세요.';
+      if (v.length > WD_REASON_MAX) return `탈퇴 사유는 ${WD_REASON_MAX}자 이내로 입력하세요.`;
+      if (data.reasons.some(r => r.name === v && r.type === typeCode && r.code !== selfCode)) return '같은 탈퇴구분에 이미 등록된 사유입니다.';
+      return '';
+    }
+  };
+
   window.MemberTypeStore = { load, save, FLAGS, flagsFor, categoryTree, checkSub,
-    categoryName, categoryByCode, codeByName, normalizeCategoryRefs, checkCategoryName, PROTECTED_CATEGORIES, GradeBenefit, GradePolicy, GradeCriteria, GradeEvaluator };
+    categoryName, categoryByCode, codeByName, normalizeCategoryRefs, checkCategoryName, PROTECTED_CATEGORIES, GradeBenefit, GradePolicy, GradeCriteria, GradeEvaluator, WithdrawStore };
   window.AdminUtil = { fmtDateTime, esc, toast, initSidebar, ADMIN_NAME: '관리자' };  // TODO: 로그인 관리자명
+
+  // 상단바 프로토타입 버전 표시. 버전을 올릴 때는 여기만 바꾸면 모든 화면에 반영됨 (HTML의 같은 문구는 스크립트 실패 시 대비용)
+  const PROTO_VERSION = '프로토타입 v1.0 (2026-10-02)';
+  document.querySelectorAll('[data-proto-version]').forEach(el => { el.textContent = PROTO_VERSION; });
 })();

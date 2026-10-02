@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>스탑북 관리자 - 단체 회원 신청 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261014">
+<title>스탑북 관리자 - 단체회원 신청 리스트</title>
+<link rel="stylesheet" href="admin.css?v=20261016">
 </head>
 <body>
 <div class="layout">
@@ -15,9 +15,9 @@
         <a href="#" class="menu-parent" aria-expanded="true">회원관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="members.html">회원 리스트</a></li>
-          <li><a href="group-applications.html" class="active" aria-current="page">단체 회원 신청 리스트</a></li>
-          <li><a href="member-types.html">회원 유형 관리</a></li>
+          <li><a href="group-applications.html" class="active" aria-current="page">단체회원 신청 리스트</a></li>
           <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
+          <li><a href="member-types.html">회원 유형 관리</a></li>
         </ul>
       </li>
     </ul>
@@ -25,12 +25,12 @@
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>단체 회원 신청 리스트</b></div>
-      <div>관리자님 | <a href="#">로그아웃</a></div>
+      <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>단체회원 신청 리스트</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v1.0 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>단체 회원 신청 리스트</h1>
+      <h1>단체회원 신청 리스트</h1>
 
       <!-- 검색 조건 (아래 상태 탭과 함께 적용) -->
       <form class="panel" id="searchForm">
@@ -59,7 +59,7 @@
               <select id="sGroupType"><option value="">전체</option></select>
             </div>
             <div class="field">
-              <label for="sMemberType">유형</label>
+              <label for="sMemberType">가입유형</label>
               <select id="sMemberType">
                 <option value="">전체</option>
                 <option>스탑북회원</option><option>카카오회원</option><option>네이버회원</option><option>구글회원</option>
@@ -106,7 +106,7 @@
       <table class="form-table multi-col">
         <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
         <tr><th>이름</th><td id="dName"></td><th>아이디</th><td id="dUserId"></td></tr>
-        <tr><th>유형</th><td id="dType"></td><th>단체 유형</th><td><span id="dGroupType"></span> <span class="section-note">고객 선택</span></td></tr>
+        <tr><th>가입유형</th><td id="dType"></td><th>단체 유형</th><td><span id="dGroupType"></span> <span class="section-note">고객 선택</span></td></tr>
         <tr><th>이메일</th><td id="dEmail"></td><th>휴대폰번호</th><td id="dPhone"></td></tr>
         <tr><th>신청일시</th><td id="dAppliedAt" colspan="3"></td></tr>
       </table>
@@ -194,7 +194,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="member-data.js?v=20261014"></script>
-<script src="member-type-store.js?v=20261014"></script>
+<script src="member-type-store.js?v=20261016"></script>
 <script>
 (function () {
   'use strict';
@@ -298,7 +298,7 @@
 
     // 승인 대기 탭을 제외하면 신청일시 옆에 처리일시 표시
     const showProcessed = filter !== '대기';
-    const heads = ['번호', '유형', '이름', '이메일', '단체유형', '신청일시', ...(showProcessed ? ['처리일시'] : []), '상태', '관리'];
+    const heads = ['번호', '가입유형', '이름', '이메일', '단체유형', '신청일시', ...(showProcessed ? ['처리일시'] : []), '상태', '관리'];
     $('headRow').innerHTML = heads.map(h =>
       `<th${h === '번호' ? ' class="col-no"' : h === '관리' ? ' style="width:72px"' : ''}>${h}</th>`).join('');
 
@@ -348,7 +348,7 @@
     if (!a) return;
     current = a;
     const m = memberOf(a), b = a.business;
-    $('modalTitle').textContent = `단체 회원 신청 상세 - ${m.name} (신청번호 ${a.appNo})`;
+    $('modalTitle').textContent = `단체회원 신청 상세 - ${m.name} (신청번호 ${a.appNo})`;
     $('dName').textContent = m.name;
     $('dUserId').textContent = m.userId;
     $('dType').innerHTML = typeBadge(m.memberType);
@@ -444,7 +444,7 @@
 
     const m = memberOf(current);
     const assign = `${cat.label}${kind ? ` > ${kind}` : ''}`;
-    if (!confirm(`${m.name}(${m.userId}) 회원의 단체 회원 신청을 승인하시겠습니까?\n회원 구분: ${assign}\n적용 기간: ${from} ~ ${to} (만료 후 '${exp.name}' 전환)\n사업자 정보가 회원 정보에 추가됩니다.`)) return;
+    if (!confirm(`${m.name}(${m.userId}) 회원의 단체회원 신청을 승인하시겠습니까?\n회원 구분: ${assign}\n적용 기간: ${from} ~ ${to} (만료 후 '${exp.name}' 전환)\n사업자 정보가 회원 정보에 추가됩니다.`)) return;
     // TODO: 실서비스에서는 POST /api/admin/group-applications/{appNo}/approve { categoryId, kind, periodFrom, periodTo, expireToCategoryId }
     finish('승인', {
       periodFrom: from, periodTo: to,
@@ -459,7 +459,7 @@
     $('eReview').classList.toggle('show', !reason);
     if (!reason) { $('rejectReason').focus(); return; }
     const m = memberOf(current);
-    if (!confirm(`${m.name}(${m.userId}) 회원의 단체 회원 신청을 반려하시겠습니까?`)) return;
+    if (!confirm(`${m.name}(${m.userId}) 회원의 단체회원 신청을 반려하시겠습니까?`)) return;
     // TODO: 실서비스에서는 POST /api/admin/group-applications/{appNo}/reject
     finish('반려', { rejectReason: reason });
   }

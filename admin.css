@@ -290,6 +290,10 @@ table.equal-cols thead th.col-use { width: 96px; }
 .use-toggle[aria-checked="false"] .use-label { color: var(--faint); }
 .use-toggle:focus-visible { outline: 2px solid var(--primary, #2563eb); outline-offset: 2px; border-radius: 4px; }
 tr.row-hidden td:not(:last-child) { opacity: .45; }
+tr.row-hidden td.keep { opacity: 1; }
+
+/* 상단바 프로토타입 버전 */
+.proto-ver { display: inline-flex; align-items: center; height: 20px; margin-right: 10px; padding: 0 8px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: 11px; font-weight: 500; vertical-align: 1px; }   /* 탈퇴회원 탭: 사용 토글·관리 버튼은 흐리게 하지 않음 */
 
 /* 회원 상세 > 이용 정보 (주문 내역 / 문의 이력 / 장바구니 미리보기) */
 .usage-wait { margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: #fef3c7; color: #b45309; font-size: 11px; font-weight: 600; vertical-align: 1px; }
@@ -375,7 +379,7 @@ a.btn[data-viewer] { display: inline-flex; align-items: center; text-decoration:
 .tab.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--text); }
 .tab-count { margin-left: 4px; color: var(--faint); font-weight: 500; font-variant-numeric: tabular-nums; }
 .tab.active .tab-count { color: var(--muted); }
-/* ===== 단체 회원 신청 ===== */
+/* ===== 단체회원 신청 ===== */
 .st-대기 { --dot: #f59e0b; }
 .st-승인 { --dot: #16a34a; }
 .st-반려 { --dot: #dc2626; }

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 유형 상세</title>
-<link rel="stylesheet" href="admin.css?v=20261014">
+<link rel="stylesheet" href="admin.css?v=20261016">
 </head>
 <body>
 <div class="layout">
@@ -15,9 +15,9 @@
         <a href="#" class="menu-parent" aria-expanded="true">회원관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="members.html">회원 리스트</a></li>
-          <li><a href="group-applications.html">단체 회원 신청 리스트</a></li>
-          <li><a href="member-types.html" class="active" aria-current="page">회원 유형 관리</a></li>
+          <li><a href="group-applications.html">단체회원 신청 리스트</a></li>
           <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
+          <li><a href="member-types.html" class="active" aria-current="page">회원 유형 관리</a></li>
         </ul>
       </li>
     </ul>
@@ -26,7 +26,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 회원관리 &gt; <a href="member-types.html">회원 유형 관리</a> &gt; <a id="crumbGroup" href="member-types.html"></a> &gt; <b id="crumbName">상세</b></div>
-      <div>관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v1.0 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -44,12 +44,12 @@
             <!-- 구분 전용: 구분명 수정 -->
             <input type="text" id="fNameInput" maxlength="20" style="max-width:240px" hidden>
             <div class="err" id="eName"></div>
-            <div class="readonly at-note" id="nameNote" hidden>바꾸면 이 구분인 회원과 단체 회원 신청에도 새 이름으로 표시됩니다.</div>
+            <div class="readonly at-note" id="nameNote" hidden>바꾸면 이 회원구분인 회원과 단체회원 신청에도 새 이름으로 표시됩니다.</div>
           </td></tr>
           <tr><th>설명</th><td><textarea id="fDesc" maxlength="300"></textarea></td></tr>
         </table>
 
-        <!-- 구분 전용: 종류 (회원 정보 상세의 구분 > 종류, 단체 회원 신청 승인 시 종류 선택지) -->
+        <!-- 구분 전용: 종류 (회원 정보 상세의 구분 > 종류, 단체회원 신청 승인 시 종류 선택지) -->
         <div class="section-title" id="subsTitle" hidden>종류</div>
         <table class="form-table" id="subsTable" hidden>
           <tr><th>종류</th><td>
@@ -111,7 +111,7 @@
         <!-- 구분 전용: 삭제 (페이지 가장 하단) -->
         <div class="danger-zone" id="deleteZone" hidden>
           <div>
-            <b>구분 삭제</b>
+            <b>회원구분 삭제</b>
             <div class="readonly at-note" id="deleteNote"></div>
           </div>
           <button type="button" class="btn btn-danger" id="btnDelete">삭제</button>
@@ -124,7 +124,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="member-data.js?v=20261014"></script>
-<script src="member-type-store.js?v=20261014"></script>
+<script src="member-type-store.js?v=20261016"></script>
 <script>
 (function () {
   'use strict';
@@ -161,7 +161,7 @@
   $('fName').hidden = isCat;
   $('fNameInput').hidden = !isCat;
   $('nameNote').hidden = !isCat;
-  if (isCat) $('nameLabel').textContent = '구분명 *';
+  if (isCat) $('nameLabel').textContent = '회원구분명 *';
 
   // ===== 구분 삭제 =====
   // 기본 구분(일반·단체)은 시스템이 사용하므로 삭제 불가 → 숨김 사용
@@ -179,16 +179,16 @@
     if (!isCat) return;
     const u = usage();
     let reason = '';
-    if (PROTECTED_CATEGORIES.includes(it.code)) reason = '기본 구분은 삭제할 수 없습니다. 사용하지 않으려면 목록에서 숨김으로 바꿔 주세요.';
-    else if (u.members) reason = `이 구분인 회원이 ${u.members.toLocaleString()}명 있어 삭제할 수 없습니다. 회원의 구분을 바꾸거나 숨김을 사용해 주세요.`;
-    else if (u.apps) reason = `이 구분으로 지정되었거나 만료 후 이 구분으로 전환될 승인 건이 ${u.apps.toLocaleString()}건 있어 삭제할 수 없습니다.`;
+    if (PROTECTED_CATEGORIES.includes(it.code)) reason = '기본 회원구분은 삭제할 수 없습니다. 사용하지 않으려면 목록에서 숨김으로 바꿔 주세요.';
+    else if (u.members) reason = `이 회원구분인 회원이 ${u.members.toLocaleString()}명 있어 삭제할 수 없습니다. 회원의 회원구분을 바꾸거나 숨김을 사용해 주세요.`;
+    else if (u.apps) reason = `이 회원구분으로 지정되었거나 만료 후 이 회원구분으로 전환될 승인 건이 ${u.apps.toLocaleString()}건 있어 삭제할 수 없습니다.`;
     $('btnDelete').disabled = !!reason;
-    $('deleteNote').textContent = reason || '삭제하면 되돌릴 수 없습니다. 회원 정보와 단체 회원 신청의 선택지에서 바로 빠집니다.';
+    $('deleteNote').textContent = reason || '삭제하면 되돌릴 수 없습니다. 회원 정보와 단체회원 신청의 선택지에서 바로 빠집니다.';
   }
 
   $('btnDelete').addEventListener('click', () => {
     if ($('btnDelete').disabled) return;
-    if (!confirm(`'${it.name}' 구분을 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다.`)) return;
+    if (!confirm(`'${it.name}' 회원구분을 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다.`)) return;
     group.items.splice(group.items.indexOf(it), 1);
     save(groups);
     // 목록으로 이동 후 안내 (토스트는 페이지 이동 시 사라지므로 주소로 전달)
@@ -206,7 +206,7 @@
     it.criteria = Object.assign(GradeCriteria.empty(), it.criteria);
     $('policySummary').textContent = GradePolicy.summary(policy);
     $('criteriaRows').innerHTML = GradeCriteria.formHtml('c', policy.basis);
-    $('benefitTitle').textContent = '등급 혜택 (정기 지급)';
+    $('benefitTitle').textContent = '회원등급 혜택 (정기 지급)';
     $('gradeRows').innerHTML = GradeBenefit.formHtml('g');
     GradeBenefit.bind('g');
   } else {
@@ -222,8 +222,8 @@
   $('subsTitle').hidden = !isCategory;
   $('subsTable').hidden = !isCategory;
   $('subsNote').textContent = it.code === 'group'
-    ? '회원 정보 상세와 단체 회원 신청 승인 시 이 구분의 종류 선택지로 사용됩니다. 한 번에 하나씩 추가합니다.'
-    : '회원 정보 상세에서 이 구분을 고르면 종류 선택지로 표시됩니다. 비워 두면 종류 없이 사용합니다.';
+    ? '회원 정보 상세와 단체회원 신청 승인 시 이 회원구분의 종류 선택지로 사용됩니다. 한 번에 하나씩 추가합니다.'
+    : '회원 정보 상세에서 이 회원구분을 고르면 종류 선택지로 표시됩니다. 비워 두면 종류 없이 사용합니다.';
   let subsDraft = [];
 
   function renderSubs() {
@@ -300,7 +300,7 @@
       if (name !== it.name) {
         next.name = name;
         next.aliases = [...new Set([...(it.aliases || []), it.name])].filter(n => n !== name);
-        changes.push(`구분명 변경: ${it.name} → ${name}`);
+        changes.push(`회원구분명 변경: ${it.name} → ${name}`);
       }
     }
 
