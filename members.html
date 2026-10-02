@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261101">
+<link rel="stylesheet" href="admin.css?v=20261104">
 </head>
 <body>
 <div class="layout">
@@ -32,7 +32,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>회원 리스트</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v1.82 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v1.85 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -506,9 +506,9 @@
 <div class="viz-tip" id="vizTip" role="tooltip" hidden></div>
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261101"></script>
-<script src="member-data.js?v=20261101"></script>
-<script src="member-type-store.js?v=20261101"></script>
+<script src="alimtalk.js?v=20261104"></script>
+<script src="member-type-store.js?v=20261104"></script>
+<script src="member-data.js?v=20261104"></script>
 <script>
 (function () {
   'use strict';
@@ -527,6 +527,9 @@
 
   // ===== 상태 =====
   const state = { filtered: [], page: 1, size: 10, sortKey: 'no', sortDir: 'desc', editing: null };
+  // ?embed=1: 다른 화면의 모달 안(iframe)에 회원 상세만 보여주는 모드 — 사이드바·목록을 숨기고 회원 상세 모달만 표시
+  const EMBED = new URLSearchParams(location.search).get('embed') === '1';
+  if (EMBED) document.body.classList.add('embed');
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   // 마케팅 수신: 채운 점 = 동의, 빈 점 = 거부
@@ -781,7 +784,8 @@
       $(k === 'list' ? 'panelList' : 'panelAnalysis').hidden = !on;
     });
     tip.hidden = true;
-    try { history.replaceState(null, '', `?tab=${key}`); } catch (err) { /* file:// 등에서 차단될 수 있음 */ }
+    // 다른 화면 모달 안(embed)에서는 주소를 바꾸지 않음 (?embed=1&member=… 유지)
+    if (!EMBED) { try { history.replaceState(null, '', `?tab=${key}`); } catch (err) { /* file:// 등에서 차단될 수 있음 */ } }
   }
   $('tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) showTab(b.dataset.tab); });
 
@@ -1268,6 +1272,8 @@
   function closeModal() {
     $('modal').classList.remove('open');
     state.editing = null;
+    // 다른 화면(주문 상세 등)의 모달 안에 띄운 경우: 회원 상세를 닫으면 바깥 모달도 닫도록 알림
+    if (EMBED && window.parent !== window) window.parent.postMessage({ type: 'member-modal-close' }, '*');
   }
 
   // ===== 관리자 메모 / 변경 히스토리 =====
@@ -1551,7 +1557,16 @@
   // 초기 로드
   applyFilter();
   render();
+  // ?member=회원번호 → 그 회원의 상세 모달을 바로 엶 (주문 상세 > 회원정보 버튼에서 사용)
+  // showTab이 주소를 '?tab=…'으로 바꾸므로 그 전에 읽어 둠
+  const openNo = Number(new URLSearchParams(location.search).get('member'));
   showTab(new URLSearchParams(location.search).get('tab'));
+  if (openNo && members.some(m => m.no === openNo)) openModal(openNo);
+  else if (EMBED) {
+    // 열 회원이 없으면 빈 화면 대신 안내 후 바깥 모달 닫기
+    toast('회원 정보를 찾을 수 없습니다.');
+    if (window.parent !== window) setTimeout(() => window.parent.postMessage({ type: 'member-modal-close' }, '*'), 1200);
+  }
   if (gradeRun.ran && gradeRun.changes.length) toast(`회원등급 자동 산정 실행: ${gradeRun.changes.length}명의 회원등급이 변경되었습니다.`);
 })();
 </script>

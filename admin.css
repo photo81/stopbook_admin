@@ -360,6 +360,17 @@ table.order-table { table-layout: fixed; }
 .st-done { --dot: #64748b; }     /* 배송완료 */
 .st-cancel { --dot: var(--danger); }   /* 전체취소(회원 상세에서 제작상태 대신 표시)·상품 취소 */
 
+/* 회원 상세를 다른 화면의 모달(iframe) 안에 띄울 때 (members.html?embed=1): 화면 틀은 숨기고 회원 상세 모달만 */
+body.embed { background: #fff; }
+body.embed .layout { display: none; }
+body.embed #modal.modal-bg { align-items: flex-start; padding: 0; background: none; }   /* 그 위에 뜨는 혜택·이용 정보 모달은 기존처럼 어둡게 */
+body.embed #modal .modal { width: 100%; max-width: none; max-height: none; height: 100vh; border-radius: 0; box-shadow: none; }
+/* 주문 상세 > 회원정보 모달: 회원 상세 화면을 iframe으로 */
+.member-frame-modal .modal { width: 1080px; max-width: calc(100vw - 32px); height: calc(100vh - 48px); max-height: none; padding: 0; overflow: hidden; }
+.member-frame-modal iframe { display: block; width: 100%; height: 100%; border: 0; }
+.order-head { display: flex; align-items: center; gap: 16px; }
+.order-head .order-meta { flex: 1; min-width: 0; }
+
 /* 주문 상세 */
 /* 상단 주문 기본 정보 카드: 다른 패널보다 낮게(여백 축소) + 음영 배경으로 구분 */
 .panel.order-head { padding: 10px 16px; background: var(--subtle); }

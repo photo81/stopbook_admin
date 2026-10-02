@@ -236,9 +236,9 @@
   //     주문접수                → 접수대기(입금 전)·접수완료
   //     합성완료 ~ 제본완료      → 제작중
   //     출고완료                → 배송중 (배송완료는 출고완료까지 모두 끝난 상태, delivered)
-  //   취소된 상품은 주문접수~리핑대기 중 한 단계에서 멈춘 것으로 표시 (canceled)
+  //   취소된 상품은 주문접수~리핑처리중 중 한 단계에서 멈춘 것으로 표시 (canceled)
   // TODO: 실서비스에서는 공정 시스템(MES)의 상품별 공정 이력 사용
-  const PROCESS_STEPS = ['주문접수', '합성완료', '조판완료', '리핑대기', '리핑완료', '출력중', '출력완료', '제본완료', '출고완료'];
+  const PROCESS_STEPS = ['주문접수', '합성완료', '조판완료', '리핑처리중', '리핑완료', '출력중', '출력완료', '제본완료', '출고완료'];
   // 공정 구간 → 진행상태 (from~to: 단계 index)
   const PROCESS_GROUPS = [{ label: '주문접수', from: 0, to: 0 }, { label: '제작중', from: 1, to: 7 }, { label: '배송중', from: 8, to: 8 }];
   function makeFlow(o, i, status, canceled, orderedAt) {

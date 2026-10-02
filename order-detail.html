@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 주문 상세</title>
-<link rel="stylesheet" href="admin.css?v=20261101">
+<link rel="stylesheet" href="admin.css?v=20261104">
 </head>
 <body>
 <div class="layout">
@@ -32,7 +32,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 주문관리 &gt; <a href="orders.html">주문 리스트</a> &gt; <b>주문 상세</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v1.82 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v1.85 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -56,6 +56,8 @@
             <div><dt>이메일</dt><dd id="dEmail"></dd></div>
             <div><dt>휴대폰</dt><dd id="dPhone"></dd><dd><button type="button" class="btn btn-xs" id="btnAlimtalk">알림톡</button></dd></div>
           </dl>
+          <!-- 오른쪽 끝: 주문자의 회원 상세를 모달로 -->
+          <button type="button" class="btn btn-sm" id="btnMemberInfo">회원정보</button>
         </section>
 
         <!-- 결제 금액 요약: 주문금액 + 추가금액 − 할인금액 − 취소금액 + 배송비 = 총결제금액 (결제정보 탭과 같은 값)
@@ -265,6 +267,14 @@
   </div>
 </div>
 
+<!-- 회원정보 모달: 회원 리스트의 회원 상세 화면을 그대로 띄움 (members.html?embed=1&member=회원번호)
+     회원 상세에서 저장·혜택 지급·알림톡 등 모든 기능을 그대로 사용. 회원 상세의 닫기를 누르면 이 모달도 닫힘 -->
+<div class="modal-bg member-frame-modal" id="memberModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="회원 상세정보">
+    <iframe id="memberFrame" title="회원 상세정보"></iframe>
+  </div>
+</div>
+
 <!-- 알림톡 발송 모달: 상단 휴대폰 옆 [알림톡] (회원 상세의 알림톡 발송과 같은 구성) -->
 <div class="modal-bg" id="aModal">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aTitle">
@@ -393,10 +403,10 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261101"></script>
-<script src="member-data.js?v=20261101"></script>
-<script src="member-type-store.js?v=20261101"></script>
-<script src="order-data.js?v=20261101"></script>
+<script src="alimtalk.js?v=20261104"></script>
+<script src="member-type-store.js?v=20261104"></script>
+<script src="member-data.js?v=20261104"></script>
+<script src="order-data.js?v=20261104"></script>
 <script>
 (function () {
   'use strict';
@@ -615,6 +625,17 @@
         $(TAB_PANELS[k]).hidden = !on;
       });
     }
+
+    // ----- 회원정보 모달 -----
+    // TODO: 실서비스에서는 회원 상세 컴포넌트를 공통으로 분리해 직접 띄움 (프로토타입은 회원 리스트 화면을 iframe으로)
+    const closeMember = () => { $('memberModal').classList.remove('open'); $('memberFrame').src = 'about:blank'; };
+    $('btnMemberInfo').addEventListener('click', () => {
+      $('memberFrame').src = `members.html?embed=1&member=${o.member.no}`;
+      $('memberModal').classList.add('open');
+    });
+    $('memberModal').addEventListener('click', e => { if (e.target === $('memberModal')) closeMember(); });
+    window.addEventListener('message', e => { if (e.data && e.data.type === 'member-modal-close') closeMember(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('memberModal').classList.contains('open')) closeMember(); });
 
     // ----- 알림톡 발송 (alimtalk.js, 비즈엠 API) -----
     // 회원 상세의 알림톡 발송과 같은 방식. 템플릿 변수는 회원 정보 + 이 주문 정보(at.order)로 자동 입력

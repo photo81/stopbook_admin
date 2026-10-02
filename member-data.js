@@ -285,9 +285,32 @@
       .reduce((acc, o) => ({ count: acc.count + 1, amount: acc.amount + o.amount }), { count: 0, amount: 0 });
   }
 
-  // 후불 결제 샘플: 단체 회원 일부에 올해 적용
+  // ===== 회원 구분 샘플 =====
+  // 회원 유형 관리 > 구분에 지금 등록된 항목(숨김 제외)을 기준으로 배정 (member-type-store.js를 먼저 로드해야 함)
+  //   기본 구분(normal) 약 80%, 나머지 20%는 그 외 구분에 회원 번호 순으로 번갈아 배정. 종류가 있는 구분은 종류도 번갈아 지정
+  //   저장소를 못 읽으면 기본값(일반/단체)으로 생성. 승인된 단체 신청 회원은 아래 applyApproval에서 관리자가 지정한 구분·종류로 덮어씀
+  // 회원 구분 참조: categoryCode(기준, 회원 유형 관리의 구분 code) + category(표시명)
+  const DEFAULT_TREE = [
+    { code: 'normal', name: '일반', subs: [] },
+    { code: 'group', name: '단체', subs: ['기관', '회사', '학교', '유치원', '어린이집', '동호회', '기타'] }
+  ];
+  const liveTree = window.MemberTypeStore ? MemberTypeStore.categoryTree().filter(c => !c.hidden) : [];
+  const catTree = liveTree.length ? liveTree : DEFAULT_TREE;
+  const mainCat = catTree.find(c => c.code === 'normal') || catTree[0];              // 개인 회원 기본 구분
+  const otherCats = catTree.filter(c => c !== mainCat);
+  const groupCat = catTree.find(c => c.code === 'group') || otherCats[0] || mainCat;  // 단체 신청 승인 시 지정하는 구분
+  const subOf = (cat, n) => cat.subs.length ? cat.subs[n % cat.subs.length] : '';
   members.forEach(m => {
-    const on = m.category === '단체' && m.no % 2 === 0;
+    // 생성 시 뽑은 '단체' 역할 표시(약 20%)를 현재 구분으로 교체
+    const cat = m.category === '단체' && otherCats.length ? otherCats[m.no % otherCats.length] : mainCat;
+    m.categoryCode = cat.code;
+    m.category = cat.name;
+    m.subCategory = subOf(cat, m.no);
+  });
+
+  // 후불 결제 샘플: 기본 구분이 아닌 회원 일부에 올해 적용
+  members.forEach(m => {
+    const on = m.categoryCode !== mainCat.code && m.no % 2 === 0;
     Object.assign(m, { postpay: on ? 'Y' : 'N', postpayFrom: on ? '2026-01-01' : '', postpayTo: on ? '2026-12-31' : '' });
   });
 
@@ -295,7 +318,7 @@
   // 기본 신청 데이터는 고정 생성, 관리자 처리 결과(승인/반려/히스토리)만 localStorage에 저장해 덮어씀
   // TODO: 실서비스에서는 GET /api/admin/group-applications, POST .../{no}/approve|reject 로 대체
   const APP_KEY = 'stopbook.groupApplications.v3';   // v3: 승인 시 회원 구분·종류 지정(assign*) 저장, 고객 단체 유형은 변경 안 함
-  // 단체 유형별 샘플 사업자 정보. 유형 이름은 회원 유형 관리 > 구분 > 단체의 단체 유형 기본값과 같게 유지
+  // 단체 유형별 샘플 사업자 정보. 고객이 고르는 단체 유형은 '단체' 구분의 현재 종류 목록이며, 아래에 없는 종류는 이름으로 사업자 정보를 만듦
   const GROUP_TYPES = {
     '기관':     { names: ['가람시 평생학습관', '나래구 청소년수련관', '책마루도서관'], bizType: '공공행정', bizItem: '평생교육' },
     '회사':     { names: ['(주)새벽북스', '(주)온누리교육', '누리소프트(주)'], bizType: '도소매업', bizItem: '서적' },
@@ -306,25 +329,18 @@
     '기타':     { names: ['지혜샘학원', '글빛논술학원'], bizType: '교육 서비스업', bizItem: '교습학원' }
   };
   const ADDRESSES = ['서울특별시 마포구 월드컵북로 12', '경기도 성남시 분당구 판교로 45', '부산광역시 해운대구 센텀로 8', '대전광역시 유성구 대학로 99', '인천광역시 연수구 송도과학로 31'];
-  const typeKeys = Object.keys(GROUP_TYPES);
-
-  // 회원 구분 참조: categoryCode(기준, 회원 유형 관리의 구분 code) + category(표시명)
-  // 회원의 종류(subCategory) 샘플: 단체 회원은 종류 중 하나, 그 외는 없음
-  // 승인된 단체 신청 회원은 아래 applyApproval에서 관리자가 지정한 구분·종류로 덮어씀
-  members.forEach(m => {
-    m.categoryCode = m.category === '단체' ? 'group' : 'normal';
-    m.subCategory = m.category === '단체' ? typeKeys[m.no % typeKeys.length] : '';
-  });
+  const groupKinds = groupCat.subs.length ? groupCat.subs : Object.keys(GROUP_TYPES);
+  const bizOf = kind => GROUP_TYPES[kind] || { names: ['가람', '나래', '다온'].map(p => p + kind), bizType: '서비스업', bizItem: kind };
 
   function loadAppOverlay() {
     try { return JSON.parse(localStorage.getItem(APP_KEY)) || {}; } catch (e) { return {}; }
   }
   const appOverlay = loadAppOverlay();
 
-  // 일반 구분 회원 중 일부가 신청한 것으로 생성 (최근 신청이 위)
-  const applications = members.filter(m => m.category === '일반').filter((_, i) => i % 8 === 3).map((m, k) => {
-    const groupType = typeKeys[k % typeKeys.length];
-    const t = GROUP_TYPES[groupType];
+  // 기본 구분 회원 중 일부가 신청한 것으로 생성 (최근 신청이 위)
+  const applications = members.filter(m => m.categoryCode === mainCat.code).filter((_, i) => i % 8 === 3).map((m, k) => {
+    const groupType = groupKinds[k % groupKinds.length];
+    const t = bizOf(groupType);
     const appliedAt = new Date(base - k * 2 * 86400000 - (k * 37 % 600) * 60000);
     const app = {
       appNo: 501 + k,
@@ -359,10 +375,10 @@
         // 예시: 한 건은 기간이 이미 끝나 자동 전환되는 경우를 보여주도록 어제 만료
         app.periodTo = k === 9 ? fmtDate(new Date(Date.now() - 86400000))
           : fmtDate(new Date(d.getFullYear() + 1, d.getMonth(), d.getDate() - 1));
-        app.expireTo = '일반';
-        app.expireToCode = 'normal';
-        // 승인 시 관리자가 지정한 회원 구분·종류 (샘플은 단체 + 고객이 고른 단체 유형)
-        Object.assign(app, { assignCategoryCode: 'group', assignCategory: '단체', assignKind: groupType });
+        app.expireTo = mainCat.name;
+        app.expireToCode = mainCat.code;
+        // 승인 시 관리자가 지정한 회원 구분·종류 (샘플은 '단체' 구분 + 고객이 고른 단체 유형)
+        Object.assign(app, { assignCategoryCode: groupCat.code, assignCategory: groupCat.name, assignKind: groupType });
       }
       app.history.push({ at, content: app.status === '승인' ? `승인 처리 (적용 기간 ${app.periodFrom} ~ ${app.periodTo}, 만료 후 '${app.expireTo}' 전환)` : `반려 처리 (사유: ${app.rejectReason})`, by: '관리자' });
     }
@@ -381,11 +397,11 @@
   function applyApproval(app) {
     const m = members.find(x => x.userId === app.userId);
     if (!m) return;
-    m.categoryCode = app.assignCategoryCode || 'group';
-    m.category = app.assignCategory || '단체';   // 표시명은 화면에서 code 기준으로 다시 맞춤
+    m.categoryCode = app.assignCategoryCode || groupCat.code;
+    m.category = app.assignCategory || groupCat.name;   // 표시명은 화면에서 code 기준으로 다시 맞춤
     m.subCategory = app.assignKind !== undefined ? app.assignKind : app.groupType;
     m.business = Object.assign({ groupType: app.groupType, approvedAt: app.processedAt, appNo: app.appNo,
-      periodFrom: app.periodFrom, periodTo: app.periodTo, expireTo: app.expireTo || '일반' }, app.business);
+      periodFrom: app.periodFrom, periodTo: app.periodTo, expireTo: app.expireTo || mainCat.name }, app.business);
     m.history.push({ at: app.processedAt, content: `단체 회원 승인: ${app.business.companyName} (${app.business.bizNo}), 적용 기간 ${app.periodFrom} ~ ${app.periodTo}`, by: app.processedBy });
   }
   // 회원 정보에서 구분을 단체 → 일반으로 바꾼 경우: 사업자 정보 삭제 + 신청 건을 '해제'로 기록
@@ -407,7 +423,7 @@
     const end = new Date(a.periodTo);
     a.expiredAt = `${fmtDate(new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1))} 00:00`;
     a.status = '만료';
-    a.history.push({ at: a.expiredAt, content: `적용 기간 만료 → 구분 '${a.expireTo || '일반'}' 자동 전환, 사업자 정보 삭제`, by: '시스템' });
+    a.history.push({ at: a.expiredAt, content: `적용 기간 만료 → 구분 '${a.expireTo || mainCat.name}' 자동 전환, 사업자 정보 삭제`, by: '시스템' });
     saveApplication(a);
   });
 
@@ -420,11 +436,11 @@
     const biz = `${a.business.companyName} (${a.business.bizNo})`;
     m.subCategory = '';
     if (a.status === '해제') {
-      m.category = '일반';
-      m.categoryCode = 'normal';
-      m.history.push({ at: a.revokedAt, content: `사업자 정보 삭제: ${biz} - 구분 일반 변경`, by: a.revokedBy });
+      m.category = mainCat.name;
+      m.categoryCode = mainCat.code;
+      m.history.push({ at: a.revokedAt, content: `사업자 정보 삭제: ${biz} - 구분 ${mainCat.name} 변경`, by: a.revokedBy });
     } else {
-      const to = a.expireTo || '일반';
+      const to = a.expireTo || mainCat.name;
       m.history.push({ at: a.expiredAt, content: `단체 회원 기간 만료: 구분 ${m.category} → ${to} 자동 전환, 사업자 정보 삭제 (${biz})`, by: '시스템' });
       m.category = to;
       m.categoryCode = a.expireToCode || '';   // 없으면 화면에서 이름으로 찾아 채움
@@ -434,6 +450,6 @@
 
   window.MemberData = {
     members, GRADE_ORDER, BENEFITS, COUPONS, PRODUCTS, PROJECT_NAMES, VIEWER_SAMPLE, viewerUrl, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, orderStats, validOrders, statusClass, ageOf,
-    applications, saveApplication, applyApproval, revokeBusiness, GROUP_TYPES: typeKeys
+    applications, saveApplication, applyApproval, revokeBusiness, GROUP_TYPES: groupKinds
   };
 })();
