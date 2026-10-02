@@ -165,8 +165,9 @@ td a.name-link:hover { color: var(--accent); text-decoration: underline; text-un
 
 /* 탈퇴회원 목록: 고정 폭 컬럼 외 남는 공간은 상세사유가 차지 */
 td.reason { overflow: hidden; text-overflow: ellipsis; }
-table.wd-table { table-layout: fixed; min-width: 1300px; }
+table.wd-table { table-layout: fixed; min-width: 1480px; }
 .wd-table .w-id { width: 130px; }
+.wd-table .w-email { width: 180px; }
 .wd-table .w-cat { width: 110px; }
 .wd-table .w-mt { width: 84px; }
 .wd-table .w-grade { width: 90px; }

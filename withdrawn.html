@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 탈퇴 회원 관리</title>
-<link rel="stylesheet" href="admin.css?v=20261017">
+<link rel="stylesheet" href="admin.css?v=20261019">
 </head>
 <body>
 <div class="layout">
@@ -38,12 +38,12 @@
       </div>
 
       <!-- 검색 조건 (분석·리스트 두 탭 공용: 같은 검색값이 두 탭에 함께 적용) -->
-      <form class="panel" id="searchForm">
+      <form class="panel" id="searchForm" novalidate>
         <div class="search-row">
           <div class="search-grid">
             <div class="field">
-              <label for="sKeyword">아이디</label>
-              <input type="text" id="sKeyword" placeholder="아이디 입력">
+              <label for="sEmail">이메일</label>
+              <input type="email" id="sEmail" placeholder="이메일 전체 입력 (예: abc@naver.com)" autocomplete="off">
             </div>
             <div class="field">
               <label>탈퇴일</label>
@@ -161,6 +161,7 @@
             <thead>
               <tr>
                 <th class="sortable col-no" data-key="no">번호</th>
+                <th class="w-email">이메일</th>
                 <th class="sortable w-cat" data-key="category">회원구분</th>
                 <th class="sortable w-mt" data-key="memberType">가입유형</th>
                 <th class="sortable w-grade" data-key="grade">회원등급</th>
@@ -201,7 +202,7 @@
 <div class="viz-tip" id="vizTip" role="tooltip" hidden></div>
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261017"></script>
+<script src="member-type-store.js?v=20261019"></script>
 <script>
 (function () {
   'use strict';
@@ -211,7 +212,7 @@
   // ----------------------------------------------------------------------
   // 탈퇴하면 회원 정보가 파기되므로, 분석에 필요한 값을 탈퇴 처리 순간에 한 번 기록해 둔다.
   // 이름·이메일·휴대폰 등 식별 정보는 원본을 저장하지 않는다. (아이디는 중복 가입 방지 기간 동안만 보관하는 것을 전제)
-  // 이메일은 문의 대응 확인용으로 탈퇴 시점에 마스킹한 값(emailMasked)만 저장한다. 예) ab***@naver.com
+  // 이메일은 문의 대응 확인용으로 탈퇴 시점에 마스킹한 값(emailMasked)과 검색용 해시(emailHash)만 저장한다. 예) ab***@naver.com
   //
   //  회원 속성   category, kind(종류), memberType(가입유형), grade, marketing(Y/N)
   //  이용 기간   joinDate, withdrawDate, tenureDays, lastLoginDate, inactiveDays(마지막 접속 → 탈퇴)
@@ -279,6 +280,24 @@
     return `${local.slice(0, keep)}${'*'.repeat(Math.max(3, local.length - keep))}@${domain}`;
   }
 
+  // 이메일 검색용 해시: 원본 이메일 대신 탈퇴 시점에 해시값(emailHash)만 저장하고,
+  // 검색할 때 입력한 이메일을 같은 방식으로 해시해 일치 여부만 비교 (원본 복원 불가, 이메일 전체가 정확히 같아야 검색됨)
+  // 프로토타입은 브라우저에서 바로 계산되는 간단한 해시(cyrb53) 사용
+  // TODO: 실서비스에서는 서버가 비밀 키를 쓰는 HMAC-SHA256으로 저장·비교 (GET /api/admin/withdrawals?email=...)
+  const normEmail = s => String(s).trim().toLowerCase();
+  function hashEmail(email) {
+    const str = normEmail(email);
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+  }
+
   const KINDS = ['기관', '회사', '학교', '유치원', '어린이집', '동호회', '기타'];
   const PRODUCTS = ['포토북', '캘린더', '액자', '팬시·굿즈'];
   const INQ_TYPES = ['주문/결제', '배송', '상품', '교환/반품', '회원정보', '기타'];
@@ -337,7 +356,8 @@
     items.push({
       no: i,
       userId: 'out' + String(100 + i),
-      emailMasked: maskEmail(`${emailLocal}@${emailDomain}`),   // 원본은 저장하지 않음
+      emailMasked: maskEmail(`${emailLocal}@${emailDomain}`),   // 원본은 저장하지 않음 (표시용)
+      emailHash: hashEmail(`${emailLocal}@${emailDomain}`),     // 검색용 (원본 복원 불가)
       category, kind: category === '단체' ? pick(KINDS) : '',
       memberType,
       grade: orderCount >= 10 ? pick(['홀리커', '마스터', '마스터 VIP']) : orderCount >= 2 ? pick(['일반', '스타터', '스타터']) : '일반',
@@ -389,13 +409,16 @@
   // ===== 검색 =====
   function applyFilter() {
     const v = id => $(id).value;
-    const kw = v('sKeyword').trim().toLowerCase();
+    // 이메일: 원본이 없으므로 부분 검색은 불가. 이메일 전체를 해시로 비교하고, 목록의 마스킹 값을 그대로 붙여 넣어도 찾을 수 있게 함
+    const email = normEmail(v('sEmail'));
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('이메일 전체를 입력하세요. 예) abc@naver.com'); return false; }
+    const emailHash = email ? hashEmail(email) : '';
     const from = v('sFrom'), to = v('sTo');
     if (from && to && from > to) { toast('탈퇴일 시작일이 종료일보다 늦습니다.'); return false; }
     const tb = TENURE_BUCKETS.find(b => b.key === v('sTenure'));
     const ynMatch = (val, flag) => !val || (val === 'Y') === flag;
     state.filtered = items.filter(m =>
-      (!kw || m.userId.toLowerCase().includes(kw)) &&
+      (!email || m.emailHash === emailHash || m.emailMasked.toLowerCase() === email) &&
       (!from || m.withdrawDate >= from) && (!to || m.withdrawDate <= to) &&
       (!v('sReasonType') || m.reasonType === v('sReasonType')) &&
       (!v('sCategory') || m.category === v('sCategory')) &&
@@ -537,6 +560,7 @@
       const labels = reasonLabels(m);
       return `<tr>
         <td>${m.no}</td>
+        <td class="mono">${esc(m.emailMasked)}</td>
         <td>${esc(catText(m))}</td>
         <td>${esc(m.memberType.replace('회원', ''))}</td>
         <td>${esc(m.grade)}</td>
@@ -549,7 +573,7 @@
         <td><span class="badge wd-${m.reasonType}">${m.reasonType}</span>${m.rejoined ? ` <span class="tag-rejoin" title="재가입 ${m.rejoinDate}">재가입</span>` : ''}</td>
         <td class="reason"><a class="name-link" data-no="${m.no}" title="${esc(labels.join(', '))}${m.reasonEtc ? ` / ${esc(m.reasonEtc)}` : ''}">${esc(labels[0])}${labels.length > 1 ? ` <span class="muted">외 ${labels.length - 1}</span>` : ''}</a></td>
       </tr>`;
-    }).join('') : '<tr><td colspan="12" class="empty">검색 결과가 없습니다.</td></tr>';
+    }).join('') : '<tr><td colspan="13" class="empty">검색 결과가 없습니다.</td></tr>';
     $('tabListCount').textContent = total.toLocaleString();
 
     document.querySelectorAll('th.sortable').forEach(th => {

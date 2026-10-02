@@ -37,6 +37,26 @@
     });
   }
 
+  // ===== 프로필 샘플 (닉네임·성별·생일) =====
+  // 가입 시 선택 입력 항목이라 비어 있는 회원도 있음. 위 회원 데이터에 영향 없도록 회원별 별도 난수로 생성
+  // gender: '남' | '여' | '' (미입력), birth: 'YYYY-MM-DD' | ''
+  const NICK_A = ['행복한', '여행하는', '반짝이는', '느긋한', '추억담는', '사진찍는', '하늘빛', '봄날의'];
+  const NICK_B = ['고양이', '여행자', '포토그래퍼', '곰돌이', '다람쥐', '기록가', '토끼', '펭귄'];
+  members.forEach(m => {
+    let s = (m.no * 3571 + 7) % 233280;
+    const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    m.nickname = r() < 0.8 ? NICK_A[Math.floor(r() * NICK_A.length)] + NICK_B[Math.floor(r() * NICK_B.length)] : '';
+    m.gender = (v => (v < 0.45 ? '여' : v < 0.85 ? '남' : ''))(r());
+    m.birth = r() < 0.85 ? fmtDate(new Date(1962 + Math.floor(r() * 45), Math.floor(r() * 12), 1 + Math.floor(r() * 28))) : '';
+  });
+
+  // 만 나이 (생일이 지나지 않았으면 1 빼기). 생일 미입력이면 null
+  function ageOf(birth, now = new Date()) {
+    if (!birth) return null;
+    const [y, mo, d] = birth.split('-').map(Number);
+    return now.getFullYear() - y - ((now.getMonth() + 1 < mo || (now.getMonth() + 1 === mo && now.getDate() < d)) ? 1 : 0);
+  }
+
   // ===== 혜택 샘플 내역 =====
   // 내역(ledger)이 원장이고 보유량은 마지막 잔여값. 회원별 별도 난수로 생성해 위 회원 데이터에 영향 없음
   const BENEFITS = {
@@ -371,7 +391,7 @@
   });
 
   window.MemberData = {
-    members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, orderStats,
+    members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, orderStats, ageOf,
     applications, saveApplication, applyApproval, revokeBusiness, GROUP_TYPES: typeKeys
   };
 })();

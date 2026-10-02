@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261017">
+<link rel="stylesheet" href="admin.css?v=20261019">
 </head>
 <body>
 <div class="layout">
@@ -150,16 +150,25 @@
     <form id="editForm" class="modal-body" novalidate>
       <div class="section-title">기본 정보</div>
       <table class="form-table multi-col">
-        <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
-        <tr><th>이름</th><td class="readonly" id="fName"></td><th>아이디</th><td class="readonly" id="fUserId"></td></tr>
-        <tr><th>이메일</th><td class="readonly" id="fEmail" style="word-break:break-all"></td>
-          <th>휴대폰</th><td>
+        <!-- 4칸(항목명+값) × 같은 폭. 이름·이메일 등 두 칸 행은 값이 3칸을 차지해 좌우 절반씩 -->
+        <colgroup><col class="c-th"><col><col class="c-th"><col><col class="c-th"><col><col class="c-th"><col></colgroup>
+        <tr><th>이름</th><td class="readonly" id="fName" colspan="3"></td><th>아이디</th><td class="readonly" id="fUserId" colspan="3"></td></tr>
+        <tr><th>이메일</th><td class="readonly" id="fEmail" colspan="3" style="word-break:break-all"></td>
+          <th>휴대폰</th><td colspan="3">
             <div class="benefit-line">
               <span class="readonly" id="fPhone"></span>
               <button type="button" class="btn btn-xs" id="btnAlimtalk">알림톡</button>
             </div>
           </td></tr>
-        <tr><th>패스워드</th><td colspan="3">
+        <tr>
+          <th>닉네임</th><td class="readonly" id="fNickname" style="word-break:break-all"></td>
+          <th>성별</th><td>
+            <select id="fGender" aria-label="성별"><option value="">미입력</option><option value="남">남</option><option value="여">여</option></select>
+          </td>
+          <th>생일</th><td class="readonly" id="fBirth"></td>
+          <th>나이</th><td class="readonly" id="fAge"></td>
+        </tr>
+        <tr><th>패스워드</th><td colspan="7">
           <div id="pwSns" class="readonly" hidden></div>
           <div id="pwActions" class="pw-actions">
             <span class="readonly">••••••••</span>
@@ -449,15 +458,16 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261014"></script>
-<script src="member-data.js?v=20261014"></script>
-<script src="member-type-store.js?v=20261017"></script>
+<script src="alimtalk.js?v=20261019"></script>
+<script src="member-data.js?v=20261019"></script>
+<script src="member-type-store.js?v=20261019"></script>
 <script>
 (function () {
   'use strict';
 
   // ===== 샘플 데이터: member-data.js (단체회원 신청 승인 결과 포함) =====
-  const { members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, revokeBusiness } = MemberData;
+  const { members, GRADE_ORDER, BENEFITS, COUPONS, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, revokeBusiness, ageOf } = MemberData;
+  const ageText = m => { const a = ageOf(m.birth); return a == null ? '' : `만 ${a}세`; };
   // 회원·신청 데이터의 구분 참조(code)를 현재 구분명으로 정리
   MemberTypeStore.normalizeCategoryRefs(MemberData);
   const NORMAL_NAME = MemberTypeStore.categoryName('normal') || '일반';   // 기본 구분(일반)의 현재 이름
@@ -634,6 +644,13 @@
     $('fName').textContent = m.name;
     $('fEmail').textContent = m.email;
     $('fPhone').textContent = m.phone;
+    // 선택 입력 항목: 비어 있으면 '미입력'
+    const blank = '<span class="muted">미입력</span>';
+    const fillOpt = (id, v) => { if (v) $(id).textContent = v; else $(id).innerHTML = blank; };
+    fillOpt('fNickname', m.nickname);
+    $('fGender').value = m.gender || '';   // 관리자 수정 가능 (저장 시 변경 히스토리 기록)
+    fillOpt('fBirth', m.birth);
+    fillOpt('fAge', ageText(m));
     const isSns = m.memberType !== '스탑북회원';
     $('pwSns').hidden = !isSns;
     $('pwSns').textContent = `${m.memberType.replace('회원', '')} 간편 로그인 회원은 패스워드가 없습니다.`;
@@ -1166,13 +1183,14 @@
       category: selCat ? selCat.name : m.category,   // 표시명 (숨김·삭제된 기존 값이면 그대로)
       subCategory: $('fSubCategory').disabled ? '' : $('fSubCategory').value,
       grade: $('fGrade').value,
+      gender: $('fGender').value,
       marketingSms: document.querySelector('input[name=fMkSms]:checked').value,
       marketingEmail: document.querySelector('input[name=fMkEmail]:checked').value,
       ...postpay
     };
-    const changes = [['grade', '회원등급', String],
+    const changes = [['gender', '성별', v => v || '미입력'], ['grade', '회원등급', String],
       ['marketingSms', 'SMS 수신', mkText], ['marketingEmail', '메일 수신', mkText]]
-      .filter(([k]) => m[k] !== next[k])
+      .filter(([k]) => (m[k] ?? '') !== (next[k] ?? ''))   // 성별 값이 없는 회원(undefined)과 미입력('')은 같은 값으로 봄
       .map(([k, label, f]) => `${label} 변경: ${f(m[k])} → ${f(next[k])}`);
     if (m.categoryCode !== next.categoryCode || (m.subCategory || '') !== next.subCategory) {
       const after = selCat ? selCat.label : next.category;
@@ -1213,9 +1231,14 @@
     if (!state.filtered.length) { toast('다운로드할 데이터가 없습니다.'); return; }
     const cols = [
       ['no', '번호'], ['category', '회원구분'], ['subCategory', '종류'], ['memberType', '가입유형'], ['name', '이름'], ['email', '이메일'], ['phone', '휴대폰'], ['userId', '아이디'],
+      ['nickname', '닉네임'], ['gender', '성별'], ['birth', '생일'], ['age', '나이(만)'],   // 미입력은 빈칸
       ['grade', '회원등급'], ['marketingSms', 'SMS수신'], ['marketingEmail', '메일수신'], ['joinDate', '가입일'],
       ['lastLogin', '최근접속일'],
       ['mileage', '마일리지(P)'], ['giftCard', '상품권(원)'], ['coupon', '쿠폰(장)'],   // 단위 없이 숫자만 → 엑셀 합계·정렬 가능
+      // 이용 정보 요약 (회원 상세 > 이용 정보와 같은 기준). 회원 1명 = 1행이라 건별 내역 대신 합계로 넣음
+      ['orderCount', '총 주문건수'], ['orderAmount', '총 주문금액(원)'], ['lastOrderAt', '최근 주문일'],
+      ['inquiryCount', '문의건수'], ['inquiryWaiting', '답변대기(건)'], ['lastInquiryAt', '최근 문의일시'],
+      ['cartKinds', '장바구니 상품(종)'], ['cartQty', '장바구니 수량(개)'], ['cartTotal', '장바구니 결제예정금액(원)'],
       ['memos', '관리자메모']
     ];
     const cell = v => {
@@ -1225,10 +1248,22 @@
     };
     const lines = [cols.map(c => cell(c[1])).join(',')];
     state.filtered.forEach(m => {
+      const orders = m.orders || [], inq = m.inquiries || [], cs = cartSummary(m);
+      const usage = {
+        orderCount: orders.length,
+        orderAmount: orders.reduce((s, o) => s + o.amount, 0),
+        lastOrderAt: orders.length ? orders[orders.length - 1].at : '',   // 주문은 오래된 순 정렬
+        inquiryCount: inq.length,
+        inquiryWaiting: inq.filter(q => q.status === '답변대기').length,
+        lastInquiryAt: inq.length ? inq[0].at : '',                       // 문의는 최근 순 정렬
+        cartKinds: cs.count, cartQty: cs.qty, cartTotal: cs.total
+      };
       lines.push(cols.map(([k]) => {
+        if (k in usage) return cell(usage[k]);
         if (k === 'marketingSms' || k === 'marketingEmail') return cell(m[k] === 'Y' ? '동의' : '거부');
         if (k === 'phone') return cell('\t' + m[k]);  // 엑셀에서 앞자리 0 유지
         if (k === 'memos') return cell(m.memos.map(x => `${x.text} (${x.at} ${x.by})`).join(' / '));
+        if (k === 'age') return cell(ageOf(m.birth) ?? '');   // 숫자만 → 엑셀 정렬·필터 가능
         return cell(m[k]);
       }).join(','));
     });
