@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 주문 상세</title>
-<link rel="stylesheet" href="admin.css?v=20261091">
+<link rel="stylesheet" href="admin.css?v=20261099">
 </head>
 <body>
 <div class="layout">
@@ -32,7 +32,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 주문관리 &gt; <a href="orders.html">주문 리스트</a> &gt; <b>주문 상세</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v1.72 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v1.80 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -52,6 +52,9 @@
           <dl class="order-meta">
             <div><dt>주문일시</dt><dd id="dOrderedAt"></dd></div>
             <div><dt>주문번호</dt><dd class="mono" id="dOrderNo"></dd></div>
+            <div><dt>주문자명</dt><dd id="dBuyer"></dd></div>
+            <div><dt>이메일</dt><dd id="dEmail"></dd></div>
+            <div><dt>휴대폰</dt><dd id="dPhone"></dd><dd><button type="button" class="btn btn-xs" id="btnAlimtalk">알림톡</button></dd></div>
           </dl>
         </section>
 
@@ -259,6 +262,63 @@
   </div>
 </div>
 
+<!-- 알림톡 발송 모달: 상단 휴대폰 옆 [알림톡] (회원 상세의 알림톡 발송과 같은 구성) -->
+<div class="modal-bg" id="aModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aTitle">
+    <div class="modal-header">
+      <h2 id="aTitle">알림톡 발송</h2>
+      <button type="button" class="close" data-aclose aria-label="닫기">&times;</button>
+    </div>
+    <form id="aForm" class="modal-body" novalidate>
+      <table class="form-table">
+        <tr><th>수신자</th><td class="readonly" id="aTo"></td></tr>
+        <tr><th>템플릿 *</th><td>
+          <div class="inline-row at-search">
+            <input type="search" id="aTmplQ" placeholder="템플릿명, 코드, 본문 검색" autocomplete="off">
+            <span class="readonly" id="aTmplCount"></span>
+          </div>
+          <select id="aTmpl" size="5" class="at-tmpl-list"></select>
+          <div class="readonly at-note">비즈엠에서 승인된 템플릿만 발송할 수 있으며, 본문은 수정할 수 없고 변수만 입력합니다.</div>
+        </td></tr>
+        <tbody id="aVars"></tbody>
+        <tr><th>미리보기</th><td>
+          <div class="at-bubble">
+            <div class="at-bubble-head">알림톡 도착</div>
+            <div class="at-bubble-body" id="aPreview"></div>
+            <div class="at-bubble-btn" id="aPreviewBtn" hidden></div>
+          </div>
+          <div class="readonly at-note" id="aLen"></div>
+        </td></tr>
+        <tr><th>발송 시점</th><td>
+          <div class="inline-row">
+            <label><input type="radio" name="aWhen" value="now" checked> 즉시</label>
+            <label><input type="radio" name="aWhen" value="reserve"> 예약</label>
+            <input type="datetime-local" id="aReserveAt" hidden>
+            <span class="readonly" id="aReserveNote" hidden>현재부터 10분 이후 · 발송 10분 전까지 취소 가능</span>
+          </div>
+        </td></tr>
+        <tr><th>대체 문자</th><td>
+          <label><input type="checkbox" id="aFallback" checked> 알림톡 실패 시 문자로 발송</label>
+          <span class="readonly" id="aSmsInfo" style="margin-left:8px"></span>
+        </td></tr>
+      </table>
+      <div class="err" id="eAlimtalk"></div>
+
+      <div class="section-title">이 주문의 발송 내역</div>
+      <div class="table-wrap history-wrap">
+        <table class="history-table">
+          <thead><tr><th>요청일시</th><th>내용</th><th>처리자</th></tr></thead>
+          <tbody id="aHistory"></tbody>
+        </table>
+      </div>
+    </form>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-aclose>닫기</button>
+      <button type="submit" form="aForm" class="btn btn-primary">발송</button>
+    </div>
+  </div>
+</div>
+
 <!-- 배송지 수정·추가 모달: 배송정보 > 수령인 정보 -->
 <div class="modal-bg" id="addrModal">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addrTitle">
@@ -330,9 +390,10 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-data.js?v=20261091"></script>
-<script src="member-type-store.js?v=20261091"></script>
-<script src="order-data.js?v=20261091"></script>
+<script src="alimtalk.js?v=20261099"></script>
+<script src="member-data.js?v=20261099"></script>
+<script src="member-type-store.js?v=20261099"></script>
+<script src="order-data.js?v=20261099"></script>
 <script>
 (function () {
   'use strict';
@@ -352,6 +413,10 @@
     $('detail').hidden = false;
     $('dOrderedAt').textContent = o.orderedAt;
     $('dOrderNo').textContent = o.orderNo;
+    // 주문자: 이름 옆에 아이디·회원등급을 작게 (같은 회원의 다른 주문과 구분)
+    $('dBuyer').innerHTML = `${o.name.replace(/[&<>]/g, '')} <span class="meta-sub">${o.userId} · ${o.member.grade}</span>`;
+    $('dEmail').textContent = o.email;
+    $('dPhone').textContent = o.phone;
     // 할인·취소는 빼는 금액이라 '-'를 붙여 표시 (0원이면 흐리게)
     const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const minus = (id, v) => { $(id).innerHTML = v ? `-${won(v)}` : `<span class="muted">${won(0)}</span>`; };
@@ -541,6 +606,91 @@
         $(TAB_PANELS[k]).hidden = !on;
       });
     }
+
+    // ----- 알림톡 발송 (alimtalk.js, 비즈엠 API) -----
+    // 회원 상세의 알림톡 발송과 같은 방식. 템플릿 변수는 회원 정보 + 이 주문 정보(at.order)로 자동 입력
+    // 발송 내역은 주문 히스토리에 '알림톡'으로 남고, 모달 아래에는 이 주문에서 보낸 내역만 보여줌
+    // TODO: 실서비스에서는 POST /api/admin/orders/{orderNo}/alimtalk (서버가 비즈엠 /v2/sender/send 호출)
+    const atCtx = Object.assign({}, o.member, { order: o });   // 템플릿 auto(m)에 넘기는 값
+    const AT_T = Alimtalk.TEMPLATES;
+    const atTmpl = () => ($('aTmpl').value === '' ? null : AT_T[Number($('aTmpl').value)]);
+    const atValues = () => { const v = {}; document.querySelectorAll('#aVars input[data-var]').forEach(el => { v[el.dataset.var] = el.value.trim(); }); return v; };
+    function renderAtTmplOptions() {
+      const words = $('aTmplQ').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const prev = $('aTmpl').value;
+      const hits = AT_T.map((t, i) => [t, i]).filter(([t]) => words.every(w => `${t.name} ${t.tmplId} ${t.body}`.toLowerCase().includes(w)));
+      $('aTmpl').innerHTML = hits.length ? hits.map(([t, i]) => `<option value="${i}">${esc(t.name)} (${esc(t.tmplId)})</option>`).join('')
+        : '<option value="" disabled>검색 결과가 없습니다.</option>';
+      $('aTmplCount').textContent = `${hits.length} / ${AT_T.length}건`;
+      $('aTmpl').value = hits.some(([, i]) => String(i) === prev) ? prev : (hits.length ? String(hits[0][1]) : '');
+      renderAtVars();
+    }
+    function renderAtVars() {
+      const t = atTmpl();
+      $('aVars').innerHTML = !t ? '' : t.vars.map(v => `<tr><th>#{${esc(v.key)}}</th><td>
+          <input type="text" data-var="${esc(v.key)}" value="${esc(v.auto ? v.auto(atCtx) : '')}" placeholder="${esc(v.placeholder || '')}" maxlength="100"></td></tr>`).join('');
+      renderAtPreview();
+    }
+    function renderAtPreview() {
+      const t = atTmpl(), values = atValues();
+      if (!t) { $('aPreview').textContent = '템플릿을 선택하세요.'; $('aPreviewBtn').hidden = true; $('aLen').textContent = ''; $('aSmsInfo').textContent = ''; return; }
+      $('aPreview').innerHTML = esc(t.body).replace(/#\{([^}]+)\}/g, (all, k) => (values[k] ? `<span class="at-var">${esc(values[k])}</span>` : `<span class="at-var empty">#{${k}}</span>`));
+      $('aPreviewBtn').hidden = !t.button;
+      $('aPreviewBtn').textContent = t.button ? t.button.name : '';
+      const msg = Alimtalk.fill(t.body, values), bytes = Alimtalk.smsBytes(msg);
+      $('aLen').textContent = `${msg.length.toLocaleString()} / ${Alimtalk.MSG_MAX.toLocaleString()}자`;
+      $('aSmsInfo').textContent = $('aFallback').checked ? `${bytes > 90 ? 'LMS' : 'SMS'} · ${bytes.toLocaleString()}byte` : '';
+    }
+    function renderAtHistory() {
+      const list = OrderData.adminLog(o.orderNo).history.filter(h => h.type === '알림톡').reverse();
+      $('aHistory').innerHTML = list.map(h => `<tr><td>${esc(h.at)}</td><td class="left">${esc(h.content)}</td><td>${esc(h.by)}</td></tr>`).join('')
+        || '<tr><td colspan="3" class="empty">발송 내역이 없습니다.</td></tr>';
+    }
+    const syncAtWhen = () => {
+      const reserve = document.querySelector('input[name=aWhen]:checked').value === 'reserve';
+      $('aReserveAt').hidden = !reserve;
+      $('aReserveNote').hidden = !reserve;
+    };
+    $('btnAlimtalk').addEventListener('click', () => {
+      $('aForm').reset();
+      $('aTo').textContent = `${o.name} (${o.userId}) · ${o.phone}`;
+      $('eAlimtalk').classList.remove('show');
+      syncAtWhen();
+      $('aTmpl').value = '';
+      renderAtTmplOptions();
+      renderAtHistory();
+      $('aModal').classList.add('open');
+      $('aTmplQ').focus();
+    });
+    $('aForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const t = atTmpl();
+      const reserve = document.querySelector('input[name=aWhen]:checked').value === 'reserve';
+      let reserveAt = null, error = '';
+      if (!t) error = '발송할 템플릿을 선택하세요.';
+      else if (reserve) { reserveAt = $('aReserveAt').value ? new Date($('aReserveAt').value) : null; if (!reserveAt) error = '예약 일시를 선택하세요.'; }
+      const r = error ? { error } : Alimtalk.buildPayload(atCtx, { tmpl: t, values: atValues(), fallback: $('aFallback').checked, reserveAt });
+      $('eAlimtalk').textContent = r.error || '';
+      $('eAlimtalk').classList.toggle('show', !!r.error);
+      if (r.error) return;
+      if (!confirm(`${o.name}님(${o.phone})에게 '${t.name}' 알림톡을 ${reserve ? '예약 ' : ''}발송하시겠습니까?`)) return;
+      const [res] = Alimtalk.simulateSend(r.payload);   // TODO: 실서비스에서는 서버 API 응답
+      const result = Alimtalk.resultText(res);
+      OrderData.addHistory(o.orderNo, '알림톡', `알림톡 ${reserve ? '예약 ' : ''}발송: ${t.name} - ${result} (${res.data.msgid})`, AdminUtil.ADMIN_NAME);
+      renderAtHistory();
+      renderAdmin();   // 주문 히스토리 갱신
+      AdminUtil.toast(res.code === 'success' ? `알림톡 ${result}` : `알림톡 발송 ${result}`);
+    });
+    $('aTmpl').addEventListener('change', renderAtVars);
+    $('aTmplQ').addEventListener('input', renderAtTmplOptions);
+    $('aTmplQ').addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === 'ArrowDown') { ev.preventDefault(); $('aTmpl').focus(); } });
+    $('aVars').addEventListener('input', renderAtPreview);
+    $('aFallback').addEventListener('change', renderAtPreview);
+    document.querySelectorAll('input[name=aWhen]').forEach(el => el.addEventListener('change', syncAtWhen));
+    const closeAt = () => $('aModal').classList.remove('open');
+    document.querySelectorAll('[data-aclose]').forEach(b => b.addEventListener('click', closeAt));
+    $('aModal').addEventListener('click', e => { if (e.target === $('aModal')) closeAt(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAt(); });
 
     // ----- 배송정보 탭 -----
     const dv = o.delivery;

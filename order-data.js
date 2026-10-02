@@ -301,6 +301,8 @@
       shipMethod: weighted(SHIP_METHODS),
       inquiry: inq.some(q => q.status === '답변대기') ? 'W' : inq.length ? 'Y' : 'N'
     };
+    // 결제환경: PC / MO(모바일). 주문번호로 정함 (약 65% 모바일). TODO: 실서비스에서는 주문 접수 시 기록한 결제 환경
+    ord.env = [...ord.orderNo].reduce((h, c) => (h * 61 + c.charCodeAt(0)) % 9973, 31) % 100 < 65 ? 'MO' : 'PC';
     ord.payment = paymentOf(ord, m);
     ord.delivery = deliveryOf(ord, m);
     applyAddressEdits(ord);   // 관리자가 수정·추가한 배송지 반영

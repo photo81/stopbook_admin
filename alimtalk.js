@@ -62,6 +62,30 @@
         { key: '적용기간', auto: m => (m.business && m.business.periodFrom ? `${m.business.periodFrom} ~ ${m.business.periodTo}` : ''), placeholder: '예) 2026-10-01 ~ 2027-09-30' }
       ]
     },
+    // 주문 템플릿: 주문 상세에서 열면 m.order(주문 정보)로 자동 입력, 회원 상세에서는 직접 입력
+    // TODO: 비즈엠 템플릿 등록·승인 필요 (샘플)
+    {
+      tmplId: 'stopbook_order_01', name: '주문 접수 안내',
+      body: '[스탑북] 주문 접수 안내\n#{이름}님, 주문이 접수되었습니다.\n\n■ 주문번호: #{주문번호}\n■ 주문상품: #{주문상품}\n■ 결제금액: #{결제금액}원',
+      vars: [
+        { key: '이름', auto: m => m.name },
+        { key: '주문번호', auto: m => (m.order ? m.order.orderNo : ''), placeholder: '예) 20260915-00101' },
+        { key: '주문상품', auto: m => (m.order ? m.order.title : ''), placeholder: '예) 마이트립북 외 1종' },
+        { key: '결제금액', auto: m => (m.order ? m.order.payment.total.toLocaleString() : ''), placeholder: '예) 48,300' }
+      ],
+      button: { name: '주문 확인', type: 'WL', url_mobile: 'https://m.stopbook.co.kr/mypage/order', url_pc: 'https://www.stopbook.co.kr/mypage/order' }
+    },
+    {
+      tmplId: 'stopbook_ship_01', name: '배송 시작 안내',
+      body: '[스탑북] 배송 시작 안내\n#{이름}님, 주문하신 상품이 출고되었습니다.\n\n■ 주문번호: #{주문번호}\n■ 택배사: #{택배사}\n■ 운송장번호: #{운송장번호}',
+      vars: [
+        { key: '이름', auto: m => m.name },
+        { key: '주문번호', auto: m => (m.order ? m.order.orderNo : ''), placeholder: '예) 20260915-00101' },
+        { key: '택배사', auto: m => (m.order ? m.order.delivery.courier : ''), placeholder: '예) 한진택배' },
+        { key: '운송장번호', auto: m => (m.order ? m.order.delivery.waybill : ''), placeholder: '운송장번호' }
+      ],
+      button: { name: '배송 조회', type: 'WL', url_mobile: 'https://m.stopbook.co.kr/mypage/order', url_pc: 'https://www.stopbook.co.kr/mypage/order' }
+    },
     {
       tmplId: 'stopbook_notice_01', name: '고객 문의 답변 안내',
       body: '[스탑북] 문의 답변 안내\n#{이름}님, 문의하신 내용에 대한 답변이 등록되었습니다.\n\n■ 문의 제목: #{문의제목}',

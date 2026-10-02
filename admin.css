@@ -324,7 +324,6 @@ table.order-table { table-layout: fixed; }
 /* 오른쪽 정렬 숫자 열과 바로 옆 왼쪽 정렬 열이 붙어 보이지 않게 간격 */
 .order-table th.w-qty, .order-table th.w-amt, .order-table td.num { padding-right: 14px; }
 .order-table th.w-pay, .order-table td.c-pay { padding-left: 20px; }
-.order-table .col-no { width: 50px; }
 .order-table .w-dt { width: 118px; }   /* 목록은 분 단위 YYYY-MM-DD HH:MM (초는 주문 상세에서 표시) */
 .order-table .w-name { width: 66px; }
 .order-table .w-email { width: 90px; }
@@ -332,7 +331,13 @@ table.order-table { table-layout: fixed; }
 .order-table .w-qty { width: 84px; text-align: right; }
 .order-table .w-amt { width: 88px; text-align: right; }
 .order-table .w-pay { width: 96px; }
-.order-table .w-st { width: 100px; }     /* '부분취소(1)' 배지가 한 줄에 들어가는 폭 */
+.order-table .w-st { width: 100px; }
+/* 결제환경 PC / MO 표시 */
+.order-table .w-env { width: 50px; text-align: center; }   /* '기기' 제목과 PC/MO 표시만 들어가는 최소 폭 */
+.order-table td:has(> .env-tag) { padding: 0 4px; text-align: center; }
+.env-tag { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 20px; padding: 0 6px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+.env-PC { background: #e0e7ff; color: #3730a3; }
+.env-MO { background: #dcfce7; color: #166534; }     /* '부분취소(1)' 배지가 한 줄에 들어가는 폭 */
 /* 엑셀 다운로드 단위 선택 메뉴 */
 .dl-wrap { position: relative; }
 .dl-menu { position: absolute; z-index: 60; top: calc(100% + 4px); right: 0; width: 260px; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
@@ -359,7 +364,10 @@ table.order-table { table-layout: fixed; }
 /* 상단 주문 기본 정보 카드: 다른 패널보다 낮게(여백 축소) + 음영 배경으로 구분 */
 .panel.order-head { padding: 10px 16px; background: var(--subtle); }
 /* 항목명과 값을 한 줄에 나란히, 항목 사이도 좁게 */
-.order-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 28px; margin: 0; }
+/* 항목 사이를 세로 구분선으로 나눔 (주문 정보 | 주문자 정보). 좁으면 다음 줄로 */
+.order-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 0; margin: 0; }
+.order-meta > div + div { margin-left: 20px; padding-left: 20px; border-left: 1px solid var(--border); }
+.order-meta .meta-sub { margin-left: 4px; color: var(--muted); font-size: 12px; font-weight: 400; }
 .order-meta > div { display: flex; align-items: baseline; gap: 8px; }
 .order-meta dt { color: var(--muted); font-size: 12px; }
 .order-meta dd { margin: 0; color: var(--text); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -442,6 +450,8 @@ tr.hist-system td { color: var(--text-2); }
 .addr-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
 .addr-btns { display: inline-flex; gap: 4px; }
 .hist-배송지 { --dot: #0ea5e9; }
+.hist-알림톡 { --dot: #eab308; }
+.order-meta dd + dd { margin-left: 8px; }   /* 휴대폰 옆 알림톡 버튼 */
 
 /* 주문 상세 > 배송정보 탭: 출고 내역 표 */
 .ship-lines-head { margin-top: 20px; }

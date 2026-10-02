@@ -50,6 +50,14 @@
     m.birth = r() < 0.85 ? fmtDate(new Date(1962 + Math.floor(r() * 45), Math.floor(r() * 12), 1 + Math.floor(r() * 28))) : '';
   });
 
+  // 가입 기기 / 최근 접속 기기: PC / MO(모바일). 회원 번호로 정함 (다른 샘플 값에 영향 없음)
+  // TODO: 실서비스에서는 가입·로그인 시 기록한 접속 환경(User-Agent 기준)
+  members.forEach(m => {
+    const h = k => (m.no * k + 7) % 100;
+    m.joinEnv = h(37) < 60 ? 'MO' : 'PC';
+    m.loginEnv = h(53) < 65 ? 'MO' : 'PC';
+  });
+
   // 만 나이 (생일이 지나지 않았으면 1 빼기). 생일 미입력이면 null
   function ageOf(birth, now = new Date()) {
     if (!birth) return null;

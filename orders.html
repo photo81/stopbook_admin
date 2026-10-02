@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 주문 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261091">
+<link rel="stylesheet" href="admin.css?v=20261099">
 </head>
 <body>
 <div class="layout">
@@ -32,7 +32,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 주문관리 &gt; <b>주문 리스트</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v1.72 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v1.80 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -112,7 +112,7 @@
           <table class="order-table">
             <thead>
               <tr>
-                <th class="col-no">번호</th>
+                <th class="w-env" title="결제 기기 (PC / MO)">기기</th>
                 <th class="sortable w-dt" data-key="orderedAt">주문일시</th>
                 <th class="sortable w-name" data-key="name">주문자명</th>
                 <th class="w-email">이메일</th>
@@ -136,9 +136,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-data.js?v=20261091"></script>
-<script src="member-type-store.js?v=20261091"></script>
-<script src="order-data.js?v=20261091"></script>
+<script src="member-data.js?v=20261099"></script>
+<script src="member-type-store.js?v=20261099"></script>
+<script src="order-data.js?v=20261099"></script>
 <script>
 (function () {
   'use strict';
@@ -322,9 +322,8 @@
     const start = (state.page - 1) * state.size;
     $('totalCount').textContent = total.toLocaleString();
     $('allCount').textContent = ORDERS.length.toLocaleString();
-    // 번호: 현재 정렬 기준으로 위에서부터 큰 번호 (게시판식)
-    $('listBody').innerHTML = state.filtered.slice(start, start + state.size).map((o, i) => `<tr>
-        <td>${(total - start - i).toLocaleString()}</td>
+    $('listBody').innerHTML = state.filtered.slice(start, start + state.size).map(o => `<tr>
+        <td><span class="env-tag env-${o.env}" title="${o.env === 'MO' ? '모바일' : 'PC'}에서 결제">${o.env}</span></td>
         <td title="${o.orderedAt}">${o.orderedAt.slice(0, 16)}</td>
         <td>${esc(o.name)}</td>
         <td class="left ellip" title="${esc(o.email)}">${esc(o.email.split('@')[0])}</td>
@@ -383,7 +382,7 @@
   const payStatusText = o => (o.payStatus === '부분취소' ? `부분취소(${o.canceledItems})` : o.payStatus);
   // 주문 공통 열 (두 단위 모두 앞쪽에 들어감)
   const ORDER_HEAD_COLS = [
-    ['주문일시', o => o.orderedAt], ['주문번호', o => o.orderNo]
+    ['주문일시', o => o.orderedAt], ['주문번호', o => o.orderNo], ['결제환경', o => o.env]
   ];
   const BUYER_COLS = [
     ['주문자명', o => o.name], ['아이디', o => o.userId], ['이메일', o => o.email], ['휴대폰', o => '\t' + o.phone],   // 앞자리 0 유지
