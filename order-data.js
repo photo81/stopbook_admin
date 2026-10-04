@@ -37,6 +37,15 @@
   const LOG_KEY = 'stopbook.orderAdminLog.v1';
   let LOGS = {};
   try { LOGS = JSON.parse(localStorage.getItem(LOG_KEY)) || {}; } catch (e) { /* 저장소 사용 불가 시 기록 없음 */ }
+  // 관리자 입금처리 (미입금 주문 리스트 / 주문 상세 > 입금처리). 무통장입금 주문 중 입금대기 건을 관리자가 입금 확인 → 결제완료·주문 접수
+  // { [orderNo]: { method, amount, at, by } }  method = 입금받은 결제수단 (별도결제 포함), amount = 입금액
+  // TODO: 실서비스에서는 POST /api/admin/orders/{orderNo}/deposit
+  const DEPOSIT_KEY = 'stopbook.orderDeposits.v1';
+  let DEPOSITS = {};
+  try { DEPOSITS = JSON.parse(localStorage.getItem(DEPOSIT_KEY)) || {}; } catch (e) { /* 저장소 사용 불가 시 입금 내역 없음 */ }
+  // 결제수단 선택지: 주문 시 고객이 고르는 수단 + 별도결제(관리자 입금처리에서 계좌 외 방법으로 받은 경우)
+  // TODO: 실서비스에서는 결제 설정값
+  const PAY_METHODS = ['신용카드', '무통장입금', '계좌이체', '휴대폰결제', '네이버페이', '토스페이', '카카오페이', '별도결제'];
   const TYPE_GROUPS = MemberTypeStore.load();   // 회원 유형 관리 설정 (회원구분 무료배송·할인율, 등급 할인 혜택) — 한 번만 읽음
   const DISCOUNT_KINDS = ['쿠폰', '마일리지', '상품가할인', '배송비할인', '회원할인', '등급할인'];   // 할인금액 세부 항목
   // 방문수령(직접 수령) 장소. TODO: 실서비스에서는 쇼핑몰 설정값
@@ -58,7 +67,7 @@
   ];
   // 결제수단별 PG사 (샘플). TODO: 실서비스에서는 결제 내역의 PG사
   const PG_NAMES = { '신용카드': 'KG이니시스', '무통장입금': '가상계좌(KG이니시스)', '계좌이체': 'KG이니시스', '휴대폰결제': '다날',
-    '네이버페이': '네이버페이', '토스페이': '토스페이먼츠', '카카오페이': '카카오페이' };
+    '네이버페이': '네이버페이', '토스페이': '토스페이먼츠', '카카오페이': '카카오페이', '별도결제': '별도결제 (PG 미경유)' };
 
   MemberTypeStore.normalizeCategoryRefs(MemberData);   // 회원의 회원구분 code 정리 (회원구분 검색용)
   const NAMES = ['김서연', '이도윤', '박지우', '최하준', '정수아', '강지호', '조채원', '윤현우'];
@@ -306,8 +315,44 @@
     ord.payment = paymentOf(ord, m);
     ord.delivery = deliveryOf(ord, m);
     applyAddressEdits(ord);   // 관리자가 수정·추가한 배송지 반영
+    if (DEPOSITS[ord.orderNo]) applyDeposit(ord, DEPOSITS[ord.orderNo]);   // 관리자가 입금처리한 주문 → 결제완료·접수완료
     ORDERS.push(ord);
   }));
+
+  // ===== 입금처리 (미입금 주문 리스트 / 주문 상세) =====
+  // 미입금 주문: 무통장입금으로 주문하고 아직 입금하지 않은 건 (결제상태 입금대기). 주문접수 리스트에는 나오지 않음
+  const isUnpaid = ord => ord.payStatus === '입금대기';
+  // 입금처리 반영: 결제상태 입금대기 → 결제완료, 결제수단은 입금받은 수단, 결제일은 처리 시각,
+  //   상품 진행상태 접수대기 → 접수완료(주문 접수), 결제정보(적립·입금일시·PG 로그·증빙 발급상태)와 배송정보 다시 계산
+  //   (화면을 열 때 저장된 입금 내역을 반영할 때와 입금처리 직후 목록을 다시 그릴 때 같은 함수를 씀)
+  function applyDeposit(ord, dep) {
+    ord.deposit = dep;
+    ord.orderedPayMethod = ord.orderedPayMethod || ord.payMethod;   // 주문 시 결제수단(무통장입금) — 이력의 '주문 접수' 문구용
+    ord.payMethod = dep.method;
+    ord.paidAt = dep.at.slice(0, 10);
+    if (ord.payStatus === '입금대기') ord.payStatus = ord.cancelAmount ? '부분취소' : '결제완료';
+    if (ord.status === '접수대기') ord.status = '접수완료';
+    ord.items.forEach(it => {
+      if (it.payStatus === '입금대기') it.payStatus = '결제완료';
+      if (it.status === '접수대기') it.status = '접수완료';
+      if (it.flow && it.flow.status === '접수대기') it.flow.status = '접수완료';
+    });
+    ord.statusCounts = ITEM_STATUS_ORDER.map(st => [st, ord.items.filter(it => it.status === st).length]).filter(([, n]) => n);
+    ord.payment = paymentOf(ord, ord.member);
+    ord.delivery = deliveryOf(ord, ord.member);
+    applyAddressEdits(ord);
+  }
+  // 입금처리 저장 + 화면의 주문에 바로 반영. dep = { method, amount, by }. 반환: 저장 성공 여부
+  function confirmDeposit(orderNo, dep) {
+    const ord = ORDERS.find(o => o.orderNo === orderNo);
+    if (!ord || !isUnpaid(ord)) return false;
+    const rec = { method: dep.method, amount: dep.amount, at: nowText(), by: dep.by };
+    DEPOSITS[orderNo] = rec;
+    let saved = true;
+    try { localStorage.setItem(DEPOSIT_KEY, JSON.stringify(DEPOSITS)); } catch (e) { saved = false; }
+    applyDeposit(ord, rec);
+    return saved;
+  }
 
   // ===== 배송정보 (주문 상세 > 배송정보 탭) =====
   //   수령인: 수취인명·연락처·주소·배송 요청사항 (주소·요청사항은 샘플)
@@ -423,11 +468,15 @@
         ? `${ord.paidAt} ${pad2(9 + Math.floor(r() * 12))}:${pad2(Math.floor(r() * 60))}:${pad2(Math.floor(r() * 60))}`
         : ord.orderedAt;
     }
+    // 관리자 입금처리 주문: 입금일시 = 처리 시각, 승인번호 없음 (PG 승인이 아니라 관리자가 입금을 확인한 건)
+    if (ord.deposit) paidDateTime = ord.deposit.at;
     const tid = `${ord.payMethod === '휴대폰결제' ? 'DN' : 'INI'}${ord.orderNo.replace('-', '')}${String(Math.floor(r() * 9000) + 1000)}`;
+    const approvalNo = ord.paidAt ? String(10000000 + Math.floor(r() * 89999999)) : '';   // 난수 순서 유지
     const pgLog = {
       pg: PG_NAMES[ord.payMethod] || 'KG이니시스', tid,
-      approvalNo: ord.paidAt ? String(10000000 + Math.floor(r() * 89999999)) : '',
-      result: ord.payStatus === '입금대기' ? '가상계좌 발급 (입금 대기)' : ord.payStatus === '전체취소' ? '승인 취소' : '승인 성공'
+      approvalNo: ord.deposit ? '' : approvalNo,
+      result: ord.deposit ? `입금 확인 (관리자 입금처리 · ${ord.deposit.method} ${ord.deposit.amount.toLocaleString()}원)`
+        : ord.payStatus === '입금대기' ? '가상계좌 발급 (입금 대기)' : ord.payStatus === '전체취소' ? '승인 취소' : '승인 성공'
     };
     // 증빙발급: 현금성 결제(무통장입금·계좌이체)만 요청 가능
     //   현금영수증 — 소득공제(휴대폰 / 주민번호) 또는 지출증빙(사업자번호)
@@ -488,8 +537,9 @@
   }
 
   window.OrderData = {
-    ORDERS, TODAY, PROCESS_STEPS, PROCESS_GROUPS, ITEM_STATUS_ORDER,
+    ORDERS, TODAY, PROCESS_STEPS, PROCESS_GROUPS, ITEM_STATUS_ORDER, PAY_METHODS,
     find: orderNo => ORDERS.find(o => o.orderNo === orderNo) || null,
+    isUnpaid, confirmDeposit,
     saveCancel, restoreCancel, saveExtraRequest,
     adminLog, addMemo, updateMemo, deleteMemo, addHistory, systemHistory,
     saveAddress, deleteAddress, ADDRESS_FIELDS,
@@ -582,8 +632,9 @@
   function systemHistory(ord) {
     const p = ord.payment, d = ord.delivery, out = [];
     const add = (at, type, content) => { if (at) out.push({ at, type, content, by: '시스템' }); };
-    add(ord.orderedAt, '주문', `주문 접수 (${ord.payMethod}, 주문금액 ${ord.listPrice.toLocaleString()}원)`);
-    add(p.paidDateTime, '결제', ord.payMethod === '무통장입금' ? `입금 확인 (${p.total.toLocaleString()}원)` : `결제 승인 (${p.pgLog.pg}, 승인번호 ${p.pgLog.approvalNo})`);
+    add(ord.orderedAt, '주문', `주문 접수 (${ord.orderedPayMethod || ord.payMethod}, 주문금액 ${ord.listPrice.toLocaleString()}원)`);
+    add(p.paidDateTime, '결제', ord.deposit ? `입금 확인 (관리자 입금처리 · ${ord.deposit.method} ${ord.deposit.amount.toLocaleString()}원) → 주문 접수`
+      : ord.payMethod === '무통장입금' ? `입금 확인 (${p.total.toLocaleString()}원)` : `결제 승인 (${p.pgLog.pg}, 승인번호 ${p.pgLog.approvalNo})`);
     if (p.docType && p.docAt) add(p.docAt, '서류발급', `${p.docType}${p.docPurpose ? `(${p.docPurpose})` : ''} 발급 완료`);
     if (d.shippedAt) add(d.shippedAt, '배송', `집하 스캔 (${d.courier}${d.waybill ? ` ${d.waybill}` : ''})`);
     if (d.doneAt) add(d.doneAt, '배송', '배송 완료');

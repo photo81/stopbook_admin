@@ -266,7 +266,8 @@
     const days = Math.floor((base - new Date(o.at).getTime()) / 86400000);
     if (r() < 0.05) o.payStatus = '전체취소';
     else {
-      o.payStatus = o.payMethod === '무통장입금' && o.status === '접수완료' ? '입금대기' : '결제완료';
+      // 미입금: 무통장입금으로 주문한 지 7일 이내이고 제작 전(접수완료·제작중으로 뽑힌 건)이면 아직 입금 전인 것으로 → 미입금 주문 리스트 샘플
+      o.payStatus = o.payMethod === '무통장입금' && days <= 7 && ['접수완료', '제작중'].includes(o.status) ? '입금대기' : '결제완료';
       if (o.status === '배송중(전체)' && days >= 10 && r() < 0.85) o.status = '배송완료';
     }
     if (o.payStatus === '입금대기') o.status = '접수대기';

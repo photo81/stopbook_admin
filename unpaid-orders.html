@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>스탑북 관리자 - 주문접수 리스트</title>
+<title>스탑북 관리자 - 미입금 주문 리스트</title>
 <link rel="stylesheet" href="admin.css?v=20261104">
 </head>
 <body>
@@ -23,8 +23,8 @@
       <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="orders.html" class="active" aria-current="page">주문접수 리스트</a></li>
-          <li><a href="unpaid-orders.html">미입금 주문 리스트</a></li>
+          <li><a href="orders.html">주문접수 리스트</a></li>
+          <li><a href="unpaid-orders.html" class="active" aria-current="page">미입금 주문 리스트</a></li>
         </ul>
       </li>
     </ul>
@@ -32,14 +32,14 @@
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 주문관리 &gt; <b>주문접수 리스트</b></div>
+      <div class="breadcrumb">홈 &gt; 주문관리 &gt; <b>미입금 주문 리스트</b></div>
       <div><span class="proto-ver" data-proto-version>프로토타입 v1.86 (2026-10-04)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>주문접수 리스트</h1>
+      <h1>미입금 주문 리스트</h1>
 
-      <!-- 검색 조건: 검색어 + 기간이 기본, 상세검색은 접어 둠 -->
+      <!-- 검색 조건: 주문접수 리스트와 같음 (결제수단·결제상태는 무통장입금·입금대기로 정해져 있어 상세검색에서 뺌) -->
       <form class="panel" id="searchForm" novalidate>
         <div class="search-row">
           <div class="search-grid order-search">
@@ -61,8 +61,6 @@
               <label for="sDateType">기간</label>
               <select id="sDateType" style="flex:0 0 100px">
                 <option value="orderedAt">주문일</option>
-                <option value="paidAt">결제일</option>
-                <option value="shippedAt">배송시작일</option>
               </select>
               <div class="range">
                 <input type="date" id="sFrom" aria-label="기간 시작"> ~ <input type="date" id="sTo" aria-label="기간 종료">
@@ -85,21 +83,21 @@
         <button type="button" class="detail-toggle" id="btnDetail" aria-expanded="false" aria-controls="detailSearch">
           상세검색 <span id="detailCount"></span><span class="chev">▼</span>
         </button>
-        <!-- 상세검색: 드롭다운 안에서 여러 값을 체크 (아무것도 고르지 않으면 전체). 선택지는 order-list.js에서 구성 -->
         <div class="search-grid detail-search" id="detailSearch" hidden></div>
       </form>
 
-      <!-- 주문 목록: 결제가 끝난(입금 확인된) 주문. 무통장입금 미입금 건은 미입금 주문 리스트에 따로 표시 -->
+      <!-- 미입금 주문 목록: 무통장입금으로 주문하고 아직 입금하지 않은 건 (결제상태 입금대기)
+           형식은 주문접수 리스트와 같고 맨 오른쪽 관리 열에 입금처리 버튼. 입금처리하면 결제완료·주문 접수되어 주문접수 리스트로 이동 -->
       <section class="panel">
         <div class="list-head">
-          <div class="count">검색결과 <b id="totalCount">0</b>건 / 전체 <span id="allCount">0</span>건 <span id="listGuide"></span></div>
+          <div class="count">검색결과 <b id="totalCount">0</b>건 / 전체 <span id="allCount">0</span>건 <span id="listGuide"></span>
+            <span class="muted">· 입금을 확인하면 입금처리를 눌러 주세요. 처리한 주문은 주문접수 리스트로 이동합니다.</span></div>
           <div class="right">
             <select id="pageSize">
               <option value="10" selected>10개씩</option>
               <option value="20">20개씩</option>
               <option value="50">50개씩</option>
             </select>
-            <!-- 엑셀 다운로드: 누르면 단위 선택 -->
             <div class="dl-wrap">
               <button type="button" class="btn btn-excel" id="btnExcel" aria-haspopup="menu" aria-expanded="false" aria-controls="dlMenu">엑셀 다운로드 ▾</button>
               <div class="dl-menu" id="dlMenu" role="menu" hidden>
@@ -125,6 +123,7 @@
                 <th class="sortable w-amt" data-key="amount">결제금액</th>
                 <th class="w-pay">결제수단</th>
                 <th class="w-st">결제상태</th>
+                <th class="w-act">관리</th>
               </tr>
             </thead>
             <tbody id="listBody"></tbody>
@@ -143,6 +142,6 @@
 <script src="order-data.js?v=20261104"></script>
 <script src="deposit-modal.js?v=20261104"></script>
 <script src="order-list.js?v=20261104"></script>
-<script>OrderList.init({ mode: 'accepted' });</script>
+<script>OrderList.init({ mode: 'unpaid' });</script>
 </body>
 </html>

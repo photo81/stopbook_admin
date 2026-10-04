@@ -23,7 +23,8 @@
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="orders.html">주문 리스트</a></li>
+          <li><a href="orders.html">주문접수 리스트</a></li>
+          <li><a href="unpaid-orders.html">미입금 주문 리스트</a></li>
         </ul>
       </li>
     </ul>
@@ -134,15 +135,17 @@
             <thead>
               <tr>
                 <th class="sortable col-no" data-key="no">번호</th>
-                <th class="sortable" data-key="category">회원구분</th>
-                <th class="sortable" data-key="memberType">가입유형</th>
                 <th class="sortable" data-key="name">이름</th>
                 <th>이메일</th>
                 <th>휴대폰</th>
                 <th class="sortable" data-key="userId">아이디</th>
-                <th class="sortable" data-key="grade">회원등급</th>                <th>마케팅</th>
+                <th class="sortable" data-key="category">회원구분</th>
+                <th class="sortable" data-key="memberType">가입유형</th>
+                <th class="sortable" data-key="grade">회원등급</th>
+                <th>마케팅</th>
                 <th class="sortable" data-key="joinDate">가입일</th>
-                <th class="sortable" data-key="lastLogin">최근접속일</th>              </tr>
+                <th class="sortable" data-key="lastLogin">최근접속일</th>
+              </tr>
             </thead>
             <tbody id="memberBody"></tbody>
           </table>
@@ -547,7 +550,8 @@
   const categoryText = (label, sub) => (sub ? `${label} > ${sub}` : label);
   // 배지 색: 기본 구분은 이름이 바뀌어도 같은 색 (admin.css .ct-일반 / .ct-단체), 그 외는 기본 점
   const catClass = code => (code === 'normal' ? '일반' : code === 'group' ? '단체' : 'etc');
-  const catBadge = m => `<span class="badge ct-${catClass(m.categoryCode)}">${esc(catLabel(m))}</span>${m.subCategory ? `<span class="cat-sub">${esc(m.subCategory)}</span>` : ''}`;
+  // 목록에는 구분만 표시 (종류는 회원 상세의 구분 > 종류에서 확인. 말풍선으로만 보여줌)
+  const catBadge = m => `<span class="badge ct-${catClass(m.categoryCode)}"${m.subCategory ? ` title="종류: ${esc(m.subCategory)}"` : ''}>${esc(catLabel(m))}</span>`;
   // 검색: 숨긴 구분의 회원도 찾을 수 있도록 모두 표시
   $('sCategory').innerHTML += CAT_TREE.map(c => `<option value="${esc(c.code)}">${esc(c.label)}${c.hidden ? ' (숨김)' : ''}</option>`).join('');
 
@@ -647,15 +651,17 @@
     $('memberBody').innerHTML = rows.length ? rows.map(m => `
       <tr>
         <td>${m.no}</td>
-        <td>${catBadge(m)}</td>
-        <td>${typeBadge(m.memberType)}</td>
         <td><a class="name-link" data-no="${m.no}">${esc(m.name)}</a></td>
         <td class="left email" title="${esc(m.email)}">${esc(m.email)}</td>
         <td>${esc(m.phone)}</td>
         <td>${esc(m.userId)}</td>
-        <td><span class="badge gr-${GRADE_ORDER.indexOf(m.grade)}">${m.grade}</span></td>        <td>${mkDot('SMS', m.marketingSms)} ${mkDot('메일', m.marketingEmail)}</td>
+        <td>${catBadge(m)}</td>
+        <td>${typeBadge(m.memberType)}</td>
+        <td><span class="badge gr-${GRADE_ORDER.indexOf(m.grade)}">${m.grade}</span></td>
+        <td>${mkDot('SMS', m.marketingSms)} ${mkDot('메일', m.marketingEmail)}</td>
         <td>${m.joinDate}</td>
-        <td>${m.lastLogin}</td>      </tr>`).join('')
+        <td>${m.lastLogin}</td>
+      </tr>`).join('')
       : '<tr><td colspan="11" class="empty">검색 결과가 없습니다.</td></tr>';
 
     document.querySelectorAll('th.sortable').forEach(th => {

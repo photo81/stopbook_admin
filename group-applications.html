@@ -23,7 +23,8 @@
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="orders.html">주문 리스트</a></li>
+          <li><a href="orders.html">주문접수 리스트</a></li>
+          <li><a href="unpaid-orders.html">미입금 주문 리스트</a></li>
         </ul>
       </li>
     </ul>
@@ -321,7 +322,7 @@
     const showProcessed = filter !== '대기';
     // 회원구분 열: 대기·반려 탭은 고객이 신청한 구분, 승인·해제·만료 탭은 관리자가 승인한 구분 (전체 탭은 건별 상태에 따름)
     const catHead = filter === '대기' || filter === '반려' ? '회원구분 (신청)' : filter === '전체' ? '회원구분' : '회원구분 (승인)';
-    const heads = ['번호', '가입유형', '이름', '이메일', catHead, '신청일시', ...(showProcessed ? ['처리일시'] : []), '상태', '관리'];
+    const heads = ['번호', '신청일시', ...(showProcessed ? ['처리일시'] : []), catHead, '가입유형', '이름', '이메일', '상태', '관리'];
     $('headRow').innerHTML = heads.map(h =>
       `<th${h === '번호' ? ' class="col-no"' : h === '관리' ? ' style="width:72px"' : ''}>${h}</th>`).join('');
 
@@ -329,12 +330,12 @@
       const m = memberOf(a);
       return `<tr>
         <td>${a.appNo}</td>
+        <td>${a.appliedAt}</td>
+        ${showProcessed ? `<td>${processedTime(a) || '<span class="muted">-</span>'}</td>` : ''}
+        <td>${catBadge(shownCategory(a))}</td>
         <td>${typeBadge(m.memberType)}</td>
         <td><b>${esc(m.name)}</b></td>
         <td class="email" title="${esc(m.email)}">${esc(m.email)}</td>
-        <td>${catBadge(shownCategory(a))}</td>
-        <td>${a.appliedAt}</td>
-        ${showProcessed ? `<td>${processedTime(a) || '<span class="muted">-</span>'}</td>` : ''}
         <td>${statusBadge(a.status)}</td>
         <td><button type="button" class="btn btn-sm ${a.status === '대기' ? 'btn-primary' : ''}" data-app="${a.appNo}">확인</button></td>
       </tr>`;
