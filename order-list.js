@@ -1,8 +1,10 @@
-// 주문 목록 화면 공용 스크립트 (주문접수 리스트 orders.html / 미입금 주문 리스트 unpaid-orders.html)
+// 주문 목록 화면 공용 스크립트 (주문접수 리스트 orders.html / 미입금 주문 리스트 unpaid-orders.html / 후결제 주문 리스트 postpay-orders.html)
 // member-type-store.js, member-data.js, order-data.js, deposit-modal.js 다음에 로드하고 OrderList.init({ mode }) 호출
-//   mode 'accepted': 결제가 끝난 주문 (미입금 제외)
+//   mode 'accepted': 접수된 주문 전부 (미입금만 제외. 후결제 주문은 접수 즉시 여기에도 나옴)
 //   mode 'unpaid':   무통장입금 미입금 주문 (결제상태 입금대기). 맨 오른쪽 관리 열에 입금처리 버튼 → 처리하면 목록에서 빠져 주문접수 리스트로 이동
-// 두 화면의 검색 조건·목록·엑셀 구성은 같고, 화면별 HTML(검색 폼·표)은 각 파일에 둠
+//   mode 'postpay':  후결제 주문 전부 (선결제 없이 주문, 상품 수령 후 결제). 구성은 미입금과 같고 후결제대기 건에만 입금처리 버튼
+//                    → 처리하면 결제상태(결제완료)·결제수단(입금받은 수단)이 바뀌어 이 목록과 주문접수 리스트에 같이 반영 (목록에서 빠지지 않음)
+// 세 화면의 검색 조건·목록·엑셀 구성은 같고, 화면별 HTML(검색 폼·표)은 각 파일에 둠
 (function () {
   'use strict';
   const { toast, initSidebar } = AdminUtil;
@@ -13,10 +15,11 @@
   const won = n => `${Number(n).toLocaleString()}원`;
 
   function init({ mode }) {
-    const unpaid = mode === 'unpaid';
+    const unpaid = mode !== 'accepted';   // 미입금·후결제: 입금처리 대상 목록 (관리 열 표시)
+    const postpay = mode === 'postpay';
     // ===== 주문 데이터: order-data.js (주문 상세와 공유) =====
     const { ORDERS, TODAY } = OrderData;
-    const source = () => ORDERS.filter(o => OrderData.isUnpaid(o) === unpaid);
+    const source = () => ORDERS.filter(postpay ? OrderData.isPostpayOrder : unpaid ? OrderData.isUnpaid : o => !OrderData.isUnpaid(o));
 
     // ===== 상세검색 항목 (다중 선택) =====
     // 회원구분 선택지는 회원 유형 관리 > 회원구분 탭의 항목 (회원 리스트와 같은 방식, 숨긴 구분도 검색 가능)
@@ -24,12 +27,13 @@
     // TODO: 결제수단·입금상태·진행상태·배송방법 선택지는 실서비스에서 주문 설정값으로 대체
     const CAT_TREE = MemberTypeStore.categoryTree();
     const DETAIL_FIELDS = [
-      ...(unpaid ? [] : [
-        { key: 'payMethod', label: '결제수단', options: OrderData.PAY_METHODS.map(v => [v, v]) },
-        { key: 'payStatus', label: '결제상태', options: ['결제완료', '부분취소', '전체취소'].map(v => [v, v]) }
+      ...(unpaid && !postpay ? [] : [
+        ...(postpay ? [] : [{ key: 'payMethod', label: '결제수단', options: OrderData.PAY_METHODS.map(v => [v, v]) }]),
+        // 후결제대기·부분결제: 후결제 주문 중 입금 전·일부 입금 (주문접수 리스트에도 나오므로 두 화면 모두 선택지에 둠)
+        { key: 'payStatus', label: '결제상태', options: ['후결제대기', '부분결제', '결제완료', '부분취소', '전체취소'].map(v => [v, v]) }
       ]),
-      // 제작상태: 상품별 진행상태. 고른 상태의 상품이 하나라도 있는 주문을 찾음
-      { key: 'status', label: '제작상태', options: (unpaid ? ['접수대기'] : OrderData.ITEM_STATUS_ORDER).map(v => [v, v]) },
+      // 제작상태: 상품별 진행상태. 고른 상태의 상품이 하나라도 있는 주문을 찾음 (미입금은 입금 전이라 접수대기뿐, 후결제는 제작·배송이 진행됨)
+      { key: 'status', label: '제작상태', options: (unpaid && !postpay ? ['접수대기'] : OrderData.ITEM_STATUS_ORDER).map(v => [v, v]) },
       { key: 'category', label: '회원구분', options: CAT_TREE.map(c => [c.code, c.label + (c.hidden ? ' (숨김)' : '')]) },
       { key: 'inquiry', label: '상담여부', options: [['Y', '있음'], ['W', '답변대기'], ['N', '없음']] },
       { key: 'shipMethod', label: '배송방법', options: ['택배', '방문수령', '퀵서비스'].map(v => [v, v]) }
@@ -150,8 +154,29 @@
     // 상품명 검색은 주문의 모든 상품명(productNames)에서 찾음 ('마이트립북 외 2종'의 나머지 상품도 검색됨)
     const KEYWORD_FIELDS = ['orderNo', 'name', 'recipient', 'userId', 'email', 'phone', 'productNames'];
     const DATE_KEY = { orderedAt: 'orderDate', paidAt: 'paidAt', shippedAt: 'shippedAt' };
-    const state = { filtered: [], page: 1, size: 10, sortKey: 'orderedAt', sortDir: 'desc', search: null };
+    const state = { filtered: [], page: 1, size: 10, sortKey: 'orderedAt', sortDir: 'desc', search: null, tab: 'all' };
     const inSet = (list, v) => !list || !list.length || list.includes(v);
+
+    // ===== 입금 상태 탭 (후결제 주문 리스트: 전체 / 입금대기 / 입금완료) =====
+    // 검색 조건과 함께 적용. 탭 건수는 검색 결과 기준. 입금처리하면 입금대기 → 입금완료 탭으로 옮겨감
+    const TABS = $('statusTabs') ? [
+      { key: 'all', label: '전체', test: () => true },
+      { key: 'waiting', label: '입금대기', test: o => OrderData.isWaiting(o) },
+      { key: 'done', label: '입금완료', test: o => !OrderData.isWaiting(o) }
+    ] : null;
+    function renderTabs(base) {
+      if (!TABS) return;
+      $('statusTabs').innerHTML = TABS.map(t => `
+        <button type="button" role="tab" class="tab ${t.key === state.tab ? 'active' : ''}" aria-selected="${t.key === state.tab}" data-status="${t.key}">
+          ${t.label} <span class="tab-count">${base.filter(t.test).length.toLocaleString()}</span></button>`).join('');
+    }
+    if (TABS) $('statusTabs').addEventListener('click', e => {
+      const b = e.target.closest('[data-status]');
+      if (!b) return;
+      state.tab = b.dataset.status;
+      state.page = 1;
+      refilter();
+    });
 
     function applySearch(s) {
       state.search = s;
@@ -167,12 +192,15 @@
       const kw = s.keyword.toLowerCase().replace(/-/g, '');
       const fields = s.type === 'all' ? KEYWORD_FIELDS : [s.type === 'product' ? 'productNames' : s.type];
       const dk = DATE_KEY[s.dateType];
-      state.filtered = source().filter(o =>
+      const base = source().filter(o =>
         (!kw || fields.some(f => String(o[f]).toLowerCase().replace(/-/g, '').includes(kw))) &&
         (!(s.from || s.to) || (o[dk] && (!s.from || o[dk] >= s.from) && (!s.to || o[dk] <= s.to))) &&   // 결제·발송 전 주문은 해당 기간 검색에서 제외
         inSet(s.payMethod, o.payMethod) && inSet(s.payStatus, o.payStatus) && (!s.status.length || o.statusCounts.some(([st]) => s.status.includes(st))) &&
         inSet(s.category, o.categoryCode) && inSet(s.inquiry, o.inquiry) && inSet(s.shipMethod, o.shipMethod)
       );
+      renderTabs(base);
+      const tab = TABS && TABS.find(t => t.key === state.tab);
+      state.filtered = tab ? base.filter(tab.test) : base;
       sortData();
       render();
     }
@@ -212,8 +240,9 @@
           <td class="num"><b>${won(o.amount)}</b></td>
           <td class="c-pay">${esc(o.payMethod)}</td>
           <td>${payCell(o)}</td>
-          ${unpaid ? `<td class="c-act"><button type="button" class="btn btn-xs btn-primary" data-deposit="${esc(o.orderNo)}">입금처리</button></td>` : ''}
-        </tr>`).join('') || `<tr><td colspan="${COLS}" class="empty">${unpaid && !source().length ? '미입금 주문이 없습니다.' : '검색 결과가 없습니다.'}</td></tr>`;
+          ${postpay ? `<td class="c-act"><button type="button" class="btn btn-xs ${OrderData.isWaiting(o) ? 'btn-primary' : ''}" data-deposit="${esc(o.orderNo)}">입금관리</button></td>`
+            : unpaid ? `<td class="c-act">${OrderData.isWaiting(o) ? `<button type="button" class="btn btn-xs btn-primary" data-deposit="${esc(o.orderNo)}">입금처리</button>` : '<span class="muted">입금완료</span>'}</td>` : ''}
+        </tr>`).join('') || `<tr><td colspan="${COLS}" class="empty">${unpaid && !source().length ? `${postpay ? '후결제' : '미입금'} 주문이 없습니다.` : '검색 결과가 없습니다.'}</td></tr>`;
 
       document.querySelectorAll('.order-table th.sortable').forEach(th => {
         const active = th.dataset.key === state.sortKey;
@@ -263,8 +292,9 @@
       if (b && !b.disabled) { state.page = Number(b.dataset.page); render(); }
     });
 
-    // ===== 입금처리 (미입금 주문 리스트 > 관리 > 입금처리) =====
-    // 모달에서 결제수단·입금액 입력 → 결제완료·주문 접수 → 이 목록에서 빠지고 주문접수 리스트에 나타남
+    // ===== 입금처리 / 입금관리 (미입금·후결제 주문 리스트 > 관리) =====
+    // 미입금: 입금처리 모달에서 결제수단·입금액·입금일시 입력 → 결제완료·주문 접수 → 이 목록에서 빠지고 주문접수 리스트로
+    // 후결제: 입금관리 모달에서 사업자 정보·입금 내역을 보고 입금을 등록 (분할 가능) → 결제완료/부분결제. 이 목록에 남고 주문접수 리스트에도 반영
     if (unpaid) $('listBody').addEventListener('click', e => {
       const b = e.target.closest('[data-deposit]');
       if (!b) return;
@@ -279,7 +309,7 @@
     // 단위 선택: 주문번호 단위(주문 1건 = 1행) / 상품 제작번호 단위(주문 상품 1개 = 1행, 주문 정보는 상품마다 반복)
     const catName = code => { const c = CAT_TREE.find(x => x.code === code); return c ? c.label : ''; };
     const payStatusText = o => (o.payStatus === '부분취소' ? `부분취소(${o.canceledItems})` : o.payStatus);
-    const FILE_PREFIX = unpaid ? '미입금' : '';
+    const FILE_PREFIX = postpay ? '후결제' : unpaid ? '미입금' : '';
     // 주문 공통 열 (두 단위 모두 앞쪽에 들어감)
     const ORDER_HEAD_COLS = [
       ['주문일시', o => o.orderedAt], ['주문번호', o => o.orderNo], ['결제환경', o => o.env]

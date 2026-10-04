@@ -25,6 +25,7 @@
         <ul class="submenu">
           <li><a href="orders.html" class="active" aria-current="page">주문접수 리스트</a></li>
           <li><a href="unpaid-orders.html">미입금 주문 리스트</a></li>
+          <li><a href="postpay-orders.html">후결제 주문 리스트</a></li>
         </ul>
       </li>
     </ul>
@@ -123,7 +124,7 @@
           <!-- 선택 상품 처리 -->
           <div class="item-actions">
             <span class="readonly" id="selCount"></span>
-            <!-- 입금처리: 무통장입금 미입금(입금대기) 주문에서만 표시. 결제수단·입금액 입력 → 결제완료·주문 접수 -->
+            <!-- 입금처리: 미입금(입금대기)·후결제(후결제대기) 주문에서만 표시. 결제수단·입금액·입금일시 입력 → 결제완료 (미입금은 주문 접수까지) -->
             <button type="button" class="btn btn-primary" id="btnDeposit" hidden>입금처리</button>
             <button type="button" class="btn" id="btnRestoreItems">취소원복</button>
             <button type="button" class="btn btn-danger" id="btnCancelItems">주문취소</button>
@@ -484,7 +485,7 @@
         <td class="num">${won(q.amount)}</td></tr>`),
       payRow('취소금액', amt(pay.cancel, '−'), o.payStatus === '전체취소' ? '전체취소 (배송비·추가결제 포함)' : o.canceledItems ? `상품 ${o.canceledItems}건 취소` : ''),
       payRow('적립금액', pay.point ? `${won(pay.point)}` : `<span class="muted">${won(0)}</span>`,
-        pay.point ? '총 결제금액의 1% · 결제금액에 포함되지 않음' : o.payStatus === '입금대기' ? '입금 후 적립' : '적립 없음', 'pay-row-point')
+        pay.point ? '총 결제금액의 1% · 결제금액에 포함되지 않음' : OrderData.isWaiting(o) ? '입금 후 적립' : '적립 없음', 'pay-row-point')
     ].join('');
 
     // ----- 추가결제 생성 모달 -----
@@ -1011,8 +1012,8 @@
       $('cAmount').value = sumOf('paid').toLocaleString();
       $('cAmount').dataset.max = sumOf('paid');
       $('cAmountHint').textContent = `최대 ${won(sumOf('paid'))} (비우면 결제금액 전액)`;
-      $('cRefund').innerHTML = (o.payStatus === '입금대기'
-        ? ['환불 없음 (미입금)']
+      $('cRefund').innerHTML = (OrderData.isWaiting(o)
+        ? [o.payStatus === '후결제대기' ? '환불 없음 (후결제 미입금)' : o.payStatus === '부분결제' ? '계좌 환불 (부분결제 입금분)' : '환불 없음 (미입금)']
         : [`원결제수단 (${o.payMethod})`, '계좌 환불', '마일리지 환불']).map(v => `<option>${esc(v)}</option>`).join('');
       $('cMemo').value = '';
       $('cErr').classList.remove('show');
@@ -1079,9 +1080,12 @@
       location.replace(`order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}&restored=${idxs.length}`);
     });
 
-    // ===== 입금처리 (무통장입금 미입금 주문만) =====
-    // 결제수단·입금액을 입력하면 결제완료·주문 접수 → 다시 불러 결제정보·진행상태에 반영
-    $('btnDeposit').hidden = !OrderData.isUnpaid(o);
+    // ===== 입금처리(미입금) / 입금관리(후결제) =====
+    // 미입금: 결제수단·입금액·입금일시를 입력하면 결제완료·주문 접수. 후결제: 사업자 정보·입금 내역 확인 + 입금 등록(분할 가능) → 결제완료/부분결제
+    // 처리 후 다시 불러 결제정보·진행상태에 반영
+    const postpayOrder = OrderData.isPostpayOrder(o);
+    $('btnDeposit').hidden = !(postpayOrder || OrderData.isUnpaid(o));
+    $('btnDeposit').textContent = postpayOrder ? '입금관리' : '입금처리';
     $('btnDeposit').addEventListener('click', () => {
       DepositModal.open(o, () => location.replace(`order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}&deposited=1`));
     });
@@ -1090,7 +1094,7 @@
     const qs = new URLSearchParams(location.search);
     const done = qs.get('canceled') ? `${qs.get('canceled')}건을 주문취소했습니다.`
       : qs.get('restored') ? `${qs.get('restored')}건의 취소를 원복했습니다.`
-      : qs.get('deposited') ? '입금처리했습니다. 결제완료로 바뀌고 주문이 접수되었습니다.'
+      : qs.get('deposited') ? '입금을 등록했습니다. 결제정보에 반영되었습니다.'
       : qs.get('extra') ? `추가결제 ${won(Number(qs.get('extra')))}를 생성했습니다. (결제대기)`
       : qs.get('addr') ? { add: '배송지를 추가했습니다.', edit: '배송지를 수정했습니다.', del: '추가 배송지를 삭제했습니다.' }[qs.get('addr')] || '' : '';
     if (done) {
@@ -1100,9 +1104,9 @@
       try { history.replaceState(null, '', `order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}`); } catch (err) { /* file:// 등 */ }
     }
   }
-  // 목록: 주문접수·미입금 주문 리스트에서 왔으면 뒤로 가기(검색 조건·페이지 유지), 아니면 주문접수 리스트로 이동
+  // 목록: 주문접수·미입금·후결제 주문 리스트에서 왔으면 뒤로 가기(검색 조건·페이지 유지), 아니면 주문접수 리스트로 이동
   $('btnList').addEventListener('click', e => {
-    if (document.referrer && /\/(orders|unpaid-orders)\.html/.test(document.referrer) && history.length > 1) { e.preventDefault(); history.back(); }
+    if (document.referrer && /\/(orders|unpaid-orders|postpay-orders)\.html/.test(document.referrer) && history.length > 1) { e.preventDefault(); history.back(); }
   });
   AdminUtil.initSidebar();
 })();

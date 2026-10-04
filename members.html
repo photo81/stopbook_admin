@@ -25,6 +25,7 @@
         <ul class="submenu">
           <li><a href="orders.html">주문접수 리스트</a></li>
           <li><a href="unpaid-orders.html">미입금 주문 리스트</a></li>
+          <li><a href="postpay-orders.html">후결제 주문 리스트</a></li>
         </ul>
       </li>
     </ul>
@@ -324,6 +325,8 @@
                 <input type="date" id="fPostpayFrom" aria-label="후불 결제 시작일"> ~
                 <input type="date" id="fPostpayTo" aria-label="후불 결제 종료일">
               </span>
+              <!-- 후불 결제는 단체 회원만 설정 가능 (다른 구분이면 '적용' 선택 불가) -->
+              <span class="readonly" id="postpayNote"></span>
             </div>
             <div class="err" id="ePostpay"></div>
           </td>
@@ -597,7 +600,7 @@
   $('fGrade').addEventListener('change', renderGradeDesc);
 
   // 구분을 바꾸면 종류는 새로 고르도록 비움
-  $('fCategory').addEventListener('change', () => fillSubSelect(''));
+  $('fCategory').addEventListener('change', () => { fillSubSelect(''); syncPostpay(); });   // 구분을 바꾸면 종류 초기화 + 후불 결제 가능 여부 갱신
 
   // ===== 검색 =====
   function applyFilter() {
@@ -1321,10 +1324,17 @@
   }
 
   // ===== 후불 결제 (적용 시 기간 필수) =====
+  // 후불 결제는 단체(code: group) 구분 회원만 적용 가능 → 상세에서 고른 구분이 단체가 아니면 '적용'을 고를 수 없고 미적용으로 바뀜
+  // (후결제 주문은 이 설정이 적용된 회원만 할 수 있음 → 주문관리 > 후결제 주문 리스트)
+  const POSTPAY_CATEGORY = 'group';
   const postpayText = p => (p.postpay === 'Y' ? `적용 (${p.postpayFrom} ~ ${p.postpayTo})` : '미적용');
 
   function syncPostpay() {
+    const allowed = $('fCategory').value === POSTPAY_CATEGORY;
+    $('fPostpayY').disabled = !allowed;
+    if (!allowed) $('fPostpayN').checked = true;
     $('postpayRange').hidden = !$('fPostpayY').checked;
+    $('postpayNote').textContent = allowed ? '' : `후불 결제는 ${MemberTypeStore.categoryName(POSTPAY_CATEGORY) || '단체'} 회원만 적용할 수 있습니다.`;
     $('ePostpay').classList.remove('show');
   }
 

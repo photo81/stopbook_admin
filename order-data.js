@@ -37,15 +37,20 @@
   const LOG_KEY = 'stopbook.orderAdminLog.v1';
   let LOGS = {};
   try { LOGS = JSON.parse(localStorage.getItem(LOG_KEY)) || {}; } catch (e) { /* 저장소 사용 불가 시 기록 없음 */ }
-  // 관리자 입금처리 (미입금 주문 리스트 / 주문 상세 > 입금처리). 무통장입금 주문 중 입금대기 건을 관리자가 입금 확인 → 결제완료·주문 접수
-  // { [orderNo]: { method, amount, at, by } }  method = 입금받은 결제수단 (별도결제 포함), amount = 입금액
-  // TODO: 실서비스에서는 POST /api/admin/orders/{orderNo}/deposit
-  const DEPOSIT_KEY = 'stopbook.orderDeposits.v1';
+  // 관리자 입금 내역 (미입금 주문 리스트 > 입금처리 / 후결제 주문 리스트 > 입금관리 / 주문 상세)
+  //   미입금(무통장입금 입금대기): 입금 1건 → 결제완료·주문 접수
+  //   후결제: 분할 입금 가능. 입금 합계가 총 결제금액 이상이면 결제완료, 일부면 부분결제
+  // { [orderNo]: { payments: [{ at(입금일시), method(입금받은 결제수단, 별도결제 포함), amount(입금액), memo(관리자 메모), by, processedAt }] } }
+  // TODO: 실서비스에서는 GET/POST /api/admin/orders/{orderNo}/deposits
+  const DEPOSIT_KEY = 'stopbook.orderDeposits.v2';   // v1: 입금 1건 { method, amount, at, by } / v2: 분할 입금 payments[] + memo
   let DEPOSITS = {};
   try { DEPOSITS = JSON.parse(localStorage.getItem(DEPOSIT_KEY)) || {}; } catch (e) { /* 저장소 사용 불가 시 입금 내역 없음 */ }
-  // 결제수단 선택지: 주문 시 고객이 고르는 수단 + 별도결제(관리자 입금처리에서 계좌 외 방법으로 받은 경우)
+  // 결제수단 선택지: 주문 시 고객이 고르는 수단 + 후결제(후불 결제 회원, 상품 수령 후 결제) + 별도결제(관리자 입금처리에서 계좌 외 방법으로 받은 경우)
+  // DEPOSIT_METHODS: 입금처리 모달에서 고르는 '입금받은 수단' (후결제는 받는 방법이 아니므로 제외)
   // TODO: 실서비스에서는 결제 설정값
-  const PAY_METHODS = ['신용카드', '무통장입금', '계좌이체', '휴대폰결제', '네이버페이', '토스페이', '카카오페이', '별도결제'];
+  const PAY_METHODS = ['신용카드', '무통장입금', '계좌이체', '휴대폰결제', '네이버페이', '토스페이', '카카오페이', '후결제', '별도결제'];
+  const DEPOSIT_METHODS = PAY_METHODS.filter(m => m !== '후결제');
+  const WAITING = ['입금대기', '후결제대기', '부분결제'];   // 아직 결제가 끝나지 않은 결제상태 (미입금 / 후결제 입금 전 / 후결제 일부 입금)
   const TYPE_GROUPS = MemberTypeStore.load();   // 회원 유형 관리 설정 (회원구분 무료배송·할인율, 등급 할인 혜택) — 한 번만 읽음
   const DISCOUNT_KINDS = ['쿠폰', '마일리지', '상품가할인', '배송비할인', '회원할인', '등급할인'];   // 할인금액 세부 항목
   // 방문수령(직접 수령) 장소. TODO: 실서비스에서는 쇼핑몰 설정값
@@ -67,7 +72,7 @@
   ];
   // 결제수단별 PG사 (샘플). TODO: 실서비스에서는 결제 내역의 PG사
   const PG_NAMES = { '신용카드': 'KG이니시스', '무통장입금': '가상계좌(KG이니시스)', '계좌이체': 'KG이니시스', '휴대폰결제': '다날',
-    '네이버페이': '네이버페이', '토스페이': '토스페이먼츠', '카카오페이': '카카오페이', '별도결제': '별도결제 (PG 미경유)' };
+    '네이버페이': '네이버페이', '토스페이': '토스페이먼츠', '카카오페이': '카카오페이', '후결제': '후결제 (PG 미경유)', '별도결제': '별도결제 (PG 미경유)' };
 
   MemberTypeStore.normalizeCategoryRefs(MemberData);   // 회원의 회원구분 code 정리 (회원구분 검색용)
   const NAMES = ['김서연', '이도윤', '박지우', '최하준', '정수아', '강지호', '조채원', '윤현우'];
@@ -279,7 +284,10 @@
     // 할인: 쿠폰·마일리지 등 (주문금액 = 결제금액 + 할인금액)
     const discount = r() < 0.4 ? Math.min(Math.floor(o.amount * 0.3 / 500) * 500, (2 + Math.floor(r() * 9)) * 500) : 0;
     const ordered = new Date(o.at);
-    const paidAt = o.payStatus === '입금대기' ? '' : o.payMethod === '무통장입금' ? fmtDate(new Date(Math.min(ordered.getTime() + DAY, TODAY.getTime()))) : o.at;
+    // 결제일: 입금대기·후결제대기는 없음 / 무통장입금은 다음 날 / 후결제(결제완료)는 배송 후 결제 → 주문 7일 뒤 / 그 외는 주문일
+    const paidAt = WAITING.includes(o.payStatus) ? ''
+      : o.payMethod === '무통장입금' ? fmtDate(new Date(Math.min(ordered.getTime() + DAY, TODAY.getTime())))
+      : o.payMethod === '후결제' ? fmtDate(new Date(Math.min(ordered.getTime() + 7 * DAY, TODAY.getTime()))) : o.at;
     const shippedAt = /^배송/.test(o.status) ? fmtDate(new Date(Math.min(ordered.getTime() + (2 + Math.floor(r() * 3)) * DAY, TODAY.getTime()))) : '';
     // 상담: 주문일부터 14일 안에 남긴 문의가 있으면 '있음', 그중 답변대기가 있으면 '답변대기'
     const until = fmtDate(new Date(ordered.getTime() + 14 * DAY));
@@ -316,43 +324,85 @@
     ord.delivery = deliveryOf(ord, m);
     applyAddressEdits(ord);   // 관리자가 수정·추가한 배송지 반영
     if (DEPOSITS[ord.orderNo]) applyDeposit(ord, DEPOSITS[ord.orderNo]);   // 관리자가 입금처리한 주문 → 결제완료·접수완료
+    else if (ord.payMethod === '후결제' && !WAITING.includes(ord.payStatus) && ord.payStatus !== '전체취소') applyDeposit(ord, samplePayments(ord));   // 결제가 끝난 후결제 샘플 → 입금 내역 샘플
     ORDERS.push(ord);
   }));
 
+  // 결제가 끝난 후결제 샘플 주문의 입금 내역 (입금관리 모달 > 입금 내역, 주문 히스토리). 저장소에는 넣지 않음
+  //   대부분 1회 전액 입금, 5만 원 이상 주문 일부(약 40%)는 2회 분할 입금. 입금일시는 결제일(주문 7일 뒤) 기준
+  //   주문번호별 별도 난수 → 다른 샘플 값에 영향 없음
+  function samplePayments(ord) {
+    let s = [...`${ord.orderNo}#dep`].reduce((h, c) => (h * 67 + c.charCodeAt(0)) % 233280, 37);
+    const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    const pick = arr => arr[Math.floor(r() * arr.length)];
+    const total = ord.payment.total;
+    const paidDay = new Date(ord.paidAt);
+    const at = (d, hour) => `${fmtDate(d)} ${pad(hour)}:${pad(Math.floor(r() * 60))}:${pad(Math.floor(r() * 60))}`;
+    const method = pick(['계좌이체', '계좌이체', '무통장입금', '별도결제']);
+    const payer = (ord.member.business || {}).companyName || ord.name;
+    const pay = (d, amount, memo) => ({ at: at(d, 9 + Math.floor(r() * 9)), method, amount, memo, by: '관리자', processedAt: '' });
+    if (total < 50000 || r() >= 0.4) return { payments: [pay(paidDay, total, pick(['', '', `입금자명 ${payer}`, '세금계산서 발급 후 입금']))] };
+    const first = Math.max(1000, Math.floor(total * (0.3 + r() * 0.4) / 1000) * 1000);
+    const firstDay = new Date(paidDay.getTime() - (1 + Math.floor(r() * 5)) * DAY);
+    return { payments: [pay(firstDay, first, `1차 입금 (분할) · 입금자명 ${payer}`), pay(paidDay, total - first, '잔액 입금')] };
+  }
+
   // ===== 입금처리 (미입금 주문 리스트 / 주문 상세) =====
-  // 미입금 주문: 무통장입금으로 주문하고 아직 입금하지 않은 건 (결제상태 입금대기). 주문접수 리스트에는 나오지 않음
+  // 주문 목록 구분
+  //   미입금 주문 리스트: 무통장입금 입금대기 (입금 전이라 주문접수 리스트에는 없음 → 입금처리하면 주문접수 리스트로 이동)
+  //   후결제 주문 리스트: 후결제로 주문한 건 전부 (결제 전·후 모두). 후결제는 접수 즉시 제작이 진행되므로 주문접수 리스트에도 함께 나옴
+  //                      입금처리하면 결제상태(후결제대기 → 결제완료)·결제수단(입금받은 수단)이 바뀌어 두 목록에 같이 반영
+  //   주문접수 리스트: 미입금을 뺀 전부
   const isUnpaid = ord => ord.payStatus === '입금대기';
-  // 입금처리 반영: 결제상태 입금대기 → 결제완료, 결제수단은 입금받은 수단, 결제일은 처리 시각,
-  //   상품 진행상태 접수대기 → 접수완료(주문 접수), 결제정보(적립·입금일시·PG 로그·증빙 발급상태)와 배송정보 다시 계산
-  //   (화면을 열 때 저장된 입금 내역을 반영할 때와 입금처리 직후 목록을 다시 그릴 때 같은 함수를 씀)
-  function applyDeposit(ord, dep) {
-    ord.deposit = dep;
-    ord.orderedPayMethod = ord.orderedPayMethod || ord.payMethod;   // 주문 시 결제수단(무통장입금) — 이력의 '주문 접수' 문구용
-    ord.payMethod = dep.method;
-    ord.paidAt = dep.at.slice(0, 10);
-    if (ord.payStatus === '입금대기') ord.payStatus = ord.cancelAmount ? '부분취소' : '결제완료';
-    if (ord.status === '접수대기') ord.status = '접수완료';
-    ord.items.forEach(it => {
-      if (it.payStatus === '입금대기') it.payStatus = '결제완료';
-      if (it.status === '접수대기') it.status = '접수완료';
-      if (it.flow && it.flow.status === '접수대기') it.flow.status = '접수완료';
-    });
+  const isPostpayOrder = ord => (ord.orderedPayMethod || ord.payMethod) === '후결제';
+  const isPostpay = ord => ord.payStatus === '후결제대기';   // 후결제 중 아직 입금 전
+  const isWaiting = ord => WAITING.includes(ord.payStatus);   // 입금 대상 (미입금 + 후결제 입금 전·일부 입금)
+  // 입금 내역 반영 (rec = { payments: [...] })
+  //   결제수단은 마지막 입금의 수단으로, 결제일은 입금이 끝난 날로. 후결제 주문인지는 주문 시 결제수단 orderedPayMethod로 판정 (결제수단이 바뀌어도 후결제 주문 리스트에 남음)
+  //   후결제: 입금 합계 ≥ 총 결제금액이면 결제완료, 모자라면 부분결제 (진행상태는 그대로)
+  //   미입금(무통장입금): 입금 1건으로 결제완료 (금액이 달라도 결제완료, 차액은 관리자가 별도 처리) + 상품 진행상태 접수대기 → 접수완료(주문 접수)
+  //   결제정보(적립·입금일시·PG 로그·증빙 발급상태)와 배송정보 다시 계산
+  //   (화면을 열 때 저장된 입금 내역을 반영할 때와 입금 등록 직후 목록을 다시 그릴 때 같은 함수를 씀)
+  function applyDeposit(ord, rec) {
+    const payments = rec.payments;
+    if (!payments.length) return;
+    const last = payments[payments.length - 1];
+    const paid = payments.reduce((t, p) => t + p.amount, 0);
+    ord.orderedPayMethod = ord.orderedPayMethod || ord.payMethod;   // 주문 시 결제수단(무통장입금·후결제) — 이력의 '주문 접수' 문구·후결제 판정용
+    const total = ord.payment.total;
+    const full = ord.orderedPayMethod === '후결제' ? paid >= total : true;
+    ord.deposit = { payments, paid, remaining: Math.max(0, total - paid), full, method: last.method, at: last.at };
+    ord.payMethod = last.method;
+    ord.paidAt = full ? last.at.slice(0, 10) : '';
+    if (WAITING.includes(ord.payStatus)) ord.payStatus = full ? (ord.cancelAmount ? '부분취소' : '결제완료') : '부분결제';
+    if (full) {
+      if (ord.status === '접수대기') ord.status = '접수완료';
+      ord.items.forEach(it => {
+        if (WAITING.includes(it.payStatus)) it.payStatus = '결제완료';
+        if (it.status === '접수대기') it.status = '접수완료';
+        if (it.flow && it.flow.status === '접수대기') it.flow.status = '접수완료';
+      });
+    } else {
+      ord.items.forEach(it => { if (WAITING.includes(it.payStatus)) it.payStatus = '부분결제'; });
+    }
     ord.statusCounts = ITEM_STATUS_ORDER.map(st => [st, ord.items.filter(it => it.status === st).length]).filter(([, n]) => n);
     ord.payment = paymentOf(ord, ord.member);
     ord.delivery = deliveryOf(ord, ord.member);
     applyAddressEdits(ord);
   }
-  // 입금처리 저장 + 화면의 주문에 바로 반영. dep = { method, amount, by }. 반환: 저장 성공 여부
-  function confirmDeposit(orderNo, dep) {
+  // 입금 등록: 저장 + 화면의 주문에 바로 반영. dep = { method, amount, at(입금일시 'YYYY-MM-DD HH:MM:SS'), memo, by }. 반환: 저장 성공 여부
+  function addDeposit(orderNo, dep) {
     const ord = ORDERS.find(o => o.orderNo === orderNo);
-    if (!ord || !isUnpaid(ord)) return false;
-    const rec = { method: dep.method, amount: dep.amount, at: nowText(), by: dep.by };
-    DEPOSITS[orderNo] = rec;
+    if (!ord || !isWaiting(ord)) return false;
+    const rec = DEPOSITS[orderNo] || (DEPOSITS[orderNo] = { payments: [] });
+    rec.payments.push({ method: dep.method, amount: dep.amount, at: dep.at || nowText(), memo: dep.memo || '', processedAt: nowText(), by: dep.by });
     let saved = true;
     try { localStorage.setItem(DEPOSIT_KEY, JSON.stringify(DEPOSITS)); } catch (e) { saved = false; }
     applyDeposit(ord, rec);
     return saved;
   }
+  // 주문의 입금 내역 (입금관리 모달 목록). 관리자가 등록한 내역 + 샘플 내역 모두 주문의 deposit에서 읽음. 반환: [{ at, method, amount, memo, by }]
+  const depositsOf = orderNo => { const ord = ORDERS.find(o => o.orderNo === orderNo); return ord && ord.deposit ? ord.deposit.payments.slice() : []; };
 
   // ===== 배송정보 (주문 상세 > 배송정보 탭) =====
   //   수령인: 수취인명·연락처·주소·배송 요청사항 (주소·요청사항은 샘플)
@@ -464,25 +514,27 @@
     const pad2 = n => String(n).padStart(2, '0');
     let paidDateTime = '';
     if (ord.paidAt) {
-      paidDateTime = ord.payMethod === '무통장입금'
+      paidDateTime = ['무통장입금', '후결제'].includes(ord.payMethod)
         ? `${ord.paidAt} ${pad2(9 + Math.floor(r() * 12))}:${pad2(Math.floor(r() * 60))}:${pad2(Math.floor(r() * 60))}`
         : ord.orderedAt;
     }
-    // 관리자 입금처리 주문: 입금일시 = 처리 시각, 승인번호 없음 (PG 승인이 아니라 관리자가 입금을 확인한 건)
-    if (ord.deposit) paidDateTime = ord.deposit.at;
+    // 관리자 입금 등록 주문: 입금일시 = 입금이 끝난 마지막 입금일시, 승인번호 없음 (PG 승인이 아니라 관리자가 입금을 확인한 건)
+    if (ord.deposit) paidDateTime = ord.deposit.full ? ord.deposit.at : '';
     const tid = `${ord.payMethod === '휴대폰결제' ? 'DN' : 'INI'}${ord.orderNo.replace('-', '')}${String(Math.floor(r() * 9000) + 1000)}`;
     const approvalNo = ord.paidAt ? String(10000000 + Math.floor(r() * 89999999)) : '';   // 난수 순서 유지
+    const dp = ord.deposit;
     const pgLog = {
       pg: PG_NAMES[ord.payMethod] || 'KG이니시스', tid,
-      approvalNo: ord.deposit ? '' : approvalNo,
-      result: ord.deposit ? `입금 확인 (관리자 입금처리 · ${ord.deposit.method} ${ord.deposit.amount.toLocaleString()}원)`
-        : ord.payStatus === '입금대기' ? '가상계좌 발급 (입금 대기)' : ord.payStatus === '전체취소' ? '승인 취소' : '승인 성공'
+      approvalNo: dp ? '' : approvalNo,
+      result: dp ? `관리자 입금 확인 ${dp.payments.length}회 · 합계 ${dp.paid.toLocaleString()}원${dp.full ? '' : ` (부분결제, 잔액 ${dp.remaining.toLocaleString()}원)`}`
+        : ord.payStatus === '입금대기' ? '가상계좌 발급 (입금 대기)' : ord.payStatus === '후결제대기' ? '후결제 (상품 수령 후 결제 대기)'
+        : ord.payStatus === '전체취소' ? '승인 취소' : ord.payMethod === '후결제' ? '후결제 입금 확인' : '승인 성공'
     };
     // 증빙발급: 현금성 결제(무통장입금·계좌이체)만 요청 가능
     //   현금영수증 — 소득공제(휴대폰 / 주민번호) 또는 지출증빙(사업자번호)
     //   세금계산서 — 사업자번호·사업자명·대표자·소재지·업태·종목·담당자명·담당자 연락처·이메일·발급일·청구/영수
     // docInfo: [[항목명, 값], ...] (개인정보는 가운데 마스킹)
-    const cashLike = ['무통장입금', '계좌이체'].includes(ord.payMethod);
+    const cashLike = ['무통장입금', '계좌이체', '후결제'].includes(ord.payMethod);
     const x = r();
     const docType = !cashLike ? '' : x < 0.55 ? '현금영수증' : x < 0.7 ? '세금계산서' : '';
     const docPurpose = docType === '현금영수증' ? (x < 0.35 ? '소득공제' : '지출증빙') : '';
@@ -491,7 +543,7 @@
       const b = BIZ_SAMPLES[Math.floor(r() * BIZ_SAMPLES.length)];
       return { no: bizNo(), name: b[0], ceo: m.name, addr: b[1], kind: b[2], item: b[3] };
     };
-    const docStatus = !docType ? '' : ord.payStatus === '전체취소' ? '발급취소' : ord.payStatus === '입금대기' ? '발급대기' : '발급완료';
+    const docStatus = !docType ? '' : ord.payStatus === '전체취소' ? '발급취소' : WAITING.includes(ord.payStatus) ? '발급대기' : '발급완료';
     const docAt = docStatus === '발급완료' && paidDateTime ? paidDateTime.slice(0, 16) : '';
     let docInfo = [];
     if (docPurpose === '소득공제') {
@@ -506,7 +558,7 @@
       docInfo = [['사업자번호', b.no], ['사업자명', b.name], ['대표자', b.ceo], ['소재지', b.addr],
         ['업태', b.kind], ['종목', b.item], ['담당자명', m.name], ['담당자 연락처', m.phone.replace(/-(\d{4})-/, '-****-')], ['이메일', m.email],
         // 발급일: 발급완료일 때만. 청구/영수: 입금 전에 발행하면 청구, 입금 후 발행하면 영수
-        ['발급일', docAt ? docAt.slice(0, 10) : '-'], ['청구/영수', ord.payStatus === '입금대기' ? '청구' : '영수']];
+        ['발급일', docAt ? docAt.slice(0, 10) : '-'], ['청구/영수', WAITING.includes(ord.payStatus) ? '청구' : '영수']];
     }
     return { paidDateTime, pgLog, docType, docPurpose, docInfo, docStatus, docAt };
   }
@@ -537,9 +589,9 @@
   }
 
   window.OrderData = {
-    ORDERS, TODAY, PROCESS_STEPS, PROCESS_GROUPS, ITEM_STATUS_ORDER, PAY_METHODS,
+    ORDERS, TODAY, PROCESS_STEPS, PROCESS_GROUPS, ITEM_STATUS_ORDER, PAY_METHODS, DEPOSIT_METHODS,
     find: orderNo => ORDERS.find(o => o.orderNo === orderNo) || null,
-    isUnpaid, confirmDeposit,
+    isUnpaid, isPostpayOrder, isPostpay, isWaiting, addDeposit, depositsOf,
     saveCancel, restoreCancel, saveExtraRequest,
     adminLog, addMemo, updateMemo, deleteMemo, addHistory, systemHistory,
     saveAddress, deleteAddress, ADDRESS_FIELDS,
@@ -633,8 +685,14 @@
     const p = ord.payment, d = ord.delivery, out = [];
     const add = (at, type, content) => { if (at) out.push({ at, type, content, by: '시스템' }); };
     add(ord.orderedAt, '주문', `주문 접수 (${ord.orderedPayMethod || ord.payMethod}, 주문금액 ${ord.listPrice.toLocaleString()}원)`);
-    add(p.paidDateTime, '결제', ord.deposit ? `입금 확인 (관리자 입금처리 · ${ord.deposit.method} ${ord.deposit.amount.toLocaleString()}원) → 주문 접수`
-      : ord.payMethod === '무통장입금' ? `입금 확인 (${p.total.toLocaleString()}원)` : `결제 승인 (${p.pgLog.pg}, 승인번호 ${p.pgLog.approvalNo})`);
+    if (ord.deposit) {
+      // 관리자 입금 등록: 입금 건마다 한 줄 (후결제 분할 입금은 회차 표시). 마지막 입금으로 결제가 끝나면 결제완료/주문 접수 표시
+      const ps = ord.deposit.payments, n = ps.length, post = ord.orderedPayMethod === '후결제';
+      ps.forEach((x, i) => add(x.at, '결제', `입금 확인${n > 1 ? ` ${i + 1}회차` : ''} (${x.method} ${x.amount.toLocaleString()}원${x.memo ? ` · ${x.memo}` : ''}, 처리 ${x.by})`
+        + (i === n - 1 ? (ord.deposit.full ? (post ? ' → 결제완료' : ' → 결제완료 · 주문 접수') : ` → 부분결제 (잔액 ${ord.deposit.remaining.toLocaleString()}원)`) : '')));
+    } else {
+      add(p.paidDateTime, '결제', ['무통장입금', '후결제'].includes(ord.payMethod) ? `입금 확인 (${p.total.toLocaleString()}원${ord.payMethod === '후결제' ? ', 후결제' : ''})` : `결제 승인 (${p.pgLog.pg}, 승인번호 ${p.pgLog.approvalNo})`);
+    }
     if (p.docType && p.docAt) add(p.docAt, '서류발급', `${p.docType}${p.docPurpose ? `(${p.docPurpose})` : ''} 발급 완료`);
     if (d.shippedAt) add(d.shippedAt, '배송', `집하 스캔 (${d.courier}${d.waybill ? ` ${d.waybill}` : ''})`);
     if (d.doneAt) add(d.doneAt, '배송', '배송 완료');

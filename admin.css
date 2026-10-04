@@ -352,8 +352,14 @@ table.order-table { table-layout: fixed; }
 /* 결제상태 배지 */
 .order-table .w-act { width: 76px; text-align: center; }   /* 미입금 주문 리스트: 입금처리 버튼 */
 .order-table td.c-act { padding: 0 4px; text-align: center; }
-#depositModal .modal { width: 560px; }   /* 입금처리 모달 (미입금 주문 리스트 / 주문 상세) */
+#depositModal .modal { width: 560px; }   /* 입금처리 모달 (미입금 주문: 입금 1건) */
+#depositModal .modal.modal-wide { width: 1040px; }   /* 입금관리 모달 (후결제 주문: 사업자 정보 + 분할 입금 내역) */
+.dp-pay-table th, .dp-pay-table td { height: 36px; }
+.dp-pay-table tfoot td { background: var(--subtle); font-weight: 600; }
+.dp-pay-table td.memo { max-width: 260px; white-space: normal; text-align: left; color: var(--text-2); }
 .ps-입금대기 { --dot: #f59e0b; }
+.ps-후결제대기 { --dot: #8b5cf6; }   /* 후결제: 상품 수령 후 결제 대기 (후결제 주문 리스트) */
+.ps-부분결제 { --dot: #0ea5e9; }     /* 후결제: 분할 입금 중 (입금 합계 < 총 결제금액) */
 .ps-결제완료 { --dot: #16a34a; }
 .ps-부분취소 { --dot: #f97316; }
 .ps-전체취소, .ps-취소 { --dot: var(--danger); }   /* 취소: 주문 상세 > 주문 상품의 상품별 결제상태 */

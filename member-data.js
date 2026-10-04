@@ -309,11 +309,30 @@
     m.subCategory = subOf(cat, m.no);
   });
 
-  // 후불 결제 샘플: 기본 구분이 아닌 회원 일부에 올해 적용
+  // 후불 결제 샘플: 단체(group) 구분 회원 일부에 올해 적용 (후불 결제는 단체 회원만 설정 가능 — 회원 상세에서 다른 구분이면 선택 불가)
   members.forEach(m => {
-    const on = m.categoryCode !== mainCat.code && m.no % 2 === 0;
+    const on = m.categoryCode === groupCat.code && m.no % 2 === 0;
     Object.assign(m, { postpay: on ? 'Y' : 'N', postpayFrom: on ? '2026-01-01' : '', postpayTo: on ? '2026-12-31' : '' });
   });
+
+  // 후결제 주문 샘플: 후불 결제가 적용된 회원이 적용 기간 안에 한 주문의 절반가량은 선결제 없이 주문 → 상품 수령 후 결제
+  //   결제수단 '후결제', 결제상태 '후결제대기' (제작·배송은 결제와 상관없이 진행). 배송완료 후 열흘이 지난 주문은 결제가 끝난 것으로(결제완료)
+  //   주문번호로 정하므로 다른 샘플 값에는 영향 없음. 관리자가 입금처리하면 order-data.js에서 결제완료로 바뀜
+  // TODO: 실서비스에서는 주문 시 고객이 고른 결제수단(후결제) 사용
+  const postpayOrder = (o, status) => {
+    o.payMethod = '후결제';
+    o.payStatus = status;
+    if (o.status === '접수대기') o.status = '접수완료';   // 후결제는 입금을 기다리지 않고 바로 접수
+  };
+  const skipped = [];   // 절반 규칙에서 빠진 후불 회원 주문 (아래에서 입금대기 샘플을 보충할 때 사용)
+  members.filter(m => m.postpay === 'Y').forEach(m => (m.orders || []).forEach(o => {
+    if (o.at < m.postpayFrom || o.at > m.postpayTo || o.payStatus === '전체취소') return;
+    if ([...o.orderNo].reduce((h, c) => (h * 29 + c.charCodeAt(0)) % 9973, 5) % 2) { skipped.push(o); return; }
+    const days = Math.floor((base - new Date(o.at).getTime()) / 86400000);
+    postpayOrder(o, o.status === '배송완료' && days >= 20 ? '결제완료' : '후결제대기');
+  }));
+  // 입금대기(후결제대기) 샘플 보충: 절반 규칙에서 빠진 주문 중 최근 5건을 입금 전 후결제 주문으로 추가
+  skipped.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5).forEach(o => postpayOrder(o, '후결제대기'));
 
   // ===== 단체회원 신청 =====
   // 기본 신청 데이터는 고정 생성, 관리자 처리 결과(승인/반려/히스토리)만 localStorage에 저장해 덮어씀
@@ -457,6 +476,26 @@
       m.categoryCode = a.expireToCode || '';   // 없으면 화면에서 이름으로 찾아 채움
     }
     delete m.business;
+  });
+
+  // 후불 결제 회원 사업자 정보 샘플: 단체회원 신청 승인 내역이 없는 후불 결제 회원에게 사업자 정보를 채움
+  // (후결제 입금관리 모달·회원 상세의 사업자 정보에 표시. 항목은 단체회원 신청 시 입력하는 정보와 같음)
+  // TODO: 실서비스에서는 단체회원 승인 시 등록된 사업자 정보 사용
+  members.filter(m => m.postpay === 'Y' && !m.business).forEach(m => {
+    const kind = m.subCategory || m.category;
+    const t = bizOf(kind), k = m.no;
+    m.business = {
+      reqCategory: m.category, groupType: m.subCategory, approvedAt: `${m.postpayFrom} 10:00`, appNo: '-',
+      periodFrom: m.postpayFrom, periodTo: m.postpayTo, expireTo: mainCat.name,
+      companyName: t.names[k % t.names.length],
+      bizNo: `${String(105 + (k * 37) % 800)}-${String(10 + (k * 7) % 89)}-${String(10000 + (k * 4567) % 89999)}`,
+      ceo: m.name,
+      openDate: `20${String(10 + (k * 3) % 15)}-${pad(1 + k % 12)}-${pad(1 + (k * 5) % 28)}`,
+      bizType: t.bizType, bizItem: t.bizItem,
+      address: `${ADDRESSES[k % ADDRESSES.length]} ${k % 4 + 1}층`,
+      managerName: m.name, managerPhone: m.phone, managerEmail: m.email,
+      certFile: `사업자등록증_${m.userId}.pdf`
+    };
   });
 
   window.MemberData = {
