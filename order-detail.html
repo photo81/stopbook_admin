@@ -401,10 +401,10 @@
       <div class="table-wrap">
         <table>
           <thead><tr><th>상품카테고리</th><th>상품명</th><th style="text-align:right">수량</th><th style="text-align:right">주문금액</th><th style="text-align:right">할인금액</th><th style="text-align:right">결제금액</th></tr></thead>
-          <tbody id="dItems"></tbody>
+          <tbody id="docItems"></tbody>
         </table>
       </div>
-      <div class="cancel-sum" id="dTotal"></div>
+      <div class="cancel-sum" id="docTotal"></div>
 
       <div class="section-title">서류 정보</div>
       <table class="form-table">
@@ -608,11 +608,11 @@
       if (!docTargets.length) { AdminUtil.toast('증빙서류를 발급할 상품을 선택하세요.'); return; }
       const sel = docTargets.map(i => o.items[i]);
       const sumOf = k => sel.reduce((t, it) => t + it[k], 0);
-      $('dItems').innerHTML = sel.map(it => `<tr>
+      $('docItems').innerHTML = sel.map(it => `<tr>
           <td>${esc(it.category)}</td><td class="left">${esc(it.name)}</td><td class="num">${it.qty}부</td>
           <td class="num">${won(it.listPrice)}</td><td class="num">${minusCell(it.discount)}</td><td class="num"><b>${won(it.paid)}</b></td>
         </tr>`).join('');
-      $('dTotal').innerHTML = `선택 ${sel.length}건 · 주문금액 ${won(sumOf('listPrice'))} · 할인금액 ${minusCell(sumOf('discount'))} · 결제금액 <b>${won(sumOf('paid'))}</b>`;
+      $('docTotal').innerHTML = `선택 ${sel.length}건 · 주문금액 ${won(sumOf('listPrice'))} · 할인금액 ${minusCell(sumOf('discount'))} · 결제금액 <b>${won(sumOf('paid'))}</b>`;
       $('docOrder').innerHTML = `<span class="mono">${esc(o.orderNo)}</span> · ${esc(o.name)}`;
       document.querySelectorAll('input[name=docType]').forEach(c => { c.checked = false; });
       $('docNote').textContent = pay.docType ? `주문 시 ${pay.docType}${pay.docPurpose ? `(${pay.docPurpose})` : ''} 발급을 요청한 주문입니다.` : '주문 시 증빙 발급을 요청하지 않은 주문입니다.';
