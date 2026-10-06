@@ -593,7 +593,7 @@
     find: orderNo => ORDERS.find(o => o.orderNo === orderNo) || null,
     isUnpaid, isPostpayOrder, isPostpay, isWaiting, addDeposit, depositsOf,
     saveCancel, restoreCancel, saveExtraRequest,
-    adminLog, addMemo, updateMemo, deleteMemo, addHistory, systemHistory,
+    adminLog, memoCategories, addMemo, updateMemo, deleteMemo, addHistory, systemHistory,
     saveAddress, deleteAddress, ADDRESS_FIELDS,
     MEMO_CATEGORIES: ['주문', '결제', '배송', '취소', '불량', '기타']
   };
@@ -643,6 +643,10 @@
     // 구분·id가 없는 예전 메모 보정 (구분 '기타')
     rec.memos.forEach((mm, i) => { if (!mm.id) mm.id = `m${i}${mm.at.replace(/\D/g, '')}`; if (!mm.category) mm.category = '기타'; });
     return { memos: rec.memos.slice(), history: rec.history.slice() };
+  }
+  // 주문에 등록된 관리자 메모의 구분 목록 (중복 제거, 구분 없는 예전 메모는 '기타'). 주문 리스트 상담여부 > 관리자 메모 검색용
+  function memoCategories(orderNo) {
+    return [...new Set(((LOGS[orderNo] || {}).memos || []).map(mm => mm.category || '기타'))];
   }
   function saveLogs() {
     try { localStorage.setItem(LOG_KEY, JSON.stringify(LOGS)); return true; } catch (e) { return false; }

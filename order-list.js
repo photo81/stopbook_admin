@@ -26,6 +26,7 @@
     // 결제수단 선택지는 order-data.js의 PAY_METHODS (별도결제 포함). 미입금 화면은 결제수단·결제상태가 정해져 있어 두 항목을 뺌
     // TODO: 결제수단·입금상태·진행상태·배송방법 선택지는 실서비스에서 주문 설정값으로 대체
     const CAT_TREE = MemberTypeStore.categoryTree();
+    const MEMO_PREFIX = 'memo:';
     const DETAIL_FIELDS = [
       ...(unpaid && !postpay ? [] : [
         ...(postpay ? [] : [{ key: 'payMethod', label: '결제수단', options: OrderData.PAY_METHODS.map(v => [v, v]) }]),
@@ -35,7 +36,10 @@
       // 제작상태: 상품별 진행상태. 고른 상태의 상품이 하나라도 있는 주문을 찾음 (미입금은 입금 전이라 접수대기뿐, 후결제는 제작·배송이 진행됨)
       { key: 'status', label: '제작상태', options: (unpaid && !postpay ? ['접수대기'] : OrderData.ITEM_STATUS_ORDER).map(v => [v, v]) },
       { key: 'category', label: '회원구분', options: CAT_TREE.map(c => [c.code, c.label + (c.hidden ? ' (숨김)' : '')]) },
-      { key: 'inquiry', label: '상담여부', options: [['Y', '있음'], ['W', '답변대기'], ['N', '없음']] },
+      // 상담여부: 고객 문의(있음/답변대기/없음) + 관리자 메모 구분(주문 상세 > 관리정보에서 등록). 메모 값은 'memo:구분'
+      // 옵션의 세 번째 값은 그 옵션 앞에 넣는 소제목
+      { key: 'inquiry', label: '상담여부', options: [['Y', '있음'], ['W', '답변대기'], ['N', '없음'],
+        ...OrderData.MEMO_CATEGORIES.map((c, i) => [MEMO_PREFIX + c, `${c} 메모`, i ? '' : '관리자 메모'])] },
       { key: 'shipMethod', label: '배송방법', options: ['택배', '방문수령', '퀵서비스'].map(v => [v, v]) }
     ];
     // 드롭다운(버튼 + 체크 목록). 버튼에는 '전체' / '신용카드' / '신용카드 외 2'처럼 요약 표시
@@ -47,7 +51,8 @@
             <span class="ms-text" id="ms-text-${f.key}">전체</span>
           </button>
           <div class="ms-panel" role="group" aria-labelledby="lbl-${f.key}" hidden>
-            <label class="ms-opt ms-all"><input type="checkbox" data-all="${f.key}" checked> 전체</label>${f.options.map(([v, t]) => `
+            <label class="ms-opt ms-all"><input type="checkbox" data-all="${f.key}" checked> 전체</label>${f.options.map(([v, t, head]) => `${head ? `
+            <div class="ms-group">${esc(head)}</div>` : ''}
             <label class="ms-opt"><input type="checkbox" name="${f.key}" value="${esc(v)}"> ${esc(t)}</label>`).join('')}
           </div>
         </div>
@@ -156,6 +161,13 @@
     const DATE_KEY = { orderedAt: 'orderDate', paidAt: 'paidAt', shippedAt: 'shippedAt' };
     const state = { filtered: [], page: 1, size: 10, sortKey: 'orderedAt', sortDir: 'desc', search: null, tab: 'all' };
     const inSet = (list, v) => !list || !list.length || list.includes(v);
+    // 상담여부: 고른 문의 상태에 해당하거나, 고른 구분의 관리자 메모가 하나라도 있으면 해당
+    function matchInquiry(list, o) {
+      if (!list.length) return true;
+      if (list.includes(o.inquiry)) return true;
+      const cats = list.filter(v => v.startsWith(MEMO_PREFIX)).map(v => v.slice(MEMO_PREFIX.length));
+      return !!cats.length && OrderData.memoCategories(o.orderNo).some(c => cats.includes(c));
+    }
 
     // ===== 입금 상태 탭 (후결제 주문 리스트: 전체 / 입금대기 / 입금완료) =====
     // 검색 조건과 함께 적용. 탭 건수는 검색 결과 기준. 입금처리하면 입금대기 → 입금완료 탭으로 옮겨감
@@ -196,7 +208,7 @@
         (!kw || fields.some(f => String(o[f]).toLowerCase().replace(/-/g, '').includes(kw))) &&
         (!(s.from || s.to) || (o[dk] && (!s.from || o[dk] >= s.from) && (!s.to || o[dk] <= s.to))) &&   // 결제·발송 전 주문은 해당 기간 검색에서 제외
         inSet(s.payMethod, o.payMethod) && inSet(s.payStatus, o.payStatus) && (!s.status.length || o.statusCounts.some(([st]) => s.status.includes(st))) &&
-        inSet(s.category, o.categoryCode) && inSet(s.inquiry, o.inquiry) && inSet(s.shipMethod, o.shipMethod)
+        inSet(s.category, o.categoryCode) && matchInquiry(s.inquiry, o) && inSet(s.shipMethod, o.shipMethod)
       );
       renderTabs(base);
       const tab = TABS && TABS.find(t => t.key === state.tab);
