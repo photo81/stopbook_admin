@@ -1324,17 +1324,17 @@
   }
 
   // ===== 후불 결제 (적용 시 기간 필수) =====
-  // 후불 결제는 단체(code: group) 구분 회원만 적용 가능 → 상세에서 고른 구분이 단체가 아니면 '적용'을 고를 수 없고 미적용으로 바뀜
+  // 후불 결제는 단체 회원(기본 구분 normal을 제외한 모든 구분) 전체에 적용 가능 → 상세에서 기본 구분(일반)을 고르면 '적용'을 고를 수 없고 미적용으로 바뀜
   // (후결제 주문은 이 설정이 적용된 회원만 할 수 있음 → 주문관리 > 후결제 주문 리스트)
-  const POSTPAY_CATEGORY = 'group';
+  const POSTPAY_EXCLUDED_CATEGORY = 'normal';
   const postpayText = p => (p.postpay === 'Y' ? `적용 (${p.postpayFrom} ~ ${p.postpayTo})` : '미적용');
 
   function syncPostpay() {
-    const allowed = $('fCategory').value === POSTPAY_CATEGORY;
+    const allowed = !!$('fCategory').value && $('fCategory').value !== POSTPAY_EXCLUDED_CATEGORY;
     $('fPostpayY').disabled = !allowed;
     if (!allowed) $('fPostpayN').checked = true;
     $('postpayRange').hidden = !$('fPostpayY').checked;
-    $('postpayNote').textContent = allowed ? '' : `후불 결제는 ${MemberTypeStore.categoryName(POSTPAY_CATEGORY) || '단체'} 회원만 적용할 수 있습니다.`;
+    $('postpayNote').textContent = allowed ? '' : `후불 결제는 단체 회원(${NORMAL_NAME} 외 구분)만 적용할 수 있습니다.`;
     $('ePostpay').classList.remove('show');
   }
 

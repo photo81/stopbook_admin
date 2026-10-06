@@ -309,9 +309,9 @@
     m.subCategory = subOf(cat, m.no);
   });
 
-  // 후불 결제 샘플: 단체(group) 구분 회원 일부에 올해 적용 (후불 결제는 단체 회원만 설정 가능 — 회원 상세에서 다른 구분이면 선택 불가)
+  // 후불 결제 샘플: 단체 회원(기본 구분 외 모든 구분) 일부에 올해 적용 (후불 결제는 단체 회원만 설정 가능 — 회원 상세에서 기본 구분이면 선택 불가)
   members.forEach(m => {
-    const on = m.categoryCode === groupCat.code && m.no % 2 === 0;
+    const on = m.categoryCode !== mainCat.code && m.no % 2 === 0;
     Object.assign(m, { postpay: on ? 'Y' : 'N', postpayFrom: on ? '2026-01-01' : '', postpayTo: on ? '2026-12-31' : '' });
   });
 
