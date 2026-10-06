@@ -437,7 +437,7 @@
   // ===== 배송정보 (주문 상세 > 배송정보 탭) =====
   //   수령인: 수취인명·연락처·주소·배송 요청사항 (주소·요청사항은 샘플)
   //   배송: 배송방법별 — 택배(택배사·운송장), 방문수령(수령 장소 = 스탑북 본사), 퀵서비스(퀵 업체)
-  //   출고 내역: 상품별 출고 상태. 배송중·배송완료 상품은 같은 운송장으로 출고된 것으로 표시
+  //   출고 내역: 상품별 제작상태. 배송중·배송완료 상품은 같은 운송장으로 출고된 것으로 표시
   //     배송상태(주문): 출고 전 = 배송준비중, 일부 출고 = 부분출고, 모두 출고 = 배송중, 모두 도착 = 배송완료, 전체취소 = 배송취소
   // 주문번호별 별도 난수 → 다른 샘플 값에 영향 없음
   // TODO: 실서비스에서는 주문 배송지·출고(송장) API
@@ -451,8 +451,12 @@
     const shipped = live.filter(it => /^배송/.test(it.status));
     const delivered = live.length && live.every(it => it.status === '배송완료');
     const status = !live.length ? '배송취소' : delivered ? '배송완료' : shipped.length === live.length ? '배송중' : shipped.length ? '부분출고' : '배송준비중';
-    const courier = ord.shipMethod === '택배' ? pick(['한진택배', 'CJ대한통운', '롯데택배']) : ord.shipMethod === '퀵서비스' ? pick(['바로퀵', '스피드퀵']) : '';
-    const waybill = shipped.length && ord.shipMethod === '택배' ? `${5 + Math.floor(r() * 4)}${String(Math.floor(r() * 1e11)).padStart(11, '0')}` : '';
+    // 택배: 한진택배, 운송장번호는 실제 조회되는 샘플 번호 하나로 통일 (배송조회 모달 확인용)
+    // 난수는 예전처럼 소비해 다른 샘플 값(배송완료일·주소 등)이 바뀌지 않게 함
+    // TODO: 실서비스에서는 출고 시 등록한 택배사·운송장번호 사용
+    const SAMPLE_WAYBILL = '537656821623';
+    const courier = ord.shipMethod === '택배' ? (r(), '한진택배') : ord.shipMethod === '퀵서비스' ? pick(['바로퀵', '스피드퀵']) : '';
+    const waybill = shipped.length && ord.shipMethod === '택배' ? (r(), r(), SAMPLE_WAYBILL) : '';
     // 배송완료일: 배송 시작 1~2일 뒤, 기준일을 넘지 않게
     let doneAt = '';
     if (delivered && ord.shippedAt) {
@@ -475,14 +479,14 @@
       // 출고 내역: 상품별
       lines: ord.items.map(it => ({
         name: it.name, qty: it.qty, makeNo: it.spec.makeNo,
-        state: it.payStatus === '취소' ? '취소' : it.status === '배송완료' ? '배송완료' : /^배송/.test(it.status) ? '출고완료' : '출고대기',
+        state: it.payStatus === '취소' ? '취소' : it.status,   // 상품 제작상태와 같은 값 (주문대기/주문완료/제작중/배송중/배송완료)
         waybill: /^배송/.test(it.status) ? waybill : '',
         at: /^배송/.test(it.status) ? pickupAt : ''
       }))
     };
   }
 
-  // 택배사별 배송조회 주소 (운송장번호를 누르면 새 창)
+  // 택배사별 배송조회 주소 (운송장번호를 누르면 주문 상세에서 모달로 표시)
   // TODO: 실서비스에서는 택배사 조회 주소를 설정값으로 관리 (CJ대한통운·롯데택배 주소는 연결 확인 필요)
   function trackingUrl(courier, waybill) {
     const no = encodeURIComponent(waybill);

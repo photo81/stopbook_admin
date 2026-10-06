@@ -232,6 +232,11 @@ td.reason a.name-link { font-weight: 400; color: var(--text-2); }
 .modal-bg.open { display: flex; animation: fade .12s ease-out; }
 .modal { background: #fff; border-radius: 12px; width: 860px; max-width: 100%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 24px 48px -12px rgba(0,0,0,.25); }
 .modal.modal-wide { width: 1040px; }
+/* 배송조회 모달 (주문 상세 > 배송정보 > 운송장번호): 택배사 화면 iframe */
+.modal.modal-track { width: 1080px; height: 90vh; }
+.modal-track .modal-body { flex: 1; display: flex; flex-direction: column; gap: 8px; overflow: hidden; padding-top: 12px; }
+.track-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--text-2); font-size: 13px; }
+.track-frame { flex: 1; width: 100%; min-height: 0; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
 .modal-header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 .modal-header h2 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
 .modal-header .close { width: 28px; height: 28px; border: 0; border-radius: var(--radius); background: none; font-size: 20px; line-height: 1; cursor: pointer; color: var(--muted); }

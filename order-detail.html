@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 주문 상세</title>
-<link rel="stylesheet" href="admin.css?v=20261111">
+<link rel="stylesheet" href="admin.css?v=20261113">
 </head>
 <body>
 <div class="layout">
@@ -166,7 +166,7 @@
           <div class="flow-head ship-lines-head"><b>출고 내역</b> <span class="muted">상품별</span></div>
           <div class="table-wrap">
             <table class="ship-table">
-              <thead><tr><th>상품 제작번호</th><th>상품명</th><th style="text-align:right">수량</th><th>출고상태</th><th>운송장번호</th><th>출고일시 (집하스캔)</th></tr></thead>
+              <thead><tr><th>상품 제작번호</th><th>상품명</th><th style="text-align:right">수량</th><th>제작상태</th><th>운송장번호</th><th>출고일시 (집하스캔)</th></tr></thead>
               <tbody id="shipLines"></tbody>
             </table>
           </div>
@@ -371,6 +371,25 @@
   </div>
 </div>
 
+<!-- 배송조회 모달: 배송정보 > 운송장번호를 누르면 택배사 배송조회 화면을 iframe으로 표시 -->
+<!-- TODO: 실서비스에서는 택배사 배송추적 API로 조회 결과를 직접 표시하는 방식도 검토 (외부 화면 구성 변경에 영향받지 않게) -->
+<div class="modal-bg" id="trackModal">
+  <div class="modal modal-track" role="dialog" aria-modal="true" aria-labelledby="trackTitle">
+    <div class="modal-header">
+      <h2 id="trackTitle">배송조회</h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="track-bar"><span id="trackInfo"></span>
+        <a class="btn btn-xs" id="trackOpen" href="#" target="_blank" rel="noopener">새 창으로 열기 ↗</a></div>
+      <iframe id="trackFrame" class="track-frame" title="택배사 배송조회" src="about:blank"></iframe>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- PG 로그 모달: 결제정보 > 결제 수단 > PG 로그 확인 -->
 <!-- TODO: 실서비스에서는 PG사 거래 조회 API 응답(원문 로그) 표시 -->
 <div class="modal-bg" id="pgModal">
@@ -451,11 +470,11 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261111"></script>
-<script src="member-type-store.js?v=20261111"></script>
-<script src="member-data.js?v=20261111"></script>
-<script src="order-data.js?v=20261111"></script>
-<script src="deposit-modal.js?v=20261111"></script>
+<script src="alimtalk.js?v=20261113"></script>
+<script src="member-type-store.js?v=20261113"></script>
+<script src="member-data.js?v=20261113"></script>
+<script src="order-data.js?v=20261113"></script>
+<script src="deposit-modal.js?v=20261113"></script>
 <script>
 (function () {
   'use strict';
@@ -821,14 +840,22 @@
     const dv = o.delivery;
     const shipRow = (label, html) => `<tr><th>${label}</th><td>${html}</td></tr>`;
     const dash2 = v => (v ? esc(v) : '<span class="muted">-</span>');
-    // 운송장번호: 누르면 택배사 배송조회를 새 창(팝업)으로. 팝업이 막히면 링크의 target=_blank로 새 탭
-    const trackLink = no => `<a class="name-link mono" href="${esc(dv.trackingUrl)}" target="_blank" rel="noopener" data-track title="${esc(dv.courier)} 배송조회">${esc(no)} ↗</a>`;
+    // 운송장번호: 누르면 택배사 배송조회 화면을 모달(iframe)로. 모달 안 '새 창으로 열기'로 따로 볼 수도 있음
+    const trackLink = no => `<a class="name-link mono" href="${esc(dv.trackingUrl)}" target="_blank" rel="noopener" data-track data-waybill="${esc(no)}" title="${esc(dv.courier)} 배송조회">${esc(no)}</a>`;
+    const closeTrack = () => { $('trackModal').classList.remove('open'); $('trackFrame').src = 'about:blank'; };
     $('panelShip').addEventListener('click', e => {
       const a = e.target.closest('[data-track]');
       if (!a) return;
-      const w = window.open(a.href, 'stopbookTracking', 'width=1000,height=800,resizable=yes,scrollbars=yes');
-      if (w) { w.opener = null; w.focus(); e.preventDefault(); }
+      e.preventDefault();
+      $('trackTitle').textContent = `${dv.courier} 배송조회`;
+      $('trackInfo').innerHTML = `운송장번호 <b class="mono">${esc(a.dataset.waybill)}</b>`;
+      $('trackOpen').href = a.href;
+      $('trackFrame').src = a.href;
+      $('trackModal').classList.add('open');
     });
+    document.querySelectorAll('#trackModal [data-close]').forEach(b => b.addEventListener('click', closeTrack));
+    $('trackModal').addEventListener('click', e => { if (e.target === $('trackModal')) closeTrack(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('trackModal').classList.contains('open')) closeTrack(); });
     const SHIP_CLASS = { '배송준비중': 'st-recv', '부분출고': 'st-part', '배송중': 'st-ship', '배송완료': 'st-done', '배송취소': 'st-cancel' };
     $('shipStatus').innerHTML = `<span class="badge ${SHIP_CLASS[dv.status] || ''}">${esc(dv.status)}</span>`;
     // 수령인 정보: 배송지 카드 목록 (기본 배송지 + 추가 배송지). 배송지가 둘 이상이면 카드마다 보낼 상품 표시
@@ -920,10 +947,10 @@
       shipRow('배송 시작일', dv.shippedAt ? `${esc(dv.shippedAt)} <span class="muted">(집하스캔)</span>` : dash2('')),
       shipRow('배송 완료일', dv.doneAt ? `${esc(dv.doneAt)} <span class="muted">(배송완료 처리)</span>` : dash2(''))
     ].join('');
-    const LINE_CLASS = { '출고대기': 'st-recv', '출고완료': 'st-ship', '배송완료': 'st-done', '취소': 'st-cancel' };
+    // 출고 내역 제작상태: 주문정보 탭의 상품 제작상태와 같은 값·배지 (주문대기/주문완료/제작중/배송중/배송완료, 취소)
     $('shipLines').innerHTML = dv.lines.map(l => `<tr>
         <td class="mono">${esc(l.makeNo)}</td><td class="left">${esc(l.name)}</td><td class="num">${l.qty}부</td>
-        <td><span class="badge ${LINE_CLASS[l.state] || ''}">${esc(l.state)}</span></td>
+        <td><span class="badge ${MemberData.statusClass(l.state)}">${esc(l.state)}</span></td>
         <td>${l.waybill ? trackLink(l.waybill) : dash2('')}</td><td>${dash2(l.at)}</td>
       </tr>`).join('');
     $('detailTabs').addEventListener('click', e => {
