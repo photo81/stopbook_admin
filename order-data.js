@@ -325,6 +325,7 @@
     applyAddressEdits(ord);   // 관리자가 수정·추가한 배송지 반영
     if (DEPOSITS[ord.orderNo]) applyDeposit(ord, DEPOSITS[ord.orderNo]);   // 관리자가 입금처리한 주문 → 결제완료·접수완료
     else if (ord.payMethod === '후결제' && !WAITING.includes(ord.payStatus) && ord.payStatus !== '전체취소') applyDeposit(ord, samplePayments(ord));   // 결제가 끝난 후결제 샘플 → 입금 내역 샘플
+    else if (ord.payMethod === '후결제' && ord.payStatus === '후결제대기') { const part = samplePartialPayment(ord); if (part) applyDeposit(ord, part); }   // 입금 전 후결제 샘플 일부 → 1차 입금만 된 부분결제
     ORDERS.push(ord);
   }));
 
@@ -345,6 +346,20 @@
     const first = Math.max(1000, Math.floor(total * (0.3 + r() * 0.4) / 1000) * 1000);
     const firstDay = new Date(paidDay.getTime() - (1 + Math.floor(r() * 5)) * DAY);
     return { payments: [pay(firstDay, first, `1차 입금 (분할) · 입금자명 ${payer}`), pay(paidDay, total - first, '잔액 입금')] };
+  }
+  // 입금 전(후결제대기) 후결제 샘플 주문 중 2만 원 이상 주문의 약 40%는 1차 입금만 된 부분결제로 (후결제 주문 리스트 > 부분결제 탭 샘플)
+  //   입금일시는 주문 2~8일 뒤(오늘 이전). 잔액은 관리자가 입금관리에서 등록. 반환: { payments } 또는 null
+  function samplePartialPayment(ord) {
+    let s = [...`${ord.orderNo}#part`].reduce((h, c) => (h * 67 + c.charCodeAt(0)) % 233280, 41);
+    const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    const total = ord.payment.total;
+    if (total < 20000 || r() >= 0.4) return null;
+    const day = new Date(Math.min(new Date(ord.orderDate).getTime() + (2 + Math.floor(r() * 7)) * DAY, TODAY.getTime() - DAY));
+    if (day.getTime() < new Date(ord.orderDate).getTime()) return null;   // 주문 당일 이전으로는 입금 불가
+    const amount = Math.max(1000, Math.floor(total * (0.3 + r() * 0.3) / 1000) * 1000);
+    const payer = (ord.member.business || {}).companyName || ord.name;
+    const at = `${fmtDate(day)} ${pad(9 + Math.floor(r() * 9))}:${pad(Math.floor(r() * 60))}:${pad(Math.floor(r() * 60))}`;
+    return { payments: [{ at, method: r() < 0.7 ? '계좌이체' : '무통장입금', amount, memo: `1차 입금 (분할) · 입금자명 ${payer}`, by: '관리자', processedAt: '' }] };
   }
 
   // ===== 입금처리 (미입금 주문 리스트 / 주문 상세) =====

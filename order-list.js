@@ -161,12 +161,12 @@
     const matchInquiry = (list, o) => !list.length || OrderData.memoCategories(o.orderNo).some(c => list.includes(c));
     const inquiryText = o => OrderData.memoCategories(o.orderNo).join(', ');   // 엑셀 상담여부 열: 메모 구분 나열
 
-    // ===== 입금 상태 탭 (후결제 주문 리스트: 전체 / 입금대기 / 입금완료) =====
-    // 검색 조건과 함께 적용. 탭 건수는 검색 결과 기준. 입금처리하면 입금대기 → 입금완료 탭으로 옮겨감
+    // ===== 결제상태 탭 (후결제 주문 리스트: 전체 / 후결제대기 / 부분결제 / 결제완료) =====
+    // 검색 조건과 함께 적용. 탭 건수는 검색 결과 기준. 입금을 등록하면 입금 합계에 따라 후결제대기 → 부분결제 → 결제완료 탭으로 옮겨감
+    // (부분취소·전체취소 건은 전체 탭에서만 보임)
     const TABS = $('statusTabs') ? [
       { key: 'all', label: '전체', test: () => true },
-      { key: 'waiting', label: '입금대기', test: o => OrderData.isWaiting(o) },
-      { key: 'done', label: '입금완료', test: o => !OrderData.isWaiting(o) }
+      ...['후결제대기', '부분결제', '결제완료'].map(st => ({ key: st, label: st, test: o => o.payStatus === st }))
     ] : null;
     function renderTabs(base) {
       if (!TABS) return;
