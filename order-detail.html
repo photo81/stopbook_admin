@@ -23,7 +23,7 @@
       <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="orders.html" class="active" aria-current="page">주문접수 리스트</a></li>
+          <li><a href="orders.html" class="active" aria-current="page">통합 주문 리스트</a></li>
           <li><a href="unpaid-orders.html">미입금 주문 리스트</a></li>
           <li><a href="postpay-orders.html">후결제 주문 리스트</a></li>
         </ul>
@@ -33,7 +33,7 @@
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 주문관리 &gt; <a href="orders.html">주문접수 리스트</a> &gt; <b>주문 상세</b></div>
+      <div class="breadcrumb">홈 &gt; 주문관리 &gt; <a href="orders.html">통합 주문 리스트</a> &gt; <b>주문 상세</b></div>
       <div><span class="proto-ver" data-proto-version>프로토타입 v1.85 (2026-10-02)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
@@ -81,11 +81,11 @@
           </div>
         </section>
 
-        <!-- 탭: 전체정보 / 상품정보 / 결제정보 / 배송정보 / 관리자메모 / 주문 히스토리
+        <!-- 탭: 전체정보 / 주문정보 / 결제정보 / 배송정보 / 관리자메모 / 주문 히스토리
              전체정보(기본)는 아래 탭 내용을 모두 펼쳐 스크롤로 한 화면에서 봄. 다른 탭을 누르면 그 내용만 표시 -->
         <div class="tabs" role="tablist" id="detailTabs">
           <button type="button" role="tab" class="tab active" aria-selected="true" id="tab-all" data-tab="all" aria-controls="panelItems panelPay panelShip panelAdmin panelHistory">전체정보</button>
-          <button type="button" role="tab" class="tab" aria-selected="false" id="tab-items" data-tab="items" aria-controls="panelItems">상품정보 <span class="tab-count" id="tabItemCount"></span></button>
+          <button type="button" role="tab" class="tab" aria-selected="false" id="tab-items" data-tab="items" aria-controls="panelItems">주문정보 <span class="tab-count" id="tabItemCount"></span></button>
           <button type="button" role="tab" class="tab" aria-selected="false" id="tab-pay" data-tab="pay" aria-controls="panelPay">결제정보</button>
           <button type="button" role="tab" class="tab" aria-selected="false" id="tab-ship" data-tab="ship" aria-controls="panelShip">배송정보</button>
           <button type="button" role="tab" class="tab" aria-selected="false" id="tab-admin" data-tab="admin" aria-controls="panelAdmin">관리자메모 <span class="tab-count" id="tabMemoCount"></span></button>
@@ -93,10 +93,10 @@
         </div>
 
         <!-- 아래 탭 내용(panel)은 탭 순서대로 둠 → 전체정보 탭에서 그 순서로 펼쳐짐 -->
-        <!-- 상품정보 탭: 상품별 금액·진행상태·제작처 -->
-        <section class="panel" role="tabpanel" id="panelItems" aria-labelledby="tab-items" data-title="상품정보">
+        <!-- 주문정보 탭: 상품별 금액·진행상태·제작처 -->
+        <section class="panel" role="tabpanel" id="panelItems" aria-labelledby="tab-items" data-title="주문정보">
           <div class="list-head">
-            <div class="count"><b>상품정보</b> <span id="itemSummary"></span>
+            <div class="count"><b>주문정보</b> <span id="itemSummary"></span>
               <span class="item-hint">상품을 누르면 옵션·디자인과 제작 공정을 볼 수 있습니다.</span></div>
           </div>
           <div class="table-wrap">
@@ -121,8 +121,9 @@
               <tbody id="itemBody"></tbody>
             </table>
           </div>
-          <!-- 선택 상품 처리 -->
+          <!-- 선택 상품 처리. 왼쪽: 증빙서류 발급(선택 상품 기준) / 오른쪽: 입금처리·취소원복·주문취소 -->
           <div class="item-actions">
+            <button type="button" class="btn item-actions-left" id="btnDocs">증빙서류발급</button>
             <span class="readonly" id="selCount"></span>
             <!-- 입금처리: 미입금(입금대기)·후결제(후결제대기) 주문에서만 표시. 결제수단·입금액·입금일시 입력 → 결제완료 (미입금은 주문 접수까지) -->
             <button type="button" class="btn btn-primary" id="btnDeposit" hidden>입금처리</button>
@@ -204,7 +205,7 @@
   </div>
 </div>
 
-<!-- 주문취소 모달: 상품정보 > 체크 > 주문취소 -->
+<!-- 주문취소 모달: 주문정보 > 체크 > 주문취소 -->
 <div class="modal-bg" id="cancelModal">
   <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="cancelTitle">
     <div class="modal-header">
@@ -387,6 +388,44 @@
   </div>
 </div>
 
+<!-- 증빙서류 발급 모달: 주문정보 > 체크 > 증빙서류발급. 선택한 상품을 기준으로 서류 종류를 골라 발급하면 주문 히스토리에 기록 -->
+<!-- TODO: 실서비스에서는 POST /api/admin/orders/{orderNo}/documents (상품 index 목록 + 서류 종류) 로 서류 생성(PDF) 후 다운로드 -->
+<div class="modal-bg" id="docModal">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="docTitle">
+    <div class="modal-header">
+      <h2 id="docTitle">증빙서류 발급</h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-title">발급 상품</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>상품카테고리</th><th>상품명</th><th style="text-align:right">수량</th><th style="text-align:right">주문금액</th><th style="text-align:right">할인금액</th><th style="text-align:right">결제금액</th></tr></thead>
+          <tbody id="dItems"></tbody>
+        </table>
+      </div>
+      <div class="cancel-sum" id="dTotal"></div>
+
+      <div class="section-title">서류 정보</div>
+      <table class="form-table">
+        <tbody>
+          <tr><th>주문</th><td id="docOrder"></td></tr>
+          <tr><th>서류 종류</th><td>
+            <!-- 다중 선택: 고른 서류를 한 번에 발급 -->
+            <div class="check-chips" id="docTypes"></div>
+            <div class="readonly" id="docNote" style="margin-top:6px"></div>
+            <div class="err" id="docErr"></div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>닫기</button>
+      <button type="button" class="btn btn-primary" id="btnDocCreate">발급</button>
+    </div>
+  </div>
+</div>
+
 <!-- 상품 정보 모달: 주문 상품 > 상품 코드를 누르면 열림 -->
 <div class="modal-bg" id="productModal">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="productTitle">
@@ -431,7 +470,7 @@
   }
   if (!o) {
     $('notFound').hidden = false;
-    $('notFoundMsg').textContent = orderNo ? `주문번호 ${orderNo}에 해당하는 주문이 없습니다. 주문접수 리스트에서 다시 선택해 주세요.` : '주문접수 리스트에서 주문번호를 눌러 들어와 주세요.';
+    $('notFoundMsg').textContent = orderNo ? `주문번호 ${orderNo}에 해당하는 주문이 없습니다. 통합 주문 리스트에서 다시 선택해 주세요.` : '통합 주문 리스트에서 주문번호를 눌러 들어와 주세요.';
   } else {
     $('detail').hidden = false;
     $('dOrderedAt').textContent = o.orderedAt;
@@ -556,7 +595,47 @@
     $('pgModal').addEventListener('click', e => { if (e.target === $('pgModal')) closePg(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closePg(); });
 
-    // ----- 탭 전환 (전체정보 / 상품정보 / 결제정보 / 배송정보 / 관리자메모 / 주문 히스토리) -----
+    // ----- 증빙서류 발급 (주문정보 탭 왼쪽 아래) -----
+    // 상단 표에서 체크한 상품을 기준으로 발급 (주문취소와 같은 선택 방식). 서류 종류는 다중 선택 (고른 서류를 한 번에 발급). 발급하면 주문 히스토리에 남김
+    // TODO: 서류 종류 목록은 실서비스에서 설정값으로 대체
+    const DOC_TYPES = ['견적서', '거래내역서', '납품서', '사업자등록증', '통장사본'];
+    $('docTypes').innerHTML = DOC_TYPES.map((t, i) => `<label class="check-chip"><input type="checkbox" name="docType" id="docType${i}" value="${esc(t)}"> ${esc(t)}</label>`).join('');
+    const closeDoc = () => $('docModal').classList.remove('open');
+    const showDocErr = msg => { $('docErr').textContent = msg; $('docErr').classList.toggle('show', !!msg); };
+    let docTargets = [];   // 발급 대상 상품 index (모달을 열 때 확정)
+    $('btnDocs').addEventListener('click', () => {
+      docTargets = selectedIdx();
+      if (!docTargets.length) { AdminUtil.toast('증빙서류를 발급할 상품을 선택하세요.'); return; }
+      const sel = docTargets.map(i => o.items[i]);
+      const sumOf = k => sel.reduce((t, it) => t + it[k], 0);
+      $('dItems').innerHTML = sel.map(it => `<tr>
+          <td>${esc(it.category)}</td><td class="left">${esc(it.name)}</td><td class="num">${it.qty}부</td>
+          <td class="num">${won(it.listPrice)}</td><td class="num">${minusCell(it.discount)}</td><td class="num"><b>${won(it.paid)}</b></td>
+        </tr>`).join('');
+      $('dTotal').innerHTML = `선택 ${sel.length}건 · 주문금액 ${won(sumOf('listPrice'))} · 할인금액 ${minusCell(sumOf('discount'))} · 결제금액 <b>${won(sumOf('paid'))}</b>`;
+      $('docOrder').innerHTML = `<span class="mono">${esc(o.orderNo)}</span> · ${esc(o.name)}`;
+      document.querySelectorAll('input[name=docType]').forEach(c => { c.checked = false; });
+      $('docNote').textContent = pay.docType ? `주문 시 ${pay.docType}${pay.docPurpose ? `(${pay.docPurpose})` : ''} 발급을 요청한 주문입니다.` : '주문 시 증빙 발급을 요청하지 않은 주문입니다.';
+      showDocErr('');
+      $('docModal').classList.add('open');
+      $('docType0').focus();
+    });
+    $('docTypes').addEventListener('change', () => showDocErr(''));
+    $('btnDocCreate').addEventListener('click', () => {
+      const types = [...document.querySelectorAll('input[name=docType]:checked')].map(c => c.value);
+      if (!types.length) { showDocErr('발급할 서류 종류를 하나 이상 선택하세요.'); return; }
+      const sel = docTargets.map(i => o.items[i]);
+      const paid = sel.reduce((t, it) => t + it.paid, 0);
+      const saved = OrderData.addHistory(o.orderNo, '증빙', `증빙서류 발급: ${types.join(', ')} · 상품 ${sel.length}건 (${sel.map(it => it.name).join(', ')}) · 결제금액 ${won(paid)}`, AdminUtil.ADMIN_NAME);
+      closeDoc();
+      renderAdmin();   // 주문 히스토리 갱신
+      AdminUtil.toast(`상품 ${sel.length}건에 대해 증빙서류 ${types.length}건을 발급했습니다: ${types.join(', ')}` + (saved ? '' : ' (저장소를 사용할 수 없어 이 화면에만 반영)'));
+    });
+    document.querySelectorAll('#docModal [data-close]').forEach(b => b.addEventListener('click', closeDoc));
+    $('docModal').addEventListener('click', e => { if (e.target === $('docModal')) closeDoc(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDoc(); });
+
+    // ----- 탭 전환 (전체정보 / 주문정보 / 결제정보 / 배송정보 / 관리자메모 / 주문 히스토리) -----
     // 전체정보: 모든 탭 내용을 탭 순서대로 펼쳐 스크롤로 봄 (기본). 그 외 탭은 해당 내용만 표시
     $('tabItemCount').textContent = o.items.length;
     const TAB_PANELS = { items: 'panelItems', pay: 'panelPay', ship: 'panelShip', admin: 'panelAdmin', history: 'panelHistory' };
@@ -1104,7 +1183,7 @@
       try { history.replaceState(null, '', `order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}`); } catch (err) { /* file:// 등 */ }
     }
   }
-  // 목록: 주문접수·미입금·후결제 주문 리스트에서 왔으면 뒤로 가기(검색 조건·페이지 유지), 아니면 주문접수 리스트로 이동
+  // 목록: 통합 주문·미입금·후결제 주문 리스트에서 왔으면 뒤로 가기(검색 조건·페이지 유지), 아니면 통합 주문 리스트로 이동
   $('btnList').addEventListener('click', e => {
     if (document.referrer && /\/(orders|unpaid-orders|postpay-orders)\.html/.test(document.referrer) && history.length > 1) { e.preventDefault(); history.back(); }
   });

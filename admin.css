@@ -482,8 +482,9 @@ tr.hist-system td { color: var(--text-2); }
 .ship-lines-head { margin-top: 20px; }
 .ship-table td.num { text-align: right; }
 
-/* 주문 상세 > 상품정보: 선택 상품 처리 버튼 (표 아래 오른쪽) */
+/* 주문 상세 > 주문정보: 선택 상품 처리 버튼 (표 아래 오른쪽) */
 .item-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin: 0 -16px -16px; padding: 12px 16px; border-top: 1px solid var(--border); }
+.item-actions-left { margin-right: auto; }   /* 왼쪽 끝 버튼 (증빙서류발급). 나머지는 오른쪽 정렬 */
 /* 주문취소 모달: 선택 상품 합계 */
 .cancel-sum { margin-top: 8px; padding: 10px 12px; border-radius: 6px; background: var(--subtle); color: var(--text-2); font-size: 13px; text-align: right; }
 .cancel-sum b { color: var(--text); }

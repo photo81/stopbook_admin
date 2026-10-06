@@ -13,7 +13,7 @@
   const DAY = 86400000;
   // 결제정보 금액 기준 (paymentOf): 택배비, 무료배송 기준(할인 후), 퀵서비스비, 적립률
   const SHIP_FEE = 2500, FREE_SHIP_MIN = 15000, QUICK_FEE = 8000, REMOTE_FEE = 3000, POINT_RATE = 0.01;
-  // 관리자 주문취소 내역 (주문 상세 > 상품정보 > 주문취소). 샘플 주문은 화면을 열 때마다 새로 만들어지므로 localStorage에 보관해 덮어씀
+  // 관리자 주문취소 내역 (주문 상세 > 주문정보 > 주문취소). 샘플 주문은 화면을 열 때마다 새로 만들어지므로 localStorage에 보관해 덮어씀
   // { [orderNo]: { items: { [상품 index]: { amount, reason, refund, memo, at, by } } } }
   // TODO: 실서비스에서는 POST /api/admin/orders/{orderNo}/cancel (PG 취소·환불 처리 포함)
   const CANCEL_KEY = 'stopbook.orderCancels.v1';
@@ -349,10 +349,10 @@
 
   // ===== 입금처리 (미입금 주문 리스트 / 주문 상세) =====
   // 주문 목록 구분
-  //   미입금 주문 리스트: 무통장입금 입금대기 (입금 전이라 주문접수 리스트에는 없음 → 입금처리하면 주문접수 리스트로 이동)
-  //   후결제 주문 리스트: 후결제로 주문한 건 전부 (결제 전·후 모두). 후결제는 접수 즉시 제작이 진행되므로 주문접수 리스트에도 함께 나옴
+  //   미입금 주문 리스트: 무통장입금 입금대기 (통합 주문 리스트에도 입금대기로 나옴 → 입금처리하면 이 목록에서 빠지고 통합 주문 리스트에는 결제완료로 반영)
+  //   후결제 주문 리스트: 후결제로 주문한 건 전부 (결제 전·후 모두). 후결제는 접수 즉시 제작이 진행되므로 통합 주문 리스트에도 함께 나옴
   //                      입금처리하면 결제상태(후결제대기 → 결제완료)·결제수단(입금받은 수단)이 바뀌어 두 목록에 같이 반영
-  //   주문접수 리스트: 미입금을 뺀 전부
+  //   통합 주문 리스트: 주문 전부 (미입금 포함)
   const isUnpaid = ord => ord.payStatus === '입금대기';
   const isPostpayOrder = ord => (ord.orderedPayMethod || ord.payMethod) === '후결제';
   const isPostpay = ord => ord.payStatus === '후결제대기';   // 후결제 중 아직 입금 전

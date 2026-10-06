@@ -166,9 +166,9 @@
     $('dpAt').value = nowLocal();
     $('dpAt').max = nowLocal();
     $('dpNote').textContent = post
-      ? (waiting ? '입금을 등록하면 입금 합계에 따라 결제상태가 부분결제 또는 결제완료로 바뀌고, 결제수단은 입금받은 수단으로 바뀝니다. 후결제 주문 리스트와 주문접수 리스트에 함께 반영됩니다. (제작·배송 진행상태는 그대로)'
+      ? (waiting ? '입금을 등록하면 입금 합계에 따라 결제상태가 부분결제 또는 결제완료로 바뀌고, 결제수단은 입금받은 수단으로 바뀝니다. 후결제 주문 리스트와 통합 주문 리스트에 함께 반영됩니다. (제작·배송 진행상태는 그대로)'
         : '입금이 모두 끝난 주문입니다. 입금 내역만 확인할 수 있습니다.')
-      : '입금처리하면 결제상태가 결제완료로 바뀌고 주문이 접수되어 주문접수 리스트로 이동합니다.';
+      : '입금처리하면 결제상태가 결제완료로 바뀌고 주문이 접수됩니다. 미입금 주문 리스트에서 빠지고 통합 주문 리스트에 결제완료로 반영됩니다.';
     $('dpErr').classList.remove('show');
     $('depositModal').classList.add('open');
     if (!(post && !waiting)) $('dpAmount').focus();
@@ -220,7 +220,7 @@
     const n = OrderData.depositsOf(o.orderNo).length;
     OrderData.addHistory(o.orderNo, '입금처리', `입금 등록${post && n > 1 ? ` ${n}회차` : ''} (${method}, 입금액 ${won(amount)}, 입금일시 ${at.slice(0, 16)}${memo ? `, 메모: ${memo}` : ''}) → ${o.payStatus}${!post ? '·주문 접수' : ''}`, ADMIN_NAME);
     const cb = onDone;
-    toast(saved ? (post ? `입금을 등록했습니다. 결제상태: ${o.payStatus}` : '입금처리했습니다. 주문이 접수되어 주문접수 리스트로 이동했습니다.') : '저장소를 사용할 수 없어 이 화면에만 반영되었습니다.');
+    toast(saved ? (post ? `입금을 등록했습니다. 결제상태: ${o.payStatus}` : '입금처리했습니다. 주문이 접수되어 결제완료로 바뀌었습니다.') : '저장소를 사용할 수 없어 이 화면에만 반영되었습니다.');
     if (post) open(o, cb);   // 후결제: 모달을 열어 둔 채 입금 내역·현황 갱신 (추가 입금 등록 가능)
     else close();
     if (cb) cb(o);

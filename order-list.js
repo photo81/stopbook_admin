@@ -1,9 +1,9 @@
-// 주문 목록 화면 공용 스크립트 (주문접수 리스트 orders.html / 미입금 주문 리스트 unpaid-orders.html / 후결제 주문 리스트 postpay-orders.html)
+// 주문 목록 화면 공용 스크립트 (통합 주문 리스트 orders.html / 미입금 주문 리스트 unpaid-orders.html / 후결제 주문 리스트 postpay-orders.html)
 // member-type-store.js, member-data.js, order-data.js, deposit-modal.js 다음에 로드하고 OrderList.init({ mode }) 호출
-//   mode 'accepted': 접수된 주문 전부 (미입금만 제외. 후결제 주문은 접수 즉시 여기에도 나옴)
-//   mode 'unpaid':   무통장입금 미입금 주문 (결제상태 입금대기). 맨 오른쪽 관리 열에 입금처리 버튼 → 처리하면 목록에서 빠져 주문접수 리스트로 이동
+//   mode 'accepted': 주문 전부 (미입금 주문은 결제상태 입금대기로 표시. 후결제 주문은 접수 즉시 여기에도 나옴)
+//   mode 'unpaid':   무통장입금 미입금 주문 (결제상태 입금대기). 맨 오른쪽 관리 열에 입금처리 버튼 → 처리하면 이 목록에서 빠지고 통합 주문 리스트에는 결제완료로 반영
 //   mode 'postpay':  후결제 주문 전부 (선결제 없이 주문, 상품 수령 후 결제). 구성은 미입금과 같고 후결제대기 건에만 입금처리 버튼
-//                    → 처리하면 결제상태(결제완료)·결제수단(입금받은 수단)이 바뀌어 이 목록과 주문접수 리스트에 같이 반영 (목록에서 빠지지 않음)
+//                    → 처리하면 결제상태(결제완료)·결제수단(입금받은 수단)이 바뀌어 이 목록과 통합 주문 리스트에 같이 반영 (목록에서 빠지지 않음)
 // 세 화면의 검색 조건·목록·엑셀 구성은 같고, 화면별 HTML(검색 폼·표)은 각 파일에 둠
 (function () {
   'use strict';
@@ -19,7 +19,7 @@
     const postpay = mode === 'postpay';
     // ===== 주문 데이터: order-data.js (주문 상세와 공유) =====
     const { ORDERS, TODAY } = OrderData;
-    const source = () => ORDERS.filter(postpay ? OrderData.isPostpayOrder : unpaid ? OrderData.isUnpaid : o => !OrderData.isUnpaid(o));
+    const source = () => (postpay ? ORDERS.filter(OrderData.isPostpayOrder) : unpaid ? ORDERS.filter(OrderData.isUnpaid) : ORDERS);
 
     // ===== 상세검색 항목 (다중 선택) =====
     // 회원구분 선택지는 회원 유형 관리 > 회원구분 탭의 항목 (회원 리스트와 같은 방식, 숨긴 구분도 검색 가능)
@@ -29,8 +29,8 @@
     const DETAIL_FIELDS = [
       ...(unpaid && !postpay ? [] : [
         ...(postpay ? [] : [{ key: 'payMethod', label: '결제수단', options: OrderData.PAY_METHODS.map(v => [v, v]) }]),
-        // 후결제대기·부분결제: 후결제 주문 중 입금 전·일부 입금 (주문접수 리스트에도 나오므로 두 화면 모두 선택지에 둠)
-        { key: 'payStatus', label: '결제상태', options: ['후결제대기', '부분결제', '결제완료', '부분취소', '전체취소'].map(v => [v, v]) }
+        // 입금대기: 무통장입금 미입금 (통합 주문 리스트에만) / 후결제대기·부분결제: 후결제 주문 중 입금 전·일부 입금 (통합 주문 리스트에도 나오므로 두 화면 모두 선택지에 둠)
+        { key: 'payStatus', label: '결제상태', options: [...(postpay ? [] : ['입금대기']), '후결제대기', '부분결제', '결제완료', '부분취소', '전체취소'].map(v => [v, v]) }
       ]),
       // 제작상태: 상품별 진행상태. 고른 상태의 상품이 하나라도 있는 주문을 찾음 (미입금은 입금 전이라 접수대기뿐, 후결제는 제작·배송이 진행됨)
       { key: 'status', label: '제작상태', options: (unpaid && !postpay ? ['접수대기'] : OrderData.ITEM_STATUS_ORDER).map(v => [v, v]) },
@@ -297,8 +297,8 @@
     });
 
     // ===== 입금처리 / 입금관리 (미입금·후결제 주문 리스트 > 관리) =====
-    // 미입금: 입금처리 모달에서 결제수단·입금액·입금일시 입력 → 결제완료·주문 접수 → 이 목록에서 빠지고 주문접수 리스트로
-    // 후결제: 입금관리 모달에서 사업자 정보·입금 내역을 보고 입금을 등록 (분할 가능) → 결제완료/부분결제. 이 목록에 남고 주문접수 리스트에도 반영
+    // 미입금: 입금처리 모달에서 결제수단·입금액·입금일시 입력 → 결제완료·주문 접수 → 이 목록에서 빠지고 통합 주문 리스트에는 결제완료로 반영
+    // 후결제: 입금관리 모달에서 사업자 정보·입금 내역을 보고 입금을 등록 (분할 가능) → 결제완료/부분결제. 이 목록에 남고 통합 주문 리스트에도 반영
     if (unpaid) $('listBody').addEventListener('click', e => {
       const b = e.target.closest('[data-deposit]');
       if (!b) return;
