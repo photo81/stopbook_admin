@@ -317,8 +317,6 @@ tr.row-hidden td.keep { opacity: 1; }
 .field .ms-opt input { flex: none; margin: 0; }   /* .field input { flex: 1 } 규칙이 체크박스를 늘리지 않도록 */
 .ms-opt:hover { background: var(--hover); }
 .ms-all { border-bottom: 1px solid var(--border); border-radius: 4px 4px 0 0; margin-bottom: 2px; }
-.ms-group { margin-top: 4px; padding: 6px 8px 2px; border-top: 1px solid var(--border); color: var(--faint); font-size: 12px; font-weight: 600; }   /* 선택지 소제목 (예: 상담여부 > 관리자 메모) */
-
 /* 주문 목록 */
 /* 가로 스크롤 없이 한 화면에 들어가도록 고정 폭 + 좁은 셀 여백. 모든 열에 폭을 주면 남는 폭은 열마다 비율대로 나뉨
    주문상품은 길면 말줄임 */
