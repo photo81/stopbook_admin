@@ -396,11 +396,11 @@ body.embed #modal .modal { width: 100%; max-width: none; max-height: none; heigh
 /* 주문자명·이메일·휴대폰: 주문 정보와 색을 달리해 한눈에 구분 (옆의 아이디·등급은 그대로 흐리게) */
 .order-meta dd.meta-buyer { color: var(--accent); }
 /* 하단 결제 금액 요약: 주문금액 − 할인금액 − 취소금액 = 총결제금액 */
-.pay-summary { display: flex; align-items: center; gap: 12px; }
+.pay-summary { display: flex; align-items: stretch; gap: 12px; }   /* 카드 높이 통일 (추가금액 카드의 내역 줄이 있어도 같은 높이) */
 .pay-item { flex: 1; min-width: 0; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; text-align: right; }
 .pay-label { color: var(--muted); font-size: 12px; text-align: left; }
 .pay-value { margin-top: 4px; color: var(--text); font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pay-op { flex: none; color: var(--faint); font-size: 18px; font-weight: 600; }
+.pay-op { flex: none; align-self: center; color: var(--faint); font-size: 18px; font-weight: 600; }
 /* 총결제금액: 강조색(남보라) 음영 + 글자색으로 다른 금액과 구분 (상단 회색 카드와도 다른 색) */
 .pay-total { border-color: #c7d2fe; background: var(--accent-soft); }
 .pay-total .pay-label { color: var(--accent); font-weight: 600; }
@@ -557,7 +557,8 @@ table.item-table { table-layout: fixed; min-width: 960px; }
 .item-price .pay-op { font-size: 15px; }
 /* 상품금액 칸: 금액 앞의 '단가 × 부수' (회색 작은 글씨) */
 .pay-calc { margin-right: 4px; color: var(--muted); font-size: 11px; font-weight: 500; }
-.pay-sub { margin-top: 2px; min-height: 15px; color: var(--muted); font-size: 11px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pay-sub { margin-top: 2px; color: var(--muted); font-size: 11px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pay-sub:empty { display: none; }   /* 내역이 없으면 자리도 차지하지 않음 */
 
 /* 제작 공정 플로우 (상품 제작 상세 하단): 원 + 연결선 스텝 */
 .flow { margin-top: 12px; padding: 12px 12px 10px; border: 1px solid var(--border); background: #fff; }
