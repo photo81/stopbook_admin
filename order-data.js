@@ -164,8 +164,8 @@
     };
   }
 
-  const ITEM_STATUS_ORDER = ['접수대기', '접수완료', '제작중', '배송중', '배송완료'];   // 상품별 진행상태 (흐름 순)
-  const ITEM_STATUS = { '접수대기': '접수대기', '접수완료': '접수완료', '제작중': '제작중', '배송중(전체)': '배송중', '배송완료': '배송완료' };
+  const ITEM_STATUS_ORDER = ['주문대기', '주문완료', '제작중', '배송중', '배송완료'];   // 상품별 진행상태 (흐름 순)
+  const ITEM_STATUS = { '주문대기': '주문대기', '주문완료': '주문완료', '제작중': '제작중', '배송중(전체)': '배송중', '배송완료': '배송완료' };
   // 취소: 전체취소 주문은 상품 전부, 결제완료된 2종 이상 주문 일부(약 15%)는 상품 하나만 취소 → 주문 결제상태 '부분취소'
   function makeItems(o, listPrice, discount, fullCancel, orderedAt) {
     let s = [...o.orderNo].reduce((h, c) => (h * 41 + c.charCodeAt(0)) % 233280, 13);
@@ -246,23 +246,35 @@
 
   // ===== 제작 공정 플로우 (주문 상세 > 주문 상품 > 펼침 하단) =====
   // 상품별로 공정 단계를 어디까지 지났는지(step = 마지막으로 도달한 단계 index)와 단계별 처리 시각
-  //   진행상태와 연동 (공정 구간 = 진행상태):
-  //     주문접수                → 접수대기(입금 전)·접수완료
+  //   상품 제작상태(관리자)와 연동:
+  //     접수대기                → 주문대기 (입금 전)
+  //     주문접수                → 주문완료
   //     합성완료 ~ 제본완료      → 제작중
-  //     출고완료                → 배송중 (배송완료는 출고완료까지 모두 끝난 상태, delivered)
-  //   취소된 상품은 주문접수~리핑처리중 중 한 단계에서 멈춘 것으로 표시 (canceled)
-  // TODO: 실서비스에서는 공정 시스템(MES)의 상품별 공정 이력 사용
-  const PROCESS_STEPS = ['주문접수', '합성완료', '조판완료', '리핑처리중', '리핑완료', '출력중', '출력완료', '제본완료', '출고완료'];
-  // 공정 구간 → 진행상태 (from~to: 단계 index)
-  const PROCESS_GROUPS = [{ label: '주문접수', from: 0, to: 0 }, { label: '제작중', from: 1, to: 7 }, { label: '배송중', from: 8, to: 8 }];
+  //     출고완료 ~ 배송중        → 배송중 (제작상태 배송중이면 현재 단계 = 배송중)
+  //     배송완료                → 배송완료 (마지막 단계까지 모두 끝난 상태, delivered)
+  //   취소된 상품은 주문접수~리핑완료 중 한 단계에서 멈춘 것으로 표시 (canceled)
+  // TODO: 실서비스에서는 공정 시스템(MES)의 상품별 공정 이력 + 택배사 배송 추적 사용
+  const PROCESS_STEPS = ['접수대기', '주문접수', '합성완료', '조판완료', '리핑완료', '출력완료', '제본완료', '출고완료', '배송중', '배송완료'];
+  const stepAt = name => PROCESS_STEPS.indexOf(name);
+  // 고객에게 노출되는 제작상태 = 공정 구간 (from~to: 단계 index). 주문 상세 > 제작 공정 아래에 구간으로 표시
+  // TODO: 고객 화면(마이페이지 주문 조회)도 같은 구간 기준으로 표시
+  const PROCESS_GROUPS = [
+    { label: '주문대기', from: stepAt('접수대기'), to: stepAt('접수대기') },
+    { label: '주문완료', from: stepAt('주문접수'), to: stepAt('주문접수') },
+    { label: '제작중',   from: stepAt('합성완료'), to: stepAt('제본완료') },
+    { label: '배송중',   from: stepAt('출고완료'), to: stepAt('배송중') },
+    { label: '배송완료', from: stepAt('배송완료'), to: stepAt('배송완료') }
+  ];
   function makeFlow(o, i, status, canceled, orderedAt) {
     let s = [...`${o.orderNo}#flow${i}`].reduce((h, c) => (h * 47 + c.charCodeAt(0)) % 233280, 19);
     const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
-    const last = PROCESS_STEPS.length - 1;
-    const step = canceled ? Math.floor(r() * 4)
-      : status === '제작중' ? 1 + Math.floor(r() * (last - 1))   // 합성완료 ~ 제본완료
-      : /^배송/.test(status) ? last                               // 출고완료
-      : 0;                                                       // 접수대기·접수완료: 주문접수
+    const MAKE_FIRST = stepAt('합성완료'), MAKE_LAST = stepAt('제본완료');
+    const step = canceled ? stepAt('주문접수') + Math.floor(r() * 4)                     // 주문접수 ~ 리핑완료
+      : status === '제작중' ? MAKE_FIRST + Math.floor(r() * (MAKE_LAST - MAKE_FIRST + 1))  // 합성완료 ~ 제본완료
+      : status === '배송중' ? stepAt('배송중')                                           // 출고완료 후 배송중
+      : status === '배송완료' ? stepAt('배송완료')                                       // 배송완료 (전 단계 완료)
+      : status === '주문완료' ? stepAt('주문접수')
+      : stepAt('접수대기');                                                              // 주문대기 (입금 전)
     // 단계별 시각: 주문 시각부터 단계마다 1~10시간씩, 기준일을 넘지 않게
     let t = new Date(orderedAt.replace(' ', 'T')).getTime();
     const limit = TODAY.getTime() + DAY - 60000;
@@ -323,7 +335,7 @@
     ord.payment = paymentOf(ord, m);
     ord.delivery = deliveryOf(ord, m);
     applyAddressEdits(ord);   // 관리자가 수정·추가한 배송지 반영
-    if (DEPOSITS[ord.orderNo]) applyDeposit(ord, DEPOSITS[ord.orderNo]);   // 관리자가 입금처리한 주문 → 결제완료·접수완료
+    if (DEPOSITS[ord.orderNo]) applyDeposit(ord, DEPOSITS[ord.orderNo]);   // 관리자가 입금처리한 주문 → 결제완료·주문완료
     else if (ord.payMethod === '후결제' && !WAITING.includes(ord.payStatus) && ord.payStatus !== '전체취소') applyDeposit(ord, samplePayments(ord));   // 결제가 끝난 후결제 샘플 → 입금 내역 샘플
     else if (ord.payMethod === '후결제' && ord.payStatus === '후결제대기') { const part = samplePartialPayment(ord); if (part) applyDeposit(ord, part); }   // 입금 전 후결제 샘플 일부 → 1차 입금만 된 부분결제
     ORDERS.push(ord);
@@ -375,7 +387,7 @@
   // 입금 내역 반영 (rec = { payments: [...] })
   //   결제수단은 마지막 입금의 수단으로, 결제일은 입금이 끝난 날로. 후결제 주문인지는 주문 시 결제수단 orderedPayMethod로 판정 (결제수단이 바뀌어도 후결제 주문 리스트에 남음)
   //   후결제: 입금 합계 ≥ 총 결제금액이면 결제완료, 모자라면 부분결제 (진행상태는 그대로)
-  //   미입금(무통장입금): 입금 1건으로 결제완료 (금액이 달라도 결제완료, 차액은 관리자가 별도 처리) + 상품 진행상태 접수대기 → 접수완료(주문 접수)
+  //   미입금(무통장입금): 입금 1건으로 결제완료 (금액이 달라도 결제완료, 차액은 관리자가 별도 처리) + 상품 진행상태 주문대기 → 주문완료(주문 접수)
   //   결제정보(적립·입금일시·PG 로그·증빙 발급상태)와 배송정보 다시 계산
   //   (화면을 열 때 저장된 입금 내역을 반영할 때와 입금 등록 직후 목록을 다시 그릴 때 같은 함수를 씀)
   function applyDeposit(ord, rec) {
@@ -391,11 +403,14 @@
     ord.paidAt = full ? last.at.slice(0, 10) : '';
     if (WAITING.includes(ord.payStatus)) ord.payStatus = full ? (ord.cancelAmount ? '부분취소' : '결제완료') : '부분결제';
     if (full) {
-      if (ord.status === '접수대기') ord.status = '접수완료';
+      if (ord.status === '주문대기') ord.status = '주문완료';
       ord.items.forEach(it => {
         if (WAITING.includes(it.payStatus)) it.payStatus = '결제완료';
-        if (it.status === '접수대기') it.status = '접수완료';
-        if (it.flow && it.flow.status === '접수대기') it.flow.status = '접수완료';
+        if (it.status === '주문대기') it.status = '주문완료';
+        if (it.flow && it.flow.status === '주문대기') {   // 입금 확인 → 공정 접수대기 → 주문접수 (입금일시를 주문접수 시각으로)
+          it.flow.status = '주문완료';
+          if (!it.flow.canceled && it.flow.step === stepAt('접수대기')) { it.flow.step = stepAt('주문접수'); it.flow.times[it.flow.step] = last.at.slice(5, 16); }
+        }
       });
     } else {
       ord.items.forEach(it => { if (WAITING.includes(it.payStatus)) it.payStatus = '부분결제'; });

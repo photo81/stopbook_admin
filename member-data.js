@@ -193,8 +193,8 @@
     const daysAgo = d => Math.floor((base - new Date(d).getTime()) / 86400000);
 
     // 주문 상세: 일자·금액은 기존 값 유지(등급 산정용), 상품명·수량·상태·결제수단만 채움
-    // 제작상태(주문 제작 흐름): 접수완료 → 제작중 → 배송중(전체) (접수대기·배송중(부분)·배송완료는 아래에서 지정)
-    //   2일 이내 접수완료·제작중 / 3~6일 제작중·배송중 / 7일 이상 배송중
+    // 제작상태(주문 제작 흐름): 주문완료 → 제작중 → 배송중(전체) (주문대기·배송중(부분)·배송완료는 아래에서 지정)
+    //   2일 이내 주문완료·제작중 / 3~6일 제작중·배송중 / 7일 이상 배송중
     (m.orders || []).forEach((o, i) => {
       const p = pickR(PRODUCTS);
       const qty = 1 + Math.floor(r() * 3);
@@ -205,7 +205,7 @@
         title: kinds > 1 ? `${p[0]} 외 ${kinds - 1}종` : p[0],
         productCategory: p[1],
         qty: qty + kinds - 1,
-        status: d <= 2 ? pickR(['접수완료', '제작중']) : d <= 6 ? pickR(['제작중', '배송중(전체)']) : '배송중(전체)',
+        status: d <= 2 ? pickR(['주문완료', '제작중']) : d <= 6 ? pickR(['제작중', '배송중(전체)']) : '배송중(전체)',
         payMethod: pickR(PAY_METHODS)
       });
     });
@@ -249,8 +249,8 @@
   // ===== 결제상태·제작상태 샘플 =====
   // 결제상태(payStatus): 입금대기(무통장입금 접수 후 미입금) / 결제완료 / 전체취소 (부분취소는 주문 상품별로 order-data.js에서 정함)
   // 제작상태(status, 주문 단위):
-  //   접수대기      입금 전
-  //   접수완료      입금 완료 후 제작 시작 전
+  //   주문대기      입금 전
+  //   주문완료      입금 완료 후 제작 시작 전
   //   제작중        제작 진행 중
   //   배송중(부분)  주문 상품 중 일부만 출고 (상품이 2종 이상인 주문만)
   //   배송중(전체)  전체 상품 출고
@@ -266,16 +266,16 @@
     const days = Math.floor((base - new Date(o.at).getTime()) / 86400000);
     if (r() < 0.05) o.payStatus = '전체취소';
     else {
-      // 미입금: 무통장입금으로 주문한 지 7일 이내이고 제작 전(접수완료·제작중으로 뽑힌 건)이면 아직 입금 전인 것으로 → 미입금 주문 리스트 샘플
-      o.payStatus = o.payMethod === '무통장입금' && days <= 7 && ['접수완료', '제작중'].includes(o.status) ? '입금대기' : '결제완료';
+      // 미입금: 무통장입금으로 주문한 지 7일 이내이고 제작 전(주문완료·제작중으로 뽑힌 건)이면 아직 입금 전인 것으로 → 미입금 주문 리스트 샘플
+      o.payStatus = o.payMethod === '무통장입금' && days <= 7 && ['주문완료', '제작중'].includes(o.status) ? '입금대기' : '결제완료';
       if (o.status === '배송중(전체)' && days >= 10 && r() < 0.85) o.status = '배송완료';
     }
-    if (o.payStatus === '입금대기') o.status = '접수대기';
+    if (o.payStatus === '입금대기') o.status = '주문대기';
     else if (o.payStatus === '전체취소') o.status = '';
     else if (o.status === '배송중(전체)' && /외 \d+종/.test(o.title) && r() < 0.4) o.status = '배송중(부분)';
   }));
   // 제작상태·결제상태 → 배지 색 클래스 (값에 괄호가 있어 CSS 클래스명으로 직접 쓰지 않음)
-  const STATUS_CLASS = { '접수대기': 'st-wait', '접수완료': 'st-recv', '제작중': 'st-make', '배송중(부분)': 'st-part', '배송중(전체)': 'st-ship', '배송완료': 'st-done', '전체취소': 'st-cancel',
+  const STATUS_CLASS = { '주문대기': 'st-wait', '주문완료': 'st-recv', '제작중': 'st-make', '배송중(부분)': 'st-part', '배송중(전체)': 'st-ship', '배송완료': 'st-done', '전체취소': 'st-cancel',
     '배송중': 'st-ship', '취소': 'st-cancel' };   // 아래 두 개는 주문 상세 > 주문 상품의 상품별 진행상태
   const statusClass = s => STATUS_CLASS[s] || '';
   const validOrders = m => (m.orders || []).filter(o => o.payStatus !== '전체취소');
@@ -322,7 +322,7 @@
   const postpayOrder = (o, status) => {
     o.payMethod = '후결제';
     o.payStatus = status;
-    if (o.status === '접수대기') o.status = '접수완료';   // 후결제는 입금을 기다리지 않고 바로 접수
+    if (o.status === '주문대기') o.status = '주문완료';   // 후결제는 입금을 기다리지 않고 바로 접수
   };
   const skipped = [];   // 절반 규칙에서 빠진 후불 회원 주문 (아래에서 입금대기 샘플을 보충할 때 사용)
   members.filter(m => m.postpay === 'Y').forEach(m => (m.orders || []).forEach(o => {

@@ -363,8 +363,8 @@ table.order-table { table-layout: fixed; }
 .ps-부분취소 { --dot: #f97316; }
 .ps-전체취소, .ps-취소 { --dot: var(--danger); }   /* 취소: 주문 상세 > 주문 상품의 상품별 결제상태 */
 /* 제작상태 배지 (주문 리스트·회원 상세 주문 내역 공통). 값에 괄호가 있어 MemberData.statusClass로 클래스 변환 */
-.st-wait { --dot: #f59e0b; }     /* 접수대기 */
-.st-recv { --dot: #a855f7; }     /* 접수완료 */
+.st-wait { --dot: #f59e0b; }     /* 주문대기 */
+.st-recv { --dot: #a855f7; }     /* 주문완료 */
 .st-make { --dot: #2563eb; }     /* 제작중 */
 .st-part { --dot: #14b8a6; }     /* 배송중(부분) */
 .st-ship { --dot: #16a34a; }     /* 배송중(전체) */
@@ -581,6 +581,14 @@ table.item-table { table-layout: fixed; min-width: 960px; }
 .flow-step.stopped .flow-dot { border-color: var(--danger); background: #fff; color: var(--danger); }
 .flow-step.stopped .flow-label { color: var(--danger); font-weight: 700; }
 .flow.is-canceled .flow-step.todo { opacity: .45; }
+/* 고객 노출 제작상태: 공정 단계 아래에 구간 띠 (단계 열과 같은 폭으로 맞춤) */
+.flow-groups-cap { margin: 10px 0 4px; color: var(--faint); font-size: 11px; font-weight: 600; }
+.flow-groups { display: grid; }
+.flow-group { margin: 0 2px; padding: 5px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--subtle); color: var(--muted); font-size: 12px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.flow-group.done { border-color: var(--accent-soft); background: var(--accent-soft); color: var(--accent); }
+.flow-group.current { border-color: var(--accent); background: var(--accent); color: #fff; font-weight: 700; }
+.flow-group.stopped { border-color: var(--danger); background: #fff; color: var(--danger); font-weight: 700; }
+.flow.is-canceled .flow-group.todo { opacity: .45; }
 
 /* 빈 화면 안내 (아직 구성하지 않은 메뉴) */
 .empty-page { padding: 72px 16px; text-align: center; color: var(--muted); }

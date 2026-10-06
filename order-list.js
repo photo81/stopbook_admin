@@ -32,8 +32,8 @@
         // 입금대기: 무통장입금 미입금 (통합 주문 리스트에만) / 후결제대기·부분결제: 후결제 주문 중 입금 전·일부 입금 (통합 주문 리스트에도 나오므로 두 화면 모두 선택지에 둠)
         { key: 'payStatus', label: '결제상태', options: [...(postpay ? [] : ['입금대기']), '후결제대기', '부분결제', '결제완료', '부분취소', '전체취소'].map(v => [v, v]) }
       ]),
-      // 제작상태: 상품별 진행상태. 고른 상태의 상품이 하나라도 있는 주문을 찾음 (미입금은 입금 전이라 접수대기뿐, 후결제는 제작·배송이 진행됨)
-      { key: 'status', label: '제작상태', options: (unpaid && !postpay ? ['접수대기'] : OrderData.ITEM_STATUS_ORDER).map(v => [v, v]) },
+      // 제작상태: 상품별 진행상태. 고른 상태의 상품이 하나라도 있는 주문을 찾음 (미입금은 입금 전이라 주문대기뿐, 후결제는 제작·배송이 진행됨)
+      { key: 'status', label: '제작상태', options: (unpaid && !postpay ? ['주문대기'] : OrderData.ITEM_STATUS_ORDER).map(v => [v, v]) },
       { key: 'category', label: '회원구분', options: CAT_TREE.map(c => [c.code, c.label + (c.hidden ? ' (숨김)' : '')]) },
       // 상담여부: 관리자 메모 구분 (주문 상세 > 관리정보에서 등록). 고른 구분의 메모가 있는 주문을 찾음
       { key: 'inquiry', label: '상담여부', options: OrderData.MEMO_CATEGORIES.map(c => [c, c]) },
@@ -343,7 +343,7 @@
           ['상품단가(원)', (o, it) => it.price.unitPrice], ['추가금액(원)', (o, it) => it.price.extra],
           ['주문금액(원)', (o, it) => it.listPrice], ['할인금액(원)', (o, it) => it.discount], ['취소금액(원)', (o, it) => it.cancel], ['결제금액(원)', (o, it) => it.paid],
           ['결제수단', (o) => o.payMethod], ['결제상태', (o, it) => it.payStatus], ['주문 결제상태', payStatusText],
-          ['진행상태', (o, it) => it.status], ['현재 공정', (o, it) => (it.flow.canceled ? `${OrderData.PROCESS_STEPS[it.flow.step]}(취소)` : OrderData.PROCESS_STEPS[it.flow.step])],
+          ['제작상태', (o, it) => it.status], ['현재 공정', (o, it) => (it.flow.canceled ? `${OrderData.PROCESS_STEPS[it.flow.step]}(취소)` : OrderData.PROCESS_STEPS[it.flow.step])],
           ['제작처', (o, it) => it.maker],
           ['상품형태', (o, it) => it.spec.form], ['사이즈', (o, it) => it.spec.size], ['커버종류', (o, it) => it.spec.cover], ['코팅종류', (o, it) => it.spec.coating],
           ['페이지', (o, it) => (it.spec.basePages ? `${it.spec.basePages}p${it.spec.addPages ? `(+${it.spec.addPages}p)` : ''}` : '')], ['후가공', (o, it) => it.spec.finishing],

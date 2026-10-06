@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 주문 상세</title>
-<link rel="stylesheet" href="admin.css?v=20261107">
+<link rel="stylesheet" href="admin.css?v=20261111">
 </head>
 <body>
 <div class="layout">
@@ -93,7 +93,7 @@
         </div>
 
         <!-- 아래 탭 내용(panel)은 탭 순서대로 둠 → 전체정보 탭에서 그 순서로 펼쳐짐 -->
-        <!-- 주문정보 탭: 상품별 금액·진행상태·제작처 -->
+        <!-- 주문정보 탭: 상품별 금액·제작상태·제작처 -->
         <section class="panel" role="tabpanel" id="panelItems" aria-labelledby="tab-items" data-title="주문정보">
           <div class="list-head">
             <div class="count"><b>주문정보</b> <span id="itemSummary"></span>
@@ -114,7 +114,7 @@
                   <th class="w-amt">취소금액</th>
                   <th class="w-amt">결제금액</th>
                   <th class="w-st">결제상태</th>
-                  <th class="w-st">진행상태</th>
+                  <th class="w-st">제작상태</th>
                   <th class="w-maker">제작처</th>
                 </tr>
               </thead>
@@ -451,11 +451,11 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261107"></script>
-<script src="member-type-store.js?v=20261107"></script>
-<script src="member-data.js?v=20261107"></script>
-<script src="order-data.js?v=20261107"></script>
-<script src="deposit-modal.js?v=20261107"></script>
+<script src="alimtalk.js?v=20261111"></script>
+<script src="member-type-store.js?v=20261111"></script>
+<script src="member-data.js?v=20261111"></script>
+<script src="order-data.js?v=20261111"></script>
+<script src="deposit-modal.js?v=20261111"></script>
 <script>
 (function () {
   'use strict';
@@ -939,26 +939,33 @@
     const dash = v => (v ? esc(v) : '<span class="muted">-</span>');
     // 제작 공정 플로우: 지난 단계 ✓(채움) · 현재 단계(강조) · 남은 단계(빈 원). 단계 아래 처리 시각
     // 취소된 상품은 멈춘 단계 뒤를 흐리게 하고 '취소' 표시
-    // 공정과 진행상태 연결은 위쪽 문구의 진행상태 배지로 보여줌 (구간: 주문접수 | 합성완료~제본완료=제작중 | 출고완료=배송중)
+    // 단계 아래에 고객에게 노출되는 제작상태 구간을 표시 (주문대기=접수대기 | 주문완료=주문접수 | 제작중=합성완료~제본완료 | 배송중=출고완료~배송중 | 배송완료)
     const flowHtml = f => {
       const steps = OrderData.PROCESS_STEPS;
-      // 배송완료: 출고완료까지 모두 끝남 → 전 단계 ✓
+      // 고객 노출 제작상태 구간: 지난 구간(done) · 현재 구간(current, 취소면 stopped) · 남은 구간(todo)
+      const gCls = g => (f.step > g.to || (f.delivered && f.step === g.to) ? 'done' : f.step >= g.from ? (f.canceled ? 'stopped' : 'current') : 'todo');
+      const groupsHtml = `<div class="flow-groups-cap">고객 노출 제작상태</div>
+        <div class="flow-groups" style="grid-template-columns:repeat(${steps.length},1fr)">${OrderData.PROCESS_GROUPS.map(g => `
+          <div class="flow-group ${gCls(g)}" style="grid-column:${g.from + 1} / span ${g.to - g.from + 1}">${esc(g.label)}</div>`).join('')}
+        </div>`;
+      // 배송완료: 마지막 단계(배송완료)까지 모두 끝남 → 전 단계 ✓
       const cls = k => (k < f.step || (f.delivered && k === f.step) ? 'done' : k === f.step ? (f.canceled ? 'stopped' : 'current') : 'todo');
       const statusBadge = f.status ? `<span class="badge ${MemberData.statusClass(f.status)}">${esc(f.status)}</span>` : '';
       const head = f.canceled
         ? `<span class="badge ps-취소">취소</span> ${esc(steps[f.step])} 단계에서 취소되었습니다.`
         : f.delivered
-          ? `${statusBadge} 출고 후 배송까지 완료되었습니다.`
+          ? `${statusBadge} 제작부터 배송까지 모든 단계가 완료되었습니다.`
           : `${statusBadge} 현재 공정 <b>${esc(steps[f.step])}</b> <span class="muted">(${f.step + 1}/${steps.length}단계)</span>`;
       return `<div class="flow${f.canceled ? ' is-canceled' : ''}">
         <div class="flow-head"><b>제작 공정</b> <span class="flow-now">${head}</span></div>
         <ol class="flow-steps">${steps.map((name, k) => `
           <li class="flow-step ${cls(k)}"${k === f.step ? ' aria-current="step"' : ''}>
-            <span class="flow-dot">${k < f.step ? '✓' : k + 1}</span>
+            <span class="flow-dot">${k < f.step || (f.delivered && k === f.step) ? '✓' : k + 1}</span>
             <span class="flow-label">${esc(name)}</span>
             <span class="flow-time">${f.times[k] || ''}</span>
           </li>`).join('')}
         </ol>
+        ${groupsHtml}
       </div>`;
     };
     // 페이지: 기본 페이지수(추가 페이지수). 예) 24p(+6p), 추가 없으면 24p
