@@ -32,6 +32,8 @@
     const itemMode = outsource || making;     // 상품 행 목록 (열 구성 공통)
     const unpaid = mode === 'unpaid' || mode === 'postpay';   // 미입금·후결제: 입금처리 대상 목록 (관리 열 표시)
     const postpay = mode === 'postpay';
+    // 주문관리 리스트(통합·결제완료·미입금·후결제): 주문별 / 상품별 보기 탭. 상품별은 주문 상품 1개 = 1행 (상품제작번호·제작상태 열 추가)
+    const orderList = !itemMode;
     // 결제완료 주문 리스트에서 빼는 결제상태 (결제 전)
     const UNPAID_STATUSES = ['입금대기', '후결제대기'];
     // ===== 주문 데이터: order-data.js (주문 상세와 공유) =====
@@ -57,8 +59,15 @@
     const OUT_EXCLUDED = ['입금대기', '취소'];
     const source = () => (outsource ? ORDERS.flatMap(o => o.items.map((it, i) => (OrderData.isKsiMaker(it.maker) || OUT_EXCLUDED.includes(it.payStatus) ? null : itemRow(o, it, i))).filter(Boolean))
       : making ? ORDERS.flatMap(o => o.items.map((it, i) => (it.status === STATUS_LIST && it.payStatus !== '취소' ? itemRow(o, it, i) : null)).filter(Boolean))
-      : postpay ? ORDERS.filter(OrderData.isPostpayOrder) : unpaid ? ORDERS.filter(OrderData.isUnpaid)
+      : orderList && state.view === 'item' ? orderSource().flatMap(o => o.items.map((it, i) => Object.assign(itemRow(o, it, i), { orderPayStatus: o.payStatus })))
+      : orderSource());
+    // 주문관리 리스트의 주문 목록 (주문별 보기 = 이 목록, 상품별 보기 = 이 주문들의 상품)
+    const orderSource = () => (postpay ? ORDERS.filter(OrderData.isPostpayOrder) : unpaid ? ORDERS.filter(OrderData.isUnpaid)
       : paid ? ORDERS.filter(o => !UNPAID_STATUSES.includes(o.payStatus)) : ORDERS);
+    // 상품 행으로 보여주는지 (제작관리 리스트는 항상, 주문관리 리스트는 상품별 탭일 때)
+    const byItem = () => itemMode || state.view === 'item';
+    // 결제상태 검색·결제상태 탭은 주문관리 리스트의 상품별 보기에서도 주문의 결제상태 기준 (부분취소·전체취소 등 주문 단위 값)
+    const payStatusOf = o => o.orderPayStatus || o.payStatus;
     // 외주 제작처 목록 (상세검색 선택지)
     const OUT_MAKERS = itemMode ? [...new Set(source().map(r => r.maker))].sort((a, b) => a.localeCompare(b, 'ko')) : [];
     // 공정상태 선택지 (제작중·외주제작): 목록에 있는 공정 단계를 공정 순서대로 (외주제작은 외주 공정 순서, 제작중은 자체 공정 → 외주 공정 중 자체에 없는 단계)
@@ -222,7 +231,7 @@
     // 상품명 검색은 주문의 모든 상품명(productNames)에서 찾음 ('마이트립북 외 2종'의 나머지 상품도 검색됨)
     const KEYWORD_FIELDS = ['orderNo', 'name', 'recipient', 'userId', 'email', 'phone', 'productNames'];
     const DATE_KEY = { orderedAt: 'orderDate', paidAt: 'paidAt', shippedAt: 'shippedAt', outAt: 'outDate' };   // outAt: 출고일 (배송중·외주제작 주문 리스트, 상품 기준)
-    const state = { filtered: [], page: 1, size: 10, sortKey: 'orderedAt', sortDir: 'desc', search: null, tab: 'all' };
+    const state = { filtered: [], page: 1, size: 10, sortKey: 'orderedAt', sortDir: 'desc', search: null, tab: 'all', view: 'order' };
     const inSet = (list, v) => !list || !list.length || list.includes(v);
     // 상담여부: 고른 구분의 관리자 메모가 하나라도 있으면 해당
     const matchInquiry = (list, o) => !list.length || OrderData.memoCategories(o.orderNo).some(c => list.includes(c));
@@ -238,7 +247,7 @@
       { key: 'requested', label: '의뢰완료', test: r => OrderData.isRequested(r.item) }
     ] : [
       { key: 'all', label: '전체', test: () => true },
-      ...['후결제대기', '부분결제', '결제완료'].map(st => ({ key: st, label: st, test: o => o.payStatus === st }))
+      ...['후결제대기', '부분결제', '결제완료'].map(st => ({ key: st, label: st, test: o => payStatusOf(o) === st }))
     ];
     function renderTabs(base) {
       if (!TABS) return;
@@ -255,6 +264,22 @@
       refilter();
     });
 
+    // ===== 주문별 / 상품별 보기 탭 (주문관리 리스트) =====
+    // 탭 옆 건수는 검색 전 전체 기준 (주문 수 / 그 주문들의 상품 수). 보기를 바꿔도 검색 조건·결제상태 탭은 유지
+    function renderViewTabs() {
+      const orders = orderSource(), items = orders.reduce((n, o) => n + o.items.length, 0);
+      $('viewTabs').innerHTML = [['order', '주문별', orders.length], ['item', '상품별', items]].map(([k, label, n]) => `
+        <button type="button" role="tab" class="tab ${state.view === k ? 'active' : ''}" aria-selected="${state.view === k}" data-view="${k}">
+          ${label} <span class="tab-count">${n.toLocaleString()}</span></button>`).join('');
+      $('viewUnit').textContent = state.view === 'item' ? '(상품 기준)' : '';
+    }
+    if (orderList) $('viewTabs').addEventListener('click', e => {
+      const b = e.target.closest('[data-view]');
+      if (!b || b.dataset.view === state.view) return;
+      state.view = b.dataset.view;
+      state.page = 1;
+      refilter();
+    });
     function applySearch(s) {
       state.search = s;
       const parts = describe(s);
@@ -272,7 +297,7 @@
       const base = source().filter(o =>
         (!kw || fields.some(f => String(o[f]).toLowerCase().replace(/-/g, '').includes(kw))) &&
         (!(s.from || s.to) || (o[dk] && (!s.from || o[dk] >= s.from) && (!s.to || o[dk] <= s.to))) &&   // 결제·발송 전 주문은 해당 기간 검색에서 제외
-        inSet(s.payMethod, o.payMethod) && inSet(s.payStatus, o.payStatus) && (!s.status.length || o.statusCounts.some(([st]) => s.status.includes(st))) &&
+        inSet(s.payMethod, o.payMethod) && inSet(s.payStatus, payStatusOf(o)) && (!s.status.length || o.statusCounts.some(([st]) => s.status.includes(st))) &&
         inSet(s.category, o.categoryCode) && matchInquiry(s.inquiry, o) && inSet(s.shipMethod, o.shipMethod) && inSet(s.maker, o.maker) && inSet(s.step, o.stepName)
       );
       renderTabs(base);
@@ -304,23 +329,24 @@
     const openRows = new Set();   // 펼친 상품 행 (rowKey). 검색·페이지 이동 뒤 다시 그려도 유지
 
     function render() {
-      const sel = selectMode(), COLS = baseCols + (sel ? 1 : 0);
+      const sel = selectMode(), iv = byItem(), COLS = baseCols + (sel ? 1 : 0) + (orderList && iv ? 2 : 0);   // 주문관리 상품별: 상품제작번호·제작상태 열
+      if (orderList) { document.querySelectorAll('.order-table th.v-item').forEach(th => { th.hidden = !iv; }); renderViewTabs(); }
       const total = state.filtered.length;
       const pages = Math.max(1, Math.ceil(total / state.size));
       if (state.page > pages) state.page = pages;
       const start = (state.page - 1) * state.size;
       $('totalCount').textContent = total.toLocaleString();
       $('allCount').textContent = source().length.toLocaleString();
-      $('listBody').innerHTML = state.filtered.slice(start, start + state.size).map(o => `<tr${itemMode ? ` class="${openRows.has(o.rowKey) ? 'open' : ''}" data-row="${esc(o.rowKey)}"` : ''}>${sel ? `
+      $('listBody').innerHTML = state.filtered.slice(start, start + state.size).map(o => `<tr${iv ? ` class="${openRows.has(o.rowKey) ? 'open' : ''}" data-row="${esc(o.rowKey)}"` : ''}>${sel ? `
           <td class="c-chk"><input type="checkbox" class="row-chk" value="${esc(o.rowKey)}" aria-label="${esc(o.item.spec.makeNo)} 선택"${checkedRows.has(o.rowKey) ? ' checked' : ''}></td>` : ''}
           <td><span class="env-tag env-${o.env}" title="${o.env === 'MO' ? '모바일' : 'PC'}에서 결제">${o.env}</span></td>
           <td title="${o.orderedAt}">${o.orderedAt.slice(0, 16)}</td>
           <td>${esc(o.name)}</td>
           <td class="left ellip" title="${esc(o.email)}">${esc(o.email.split('@')[0])}</td>
           <td class="mono"><a class="name-link" href="order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}">${esc(o.orderNo)}</a></td>
-          ${itemMode ? `<td class="mono"><button type="button" class="link-btn mono make-toggle" data-toggle="${esc(o.rowKey)}" aria-expanded="${openRows.has(o.rowKey)}" title="상품정보·제작 공정 보기">${esc(o.item.spec.makeNo)} <span class="make-chev">▾</span></button></td>` : ''}
+          ${iv ? `<td class="mono"><button type="button" class="link-btn mono make-toggle" data-toggle="${esc(o.rowKey)}" aria-expanded="${openRows.has(o.rowKey)}" title="상품정보·제작 공정 보기">${esc(o.item.spec.makeNo)} <span class="make-chev">▾</span></button></td>` : ''}
           <td class="left ellip" title="${esc(o.productNames)}">${esc(o.title)}</td>
-          <td class="num">${itemMode ? `${o.qty}부` : `${o.kinds}건/${o.qty}부`}</td>
+          <td class="num">${iv ? `${o.qty}부` : `${o.kinds}건/${o.qty}부`}</td>
           ${itemMode ? '' : `<td class="num">${won(o.listPrice)}</td>
           <td class="num">${o.discount ? `-${won(o.discount)}` : '<span class="muted">0원</span>'}</td>
           <td class="num"><b>${won(o.amount)}</b></td>
@@ -330,9 +356,9 @@
           <td>${esc(o.item.flow.steps[o.item.flow.step])}${o.item.flow.canceled ? ' <span class="muted">(취소)</span>' : ''}</td>
           <td>${esc(o.maker)}</td>
           ${making ? '' : `<td class="c-act"><button type="button" class="btn btn-xs ${OrderData.isRequestWaiting(o.item) ? 'btn-primary' : ''}" data-make="${esc(o.rowKey)}">제작관리</button></td>`}`
-            : postpay ? `<td class="c-act"><button type="button" class="btn btn-xs ${OrderData.isWaiting(o) ? 'btn-primary' : ''}" data-deposit="${esc(o.orderNo)}">입금관리</button></td>`
-            : unpaid ? `<td class="c-act">${OrderData.isWaiting(o) ? `<button type="button" class="btn btn-xs btn-primary" data-deposit="${esc(o.orderNo)}">입금처리</button>` : '<span class="muted">입금완료</span>'}</td>` : ''}
-        </tr>${itemMode ? `<tr class="item-detail" data-detail="${esc(o.rowKey)}"${openRows.has(o.rowKey) ? '' : ' hidden'}><td colspan="${COLS}">${openRows.has(o.rowKey) ? ItemDetail.html(o.item, o.itemIdx) : ''}</td></tr>` : ''}`).join('') || `<tr><td colspan="${COLS}" class="empty">${(unpaid || itemMode) && !source().length ? `${postpay ? '후결제' : outsource ? '외주제작' : making ? STATUS_LIST : '미입금'} 주문이 없습니다.` : '검색 결과가 없습니다.'}</td></tr>`;
+            : `${iv ? `<td>${o.item.status ? `<span class="badge ${MemberData.statusClass(o.item.status)}">${esc(o.item.status)}</span>` : '<span class="muted">-</span>'}</td>` : ''}${postpay ? `<td class="c-act"><button type="button" class="btn btn-xs ${OrderData.isWaiting(o.order || o) ? 'btn-primary' : ''}" data-deposit="${esc(o.orderNo)}">입금관리</button></td>`
+            : unpaid ? `<td class="c-act">${OrderData.isWaiting(o.order || o) ? `<button type="button" class="btn btn-xs btn-primary" data-deposit="${esc(o.orderNo)}">입금처리</button>` : '<span class="muted">입금완료</span>'}</td>` : ''}`}
+        </tr>${iv ? `<tr class="item-detail" data-detail="${esc(o.rowKey)}"${openRows.has(o.rowKey) ? '' : ' hidden'}><td colspan="${COLS}">${openRows.has(o.rowKey) ? ItemDetail.html(o.item, o.itemIdx) : ''}</td></tr>` : ''}`).join('') || `<tr><td colspan="${COLS}" class="empty">${(unpaid || itemMode) && !source().length ? `${postpay ? '후결제' : outsource ? '외주제작' : making ? STATUS_LIST : '미입금'} 주문이 없습니다.` : '검색 결과가 없습니다.'}</td></tr>`;
 
       document.querySelectorAll('.order-table th.sortable').forEach(th => {
         const active = th.dataset.key === state.sortKey;
@@ -389,7 +415,7 @@
     // ===== 상품제작번호 아코디언 (제작중·외주제작 주문 리스트) =====
     // 상품제작번호를 누르면 바로 아래 행에 상품정보·제작 공정이 펼쳐짐 (주문 상세 > 주문정보와 같은 화면, 여러 개 동시에 펼칠 수 있음)
     // 펼칠 때 그 상품의 최신 상태로 그림 (의뢰완료 처리 뒤 다시 펼치면 반영)
-    if (itemMode) $('listBody').addEventListener('click', e => {
+    $('listBody').addEventListener('click', e => {
       if (ItemDetail.openViewer(e)) return;
       const b = e.target.closest('[data-toggle]');
       if (!b) return;
@@ -497,7 +523,8 @@
           ['제작상태', o => o.statusCounts.map(([st, n]) => `${st}(${n})`).join(' ')], ['배송방법', o => o.shipMethod], ['배송시작일', o => o.shippedAt],
           ['상담여부', inquiryText]
         ].map(([h, f]) => [h, (o) => f(o)]),
-        rows: list => list.map(o => [o])
+        // 상품별 보기에서는 목록 상품들의 주문을 한 번씩
+        rows: list => (byItem() ? [...new Map(list.map(r => [r.orderNo, r.order || r])).values()] : list).map(o => [o])
       },
       item: {
         label: '상품 제작번호 단위', file: `${FILE_PREFIX}주문상품목록`, unit: '상품',
@@ -517,7 +544,7 @@
           ['배송방법', (o) => o.shipMethod], ['배송시작일', (o) => o.shippedAt], ['상담여부', inquiryText]
         ],
         // 외주제작: 목록의 상품 행 그대로 (주문 열은 원래 주문 값)
-        rows: list => (itemMode ? list.map(r => [r.order, r.item]) : list.flatMap(o => o.items.map(it => [o, it])))
+        rows: list => (byItem() ? list.map(r => [r.order, r.item]) : list.flatMap(o => o.items.map(it => [o, it])))
       }
     };
 
