@@ -340,7 +340,8 @@
     const make = proc.groups[2];   // 제작중 구간
     const step = canceled ? at('주문접수') + Math.floor(r() * Math.min(4, make.to - at('주문접수') + 1))   // 주문접수 ~ 제작 구간 앞쪽
       : status === '제작중' ? make.from + Math.floor(r() * (make.to - make.from + 1))       // 제작중 구간 (자체: 합성완료~제본완료 / 외주: 의뢰완료~제작중)
-      : status === '배송중' ? at('배송중')                                               // 출고완료 후 배송중
+      // 제작상태 배송중 = 공정 출고완료 ~ 배송중. 약 30%는 출고만 끝난 상태(출고완료), 나머지는 배송중 (주문번호·상품 순번으로 정해 다른 난수에 영향 없음)
+      : status === '배송중' ? ([...`${o.orderNo}#ship${i}`].reduce((h, c) => (h * 37 + c.charCodeAt(0)) % 997, 11) % 10 < 3 ? at('출고완료') : at('배송중'))
       : status === '배송완료' ? at('배송완료')                                           // 배송완료 (전 단계 완료)
       : status === '주문완료' ? at('주문접수')
       : at('접수대기');                                                                  // 주문대기 (입금 전)

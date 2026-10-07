@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 통합 주문 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261134">
+<link rel="stylesheet" href="admin.css?v=20261149">
 </head>
 <body>
 <div class="layout">
@@ -32,7 +32,10 @@
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">제작관리<span class="chev">▼</span></a>
         <ul class="submenu">
+          <li><a href="ordered-orders.html">주문완료 리스트</a></li>
           <li><a href="making-orders.html">제작중 주문 리스트</a></li>
+          <li><a href="shipping-orders.html">배송중 주문 리스트</a></li>
+          <li><a href="delivered-orders.html">배송완료 주문 리스트</a></li>
           <li><a href="outsource-orders.html">외주제작 주문 리스트</a></li>
         </ul>
       </li>
@@ -42,7 +45,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 주문관리 &gt; <b>통합 주문 리스트</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v1.86 (2026-10-04)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.00 (2026-10-07)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -71,7 +74,7 @@
               <select id="sDateType" style="flex:0 0 100px">
                 <option value="orderedAt">주문일</option>
                 <option value="paidAt">결제일</option>
-                <option value="shippedAt">배송시작일</option>
+                <option value="shippedAt">출고일</option>
               </select>
               <div class="range">
                 <input type="date" id="sFrom" aria-label="기간 시작"> ~ <input type="date" id="sTo" aria-label="기간 종료">
@@ -147,11 +150,11 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261134"></script>
-<script src="member-data.js?v=20261134"></script>
-<script src="order-data.js?v=20261134"></script>
-<script src="deposit-modal.js?v=20261134"></script>
-<script src="order-list.js?v=20261134"></script>
+<script src="member-type-store.js?v=20261149"></script>
+<script src="member-data.js?v=20261149"></script>
+<script src="order-data.js?v=20261149"></script>
+<script src="deposit-modal.js?v=20261149"></script>
+<script src="order-list.js?v=20261149"></script>
 <script>OrderList.init({ mode: 'accepted' });</script>
 </body>
 </html>

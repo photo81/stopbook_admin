@@ -4,7 +4,10 @@
 //   mode 'paid':     결제가 이루어진 주문 (결제상태 입금대기·후결제대기 제외). 구성은 통합 주문 리스트와 같음
 //                    → 미입금·후결제 주문에 입금을 등록하면 이 목록에 들어옴
 //   mode 'outsource': 제작처가 KSI가 아닌 상품 (외주제작 주문 리스트 outsource-orders.html). 상품 1개 = 1행
+//   mode 'ordered':  제작상태가 주문완료(공정 주문접수)인 상품 전부 (주문완료 리스트 ordered-orders.html). 접수 후 제작이 시작되지 않은 상품 확인용
 //   mode 'making':   제작상태가 제작중인 상품 전부 (제작중 주문 리스트 making-orders.html). 열은 외주제작과 같고 관리 열·탭 없음
+//   mode 'shipping': 제작상태가 배송중인 상품 전부 (배송중 주문 리스트 shipping-orders.html). 구성은 제작중 주문 리스트와 같음
+//   mode 'delivered': 제작상태가 배송완료인 상품 전부 (배송완료 주문 리스트 delivered-orders.html). 기본 검색 줄은 배송방법, 공정상태는 상세검색 맨 뒤
 //                    → 주문수량·금액·결제상태는 상품 기준, 제작처 열 + 관리 열(제작관리 → 주문 상세에서 그 상품의 제작 공정)
 //   mode 'unpaid':   무통장입금 미입금 주문 (결제상태 입금대기). 맨 오른쪽 관리 열에 입금처리 버튼 → 처리하면 이 목록에서 빠지고 통합 주문 리스트에는 결제완료로 반영
 //   mode 'postpay':  후결제 주문 전부 (선결제 없이 주문, 상품 수령 후 결제). 구성은 미입금과 같고 후결제대기 건에만 입금처리 버튼
@@ -22,7 +25,10 @@
   function init({ mode }) {
     const paid = mode === 'paid';
     const outsource = mode === 'outsource';   // 외주제작: 주문이 아니라 상품 1개 = 1행
-    const making = mode === 'making';         // 제작중: 제작상태 제작중인 상품 전부 (자체·외주), 상품 1개 = 1행, 관리 열·탭 없음
+    // 제작상태별 상품 목록: 주문완료 / 제작중 / 배송중 / 배송완료 주문 리스트 (같은 구성, 보여주는 제작상태만 다름)
+    //   주문완료 = 공정 주문접수 (접수는 끝났지만 아직 제작이 시작되지 않은 상품)
+    const STATUS_LIST = { ordered: '주문완료', making: '제작중', shipping: '배송중', delivered: '배송완료' }[mode] || '';
+    const making = !!STATUS_LIST;             // 제작중·배송중: 그 제작상태인 상품 전부 (자체·외주), 상품 1개 = 1행, 관리 열·탭 없음
     const itemMode = outsource || making;     // 상품 행 목록 (열 구성 공통)
     const unpaid = mode === 'unpaid' || mode === 'postpay';   // 미입금·후결제: 입금처리 대상 목록 (관리 열 표시)
     const postpay = mode === 'postpay';
@@ -30,22 +36,36 @@
     const UNPAID_STATUSES = ['입금대기', '후결제대기'];
     // ===== 주문 데이터: order-data.js (주문 상세와 공유) =====
     const { ORDERS, TODAY } = OrderData;
+    // 출고일: 상품 공정의 출고완료 단계 처리 시각('MM-DD HH:MM')에 주문 연도를 붙인 날짜 (주문일보다 앞이면 다음 해)
+    const outDateOf = (o, it) => {
+      const f = it.flow, k = f.steps.indexOf('출고완료');
+      if (k < 0 || f.step < k || f.canceled || !f.times[k]) return '';
+      const md = f.times[k].slice(0, 5), year = Number(o.orderDate.slice(0, 4));
+      return `${md < o.orderDate.slice(5, 10) ? year + 1 : year}-${md}`;
+    };
     // 외주제작 상품 행: 주문 정보에 상품 값(상품명·수량·금액·결제상태·제작처)을 덮어쓴 행. order = 원래 주문, item = 상품, itemIdx = 주문 안 상품 순번
     // (검색·정렬·목록이 주문 행과 같은 필드명을 쓰도록 맞춤)
     const itemRow = (o, it, i) => Object.assign({}, o, {
       order: o, item: it, itemIdx: i, rowKey: `${o.orderNo}#${i}`,
       title: it.name, productNames: it.name, kinds: 1, qty: it.qty,
       listPrice: it.listPrice, discount: it.discount, amount: it.paid,
-      payStatus: it.payStatus, statusCounts: it.status ? [[it.status, 1]] : [], maker: it.maker
+      payStatus: it.payStatus, statusCounts: it.status ? [[it.status, 1]] : [], maker: it.maker,
+      stepName: it.flow.steps[it.flow.step],   // 공정상태 (현재 공정 단계)
+      outDate: outDateOf(o, it)                 // 출고일 (공정 출고완료 시각의 날짜, 출고 전이면 '')
     });
     // 외주제작: 입금대기(무통장입금 미입금)·취소 상품은 제작 대상이 아니므로 제외
     const OUT_EXCLUDED = ['입금대기', '취소'];
     const source = () => (outsource ? ORDERS.flatMap(o => o.items.map((it, i) => (OrderData.isKsiMaker(it.maker) || OUT_EXCLUDED.includes(it.payStatus) ? null : itemRow(o, it, i))).filter(Boolean))
-      : making ? ORDERS.flatMap(o => o.items.map((it, i) => (it.status === '제작중' && it.payStatus !== '취소' ? itemRow(o, it, i) : null)).filter(Boolean))
+      : making ? ORDERS.flatMap(o => o.items.map((it, i) => (it.status === STATUS_LIST && it.payStatus !== '취소' ? itemRow(o, it, i) : null)).filter(Boolean))
       : postpay ? ORDERS.filter(OrderData.isPostpayOrder) : unpaid ? ORDERS.filter(OrderData.isUnpaid)
       : paid ? ORDERS.filter(o => !UNPAID_STATUSES.includes(o.payStatus)) : ORDERS);
     // 외주 제작처 목록 (상세검색 선택지)
     const OUT_MAKERS = itemMode ? [...new Set(source().map(r => r.maker))].sort((a, b) => a.localeCompare(b, 'ko')) : [];
+    // 공정상태 선택지 (제작중·외주제작): 목록에 있는 공정 단계를 공정 순서대로 (외주제작은 외주 공정 순서, 제작중은 자체 공정 → 외주 공정 중 자체에 없는 단계)
+    const STEP_OPTIONS = itemMode ? (() => {
+      const present = new Set(source().map(r => r.stepName));
+      return [...new Set(outsource ? OrderData.OUTSOURCE_STEPS : [...OrderData.PROCESS_STEPS, ...OrderData.OUTSOURCE_STEPS])].filter(s => present.has(s));
+    })() : [];
 
     // ===== 상세검색 항목 (다중 선택) =====
     // 회원구분 선택지는 회원 유형 관리 > 회원구분 탭의 항목 (회원 리스트와 같은 방식, 숨긴 구분도 검색 가능)
@@ -54,7 +74,7 @@
     const CAT_TREE = MemberTypeStore.categoryTree();
     const DETAIL_FIELDS = [
       ...(unpaid && !postpay ? [] : [
-        ...(postpay ? [] : [{ key: 'payMethod', label: '결제수단', options: OrderData.PAY_METHODS.map(v => [v, v]) }]),
+        ...(postpay || itemMode ? [] : [{ key: 'payMethod', label: '결제수단', options: OrderData.PAY_METHODS.map(v => [v, v]) }]),
         // 입금대기: 무통장입금 미입금 (통합 주문 리스트에만) / 후결제대기·부분결제: 후결제 주문 중 입금 전·일부 입금 (통합 주문 리스트에도 나오므로 두 화면 모두 선택지에 둠)
         // 결제완료 주문 리스트: 결제 전 상태(입금대기·후결제대기)는 목록에 없으므로 선택지에서 뺌
         // 외주제작(상품 행): 상품별 결제상태 (부분취소·전체취소 대신 상품 단위 '취소')
@@ -62,15 +82,27 @@
           : ['입금대기', '후결제대기', '부분결제', '결제완료', '부분취소', '전체취소'])
           .filter(v => !(postpay && v === '입금대기') && !(paid && UNPAID_STATUSES.includes(v))).map(v => [v, v]) }
       ]),
-      // main: 상세검색이 아니라 기본 검색 줄(기간 오른쪽)에 둠 → 외주제작 주문 리스트의 제작처
-      ...(itemMode ? [{ key: 'maker', label: '제작처', options: OUT_MAKERS.map(v => [v, v]), main: true }] : []),
+      // main: 상세검색이 아니라 기본 검색 줄(기간 오른쪽)에 둠 → 외주제작 주문 리스트는 제작처, 제작중 주문 리스트는 공정상태
+      ...(outsource ? [{ key: 'maker', label: '제작처', options: OUT_MAKERS.map(v => [v, v]), main: true }] : []),
+      // 공정상태: 제작중은 기본 검색 줄, 외주제작은 상세검색
+      ...(itemMode ? [{ key: 'step', label: '공정상태', options: STEP_OPTIONS.map(v => [v, v]), main: making && mode !== 'delivered' }] : []),
       // 제작상태: 상품별 진행상태. 고른 상태의 상품이 하나라도 있는 주문을 찾음 (미입금은 입금 전이라 주문대기뿐, 후결제는 제작·배송이 진행됨)
       { key: 'status', label: '제작상태', options: (unpaid && !postpay ? ['주문대기'] : OrderData.ITEM_STATUS_ORDER).map(v => [v, v]) },
+      // 제작중 주문 리스트: 제작처는 상세검색 (결제상태 · 제작상태 · 제작처 · 회원구분 · 상담여부 · 배송방법 순)
+      ...(making ? [{ key: 'maker', label: '제작처', options: OUT_MAKERS.map(v => [v, v]) }] : []),
       { key: 'category', label: '회원구분', options: CAT_TREE.map(c => [c.code, c.label + (c.hidden ? ' (숨김)' : '')]) },
       // 상담여부: 관리자 메모 구분 (주문 상세 > 관리정보에서 등록). 고른 구분의 메모가 있는 주문을 찾음
       { key: 'inquiry', label: '상담여부', options: OrderData.MEMO_CATEGORIES.map(c => [c, c]) },
-      { key: 'shipMethod', label: '배송방법', options: ['택배', '방문수령', '퀵서비스'].map(v => [v, v]) }
+      // 배송완료 주문 리스트: 배송방법을 기본 검색 줄에 (공정상태와 자리를 바꿈)
+      { key: 'shipMethod', label: '배송방법', options: ['택배', '방문수령', '퀵서비스'].map(v => [v, v]), main: mode === 'delivered' }
     ];
+    // 제작중 주문 리스트의 상세검색 순서: 제작처 · 제작상태 · 결제상태 · 회원구분 · 상담여부 · 배송방법 (기본 검색 줄의 공정상태는 맨 앞 유지)
+    // 외주제작 주문 리스트의 상세검색 순서: 제작상태 · 공정상태 · 결제상태 · 회원구분 · 상담여부 · 배송방법 (제작처는 기본 검색 줄)
+    if (itemMode) {
+      const ORDER = mode === 'delivered' ? ['shipMethod', 'maker', 'status', 'payStatus', 'category', 'inquiry', 'step']
+        : making ? ['step', 'maker', 'status', 'payStatus', 'category', 'inquiry', 'shipMethod'] : ['maker', 'status', 'step', 'payStatus', 'category', 'inquiry', 'shipMethod'];
+      DETAIL_FIELDS.sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key));
+    }
     // 드롭다운(버튼 + 체크 목록). 버튼에는 '전체' / '신용카드' / '신용카드 외 2'처럼 요약 표시
     const fieldHtml = f => `
       <div class="field${f.main ? ` f-${f.key}` : ''}">
@@ -189,7 +221,7 @@
     // 상세 조건은 항목 안에서는 '하나라도 해당', 항목끼리는 '모두 해당'
     // 상품명 검색은 주문의 모든 상품명(productNames)에서 찾음 ('마이트립북 외 2종'의 나머지 상품도 검색됨)
     const KEYWORD_FIELDS = ['orderNo', 'name', 'recipient', 'userId', 'email', 'phone', 'productNames'];
-    const DATE_KEY = { orderedAt: 'orderDate', paidAt: 'paidAt', shippedAt: 'shippedAt' };
+    const DATE_KEY = { orderedAt: 'orderDate', paidAt: 'paidAt', shippedAt: 'shippedAt', outAt: 'outDate' };   // outAt: 출고일 (배송중·외주제작 주문 리스트, 상품 기준)
     const state = { filtered: [], page: 1, size: 10, sortKey: 'orderedAt', sortDir: 'desc', search: null, tab: 'all' };
     const inSet = (list, v) => !list || !list.length || list.includes(v);
     // 상담여부: 고른 구분의 관리자 메모가 하나라도 있으면 해당
@@ -219,6 +251,7 @@
       if (!b) return;
       state.tab = b.dataset.status;
       state.page = 1;
+      checkedRows.clear();   // 탭을 바꾸면 선택 해제
       refilter();
     });
 
@@ -240,7 +273,7 @@
         (!kw || fields.some(f => String(o[f]).toLowerCase().replace(/-/g, '').includes(kw))) &&
         (!(s.from || s.to) || (o[dk] && (!s.from || o[dk] >= s.from) && (!s.to || o[dk] <= s.to))) &&   // 결제·발송 전 주문은 해당 기간 검색에서 제외
         inSet(s.payMethod, o.payMethod) && inSet(s.payStatus, o.payStatus) && (!s.status.length || o.statusCounts.some(([st]) => s.status.includes(st))) &&
-        inSet(s.category, o.categoryCode) && matchInquiry(s.inquiry, o) && inSet(s.shipMethod, o.shipMethod) && inSet(s.maker, o.maker)
+        inSet(s.category, o.categoryCode) && matchInquiry(s.inquiry, o) && inSet(s.shipMethod, o.shipMethod) && inSet(s.maker, o.maker) && inSet(s.step, o.stepName)
       );
       renderTabs(base);
       const tab = TABS && TABS.find(t => t.key === state.tab);
@@ -264,17 +297,22 @@
     const payCell = o => payBadge(o.payStatus, o.payStatus === '부분취소' ? `(${o.canceledItems})` : '');
     // 외주제작: 금액 3열(주문·할인·결제금액)·결제수단 열 없음, 제작상태·공정상태(현재 공정 단계) 열 추가 → 12열
     // 상품 행 목록은 주문번호 다음에 상품제작번호 열 추가 (누르면 아래에 상품정보·제작 공정 아코디언)
-    const COLS = outsource ? 13 : making ? 12 : unpaid ? 13 : 12;
+    const baseCols = outsource ? 13 : making ? 12 : unpaid ? 13 : 12;
+    // 외주제작 > 의뢰대기 탭: 맨 앞 체크박스 열 + 우측 상단 의뢰서 다운로드 (선택한 상품 의뢰서 일괄 다운로드)
+    const selectMode = () => outsource && state.tab === 'waiting';
+    const checkedRows = new Set();   // 체크한 상품 행 (rowKey). 페이지를 넘겨도 유지, 탭을 바꾸면 해제
     const openRows = new Set();   // 펼친 상품 행 (rowKey). 검색·페이지 이동 뒤 다시 그려도 유지
 
     function render() {
+      const sel = selectMode(), COLS = baseCols + (sel ? 1 : 0);
       const total = state.filtered.length;
       const pages = Math.max(1, Math.ceil(total / state.size));
       if (state.page > pages) state.page = pages;
       const start = (state.page - 1) * state.size;
       $('totalCount').textContent = total.toLocaleString();
       $('allCount').textContent = source().length.toLocaleString();
-      $('listBody').innerHTML = state.filtered.slice(start, start + state.size).map(o => `<tr${itemMode ? ` class="${openRows.has(o.rowKey) ? 'open' : ''}" data-row="${esc(o.rowKey)}"` : ''}>
+      $('listBody').innerHTML = state.filtered.slice(start, start + state.size).map(o => `<tr${itemMode ? ` class="${openRows.has(o.rowKey) ? 'open' : ''}" data-row="${esc(o.rowKey)}"` : ''}>${sel ? `
+          <td class="c-chk"><input type="checkbox" class="row-chk" value="${esc(o.rowKey)}" aria-label="${esc(o.item.spec.makeNo)} 선택"${checkedRows.has(o.rowKey) ? ' checked' : ''}></td>` : ''}
           <td><span class="env-tag env-${o.env}" title="${o.env === 'MO' ? '모바일' : 'PC'}에서 결제">${o.env}</span></td>
           <td title="${o.orderedAt}">${o.orderedAt.slice(0, 16)}</td>
           <td>${esc(o.name)}</td>
@@ -294,13 +332,14 @@
           ${making ? '' : `<td class="c-act"><button type="button" class="btn btn-xs ${OrderData.isRequestWaiting(o.item) ? 'btn-primary' : ''}" data-make="${esc(o.rowKey)}">제작관리</button></td>`}`
             : postpay ? `<td class="c-act"><button type="button" class="btn btn-xs ${OrderData.isWaiting(o) ? 'btn-primary' : ''}" data-deposit="${esc(o.orderNo)}">입금관리</button></td>`
             : unpaid ? `<td class="c-act">${OrderData.isWaiting(o) ? `<button type="button" class="btn btn-xs btn-primary" data-deposit="${esc(o.orderNo)}">입금처리</button>` : '<span class="muted">입금완료</span>'}</td>` : ''}
-        </tr>${itemMode ? `<tr class="item-detail" data-detail="${esc(o.rowKey)}"${openRows.has(o.rowKey) ? '' : ' hidden'}><td colspan="${COLS}">${openRows.has(o.rowKey) ? ItemDetail.html(o.item, o.itemIdx) : ''}</td></tr>` : ''}`).join('') || `<tr><td colspan="${COLS}" class="empty">${(unpaid || itemMode) && !source().length ? `${postpay ? '후결제' : outsource ? '외주제작' : making ? '제작중' : '미입금'} 주문이 없습니다.` : '검색 결과가 없습니다.'}</td></tr>`;
+        </tr>${itemMode ? `<tr class="item-detail" data-detail="${esc(o.rowKey)}"${openRows.has(o.rowKey) ? '' : ' hidden'}><td colspan="${COLS}">${openRows.has(o.rowKey) ? ItemDetail.html(o.item, o.itemIdx) : ''}</td></tr>` : ''}`).join('') || `<tr><td colspan="${COLS}" class="empty">${(unpaid || itemMode) && !source().length ? `${postpay ? '후결제' : outsource ? '외주제작' : making ? STATUS_LIST : '미입금'} 주문이 없습니다.` : '검색 결과가 없습니다.'}</td></tr>`;
 
       document.querySelectorAll('.order-table th.sortable').forEach(th => {
         const active = th.dataset.key === state.sortKey;
         const label = th.textContent.replace(/[▲▼↕]/g, '').trim();
         th.innerHTML = `${label}<span class="arrow">${active ? (state.sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>`;
       });
+      if (outsource) syncSelectUi();   // 행을 그린 뒤 헤더 체크박스 상태 갱신
       renderPagination(pages);
     }
 
@@ -363,6 +402,55 @@
       b.setAttribute('aria-expanded', String(open));
       b.closest('tr').classList.toggle('open', open);
     });
+    // ===== 의뢰서 일괄 다운로드 (외주제작 > 의뢰대기 탭) =====
+    // 같은 제작처 상품끼리만 선택 가능 (의뢰서는 제작처별로 보냄). 처음 체크한 상품의 제작처가 기준, 다른 제작처는 체크 불가
+    // 헤더 체크박스: 현재 페이지에서 기준 제작처(선택이 없으면 첫 행의 제작처) 상품만 전체 선택/해제. 선택 건수·제작처는 버튼 옆에 표시
+    const makerOfKey = key => { const r = source().find(x => x.rowKey === key); return r ? r.maker : ''; };
+    const selectedMaker = () => (checkedRows.size ? makerOfKey([...checkedRows][0]) : '');
+    function syncSelectUi() {
+      const sel = selectMode(), maker = selectedMaker();
+      $('thChk').hidden = !sel;
+      $('btnSheets').hidden = !sel;
+      $('selInfo').hidden = !sel;
+      $('selInfo').textContent = checkedRows.size ? `${maker} · 선택 ${checkedRows.size}건` : '같은 제작처 상품만 함께 선택할 수 있습니다';
+      const boxes = [...$('listBody').querySelectorAll('.row-chk')];
+      const base = maker || (boxes[0] ? makerOfKey(boxes[0].value) : '');
+      const same = boxes.filter(c => makerOfKey(c.value) === base);
+      $('chkAllRows').checked = sel && same.length > 0 && same.every(c => checkedRows.has(c.value));
+    }
+    if (outsource) {
+      $('listBody').addEventListener('change', e => {
+        const c = e.target.closest('.row-chk');
+        if (!c) return;
+        const maker = selectedMaker();
+        if (c.checked && maker && makerOfKey(c.value) !== maker) {
+          c.checked = false;
+          toast(`같은 제작처(${maker}) 상품만 함께 선택할 수 있습니다. 다른 제작처는 선택을 해제한 뒤 따로 다운로드하세요.`);
+          return;
+        }
+        if (c.checked) checkedRows.add(c.value); else checkedRows.delete(c.value);
+        syncSelectUi();
+      });
+      $('chkAllRows').addEventListener('change', e => {
+        const boxes = [...$('listBody').querySelectorAll('.row-chk')];
+        const base = selectedMaker() || (boxes[0] ? makerOfKey(boxes[0].value) : '');
+        let skipped = 0;
+        boxes.forEach(c => {
+          if (makerOfKey(c.value) !== base) { if (e.target.checked) skipped++; return; }
+          c.checked = e.target.checked;
+          if (c.checked) checkedRows.add(c.value); else checkedRows.delete(c.value);
+        });
+        if (skipped) toast(`${base} 상품만 선택했습니다. 다른 제작처 ${skipped}건은 제외했습니다.`);
+        syncSelectUi();
+      });
+      $('btnSheets').addEventListener('click', () => {
+        const rows = source().filter(r => checkedRows.has(r.rowKey));
+        if (!rows.length) { toast('의뢰서를 다운로드할 상품을 선택하세요.'); return; }
+        if (new Set(rows.map(r => r.maker)).size > 1) { toast('의뢰서는 같은 제작처 상품끼리만 다운로드할 수 있습니다.'); return; }
+        MakeModal.downloadSheets(rows.map(r => ({ o: r.order, idx: r.itemIdx })));
+        toast(`${rows[0].maker} 의뢰서 ${rows.length}건을 다운로드했습니다.`);
+      });
+    }
     // ===== 제작관리 (외주제작 주문 리스트 > 관리) =====
     // 제작관리 모달(make-modal.js): 상품·제작처·현재 공정·의뢰서 다운로드·히스토리, 의뢰대기 상품은 의뢰완료 처리
     // 처리하면 의뢰대기 탭에서 의뢰완료 탭으로 옮겨감. 모달에서 주문 상세(그 상품의 제작 공정)로 이동 가능
@@ -390,7 +478,7 @@
     // 단위 선택: 주문번호 단위(주문 1건 = 1행) / 상품 제작번호 단위(주문 상품 1개 = 1행, 주문 정보는 상품마다 반복)
     const catName = code => { const c = CAT_TREE.find(x => x.code === code); return c ? c.label : ''; };
     const payStatusText = o => (o.payStatus === '부분취소' ? `부분취소(${o.canceledItems})` : o.payStatus);
-    const FILE_PREFIX = postpay ? '후결제' : unpaid ? '미입금' : paid ? '결제완료' : outsource ? '외주제작' : making ? '제작중' : '';
+    const FILE_PREFIX = postpay ? '후결제' : unpaid ? '미입금' : paid ? '결제완료' : outsource ? '외주제작' : making ? STATUS_LIST : '';
     // 주문 공통 열 (두 단위 모두 앞쪽에 들어감)
     const ORDER_HEAD_COLS = [
       ['주문일시', o => o.orderedAt], ['주문번호', o => o.orderNo], ['결제환경', o => o.env]

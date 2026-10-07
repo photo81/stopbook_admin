@@ -118,10 +118,44 @@
   // ===== 의뢰서 다운로드: 제작의뢰서 샘플 (CSV, 엑셀에서 열림) =====
   // 의뢰 정보(의뢰일·발주처·제작처·납기 희망일) + 주문·상품 정보(제작번호·옵션·디자인·수량) + 배송 정보
   // TODO: 실서비스에서는 제작처별 의뢰서 양식(xlsx)을 서버에서 생성 (GET /api/admin/orders/{orderNo}/items/{itemId}/request-sheet)
+  const pagesOf = sp => (sp.basePages ? `${sp.basePages}p${sp.addPages ? `(+${sp.addPages}p)` : ''}` : '');
+  const csvCell = v => { let s = String(v ?? ''); if (/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
+  function saveCsv(rows, fileName) {
+    const blob = new Blob(['﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // ===== 의뢰서 일괄 다운로드 (외주제작 주문 리스트 > 의뢰대기 탭 > 체크 > 의뢰서 다운로드) =====
+  // 같은 제작처의 상품만 받음(리스트에서 제한). 선택한 상품을 한 파일에 상품 1개 = 1행으로 (제작처 열 포함). 상품마다 주문 히스토리에 '의뢰서 다운로드(일괄)' 기록
+  // list = [{ o, idx }]. TODO: 실서비스에서는 제작처별 의뢰서 파일을 서버에서 만들어 압축(zip)으로 내려받기
+  function downloadSheets(list) {
+    const today = new Date(), due = new Date(today.getTime() + 5 * 86400000);
+    const head = ['의뢰일', '납기 희망일', '제작처', '주문번호', '상품 제작번호', '상품명', '상품코드', '수량(부)', '상품형태', '사이즈', '코팅', '페이지', '후가공', '디자인', '편집내용',
+      '수령인', '연락처', '주소', '배송방법', '배송 요청사항'];
+    const rows = list.map(({ o, idx }) => {
+      const it = o.items[idx], sp = it.spec, dv = o.delivery;
+      return [fmtDate(today), fmtDate(due), it.maker, o.orderNo, sp.makeNo, it.name, it.code, it.qty, sp.form, sp.size, sp.coating, pagesOf(sp), sp.finishing, sp.coverDesign, sp.viewerUrl,
+        dv.recipient, '\t' + dv.phone, `[${dv.zip}] ${dv.address} ${dv.detail}`, o.shipMethod, dv.request];
+    });
+    const makers = [...new Set(list.map(({ o, idx }) => o.items[idx].maker))];
+    saveCsv([['제작의뢰서 (일괄)', `발주처 스탑북 · 담당자 ${ADMIN_NAME} · ${list.length}건`], [], head, ...rows],
+      `제작의뢰서_${makers.length === 1 ? makers[0] : '일괄'}_${fmtDate(today).replace(/-/g, '')}_${list.length}건.csv`);
+    list.forEach(({ o, idx }) => {
+      const it = o.items[idx];
+      OrderData.addHistory(o.orderNo, '제작의뢰', `의뢰서 다운로드(일괄 ${list.length}건): ${it.name} ${it.qty}부 · ${it.maker} (제작번호 ${it.spec.makeNo})`, ADMIN_NAME);
+    });
+  }
+
   function downloadRequestSheet() {
     const { o, it } = cur, sp = it.spec, dv = o.delivery;
     const today = new Date(), due = new Date(today.getTime() + 5 * 86400000);
-    const pages = sp.basePages ? `${sp.basePages}p${sp.addPages ? `(+${sp.addPages}p)` : ''}` : '';
+    const pages = pagesOf(sp);
     const rows = [
       ['제작의뢰서'],
       [],
@@ -142,15 +176,7 @@
       [],
       ['요청사항', '샘플 의뢰서입니다. 제작 완료 후 출고 예정일을 회신해 주세요.']
     ];
-    const cell = v => { let s = String(v ?? ''); if (/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
-    const blob = new Blob(['﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `제작의뢰서_${it.maker}_${sp.makeNo}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(a.href);
+    saveCsv(rows, `제작의뢰서_${it.maker}_${sp.makeNo}.csv`);
     OrderData.addHistory(o.orderNo, '제작의뢰', `의뢰서 다운로드: ${it.name} ${it.qty}부 · ${it.maker} (제작번호 ${sp.makeNo})`, ADMIN_NAME);
     render();
     toast('의뢰서를 다운로드했습니다.');
@@ -167,5 +193,5 @@
     $('makeModal').classList.add('open');
   }
 
-  window.MakeModal = { open };
+  window.MakeModal = { open, downloadSheets };
 })();
