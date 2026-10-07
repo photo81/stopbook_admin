@@ -417,7 +417,7 @@
 
   // 고객이 입력한 단체 유형(groupType)은 바꾸지 않으므로 저장 대상이 아님
   function saveApplication(app) {
-    const keys = ['status', 'processedAt', 'processedBy', 'rejectReason', 'periodFrom', 'periodTo', 'expireTo', 'expireToCode',
+    const keys = ['status', 'processedAt', 'processedBy', 'rejectReason', 'rejectDraft', 'periodFrom', 'periodTo', 'expireTo', 'expireToCode',
       'assignCategoryCode', 'assignCategory', 'assignKind', 'revokedAt', 'revokedBy', 'expiredAt', 'history'];
     appOverlay[app.appNo] = Object.fromEntries(keys.map(k => [k, app[k]]));
     try { localStorage.setItem(APP_KEY, JSON.stringify(appOverlay)); return true; } catch (e) { return false; }

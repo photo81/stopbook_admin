@@ -70,7 +70,14 @@
           <div class="inline-row"><input type="text" id="dpAmount" inputmode="numeric" class="w-num" style="width:140px"> 원 <span class="readonly" id="dpAmountHint"></span></div>
           <div class="err" id="dpErr"></div>
         </td></tr>
-        <tr id="dpMemoRow" hidden><th>관리자 메모</th><td><textarea id="dpMemo" maxlength="200" placeholder="입금자명, 분할 입금 사유, 확인 내용 등 (입금 내역과 주문 히스토리에 남음)" style="height:56px"></textarea></td></tr>
+        <tr id="dpMemoRow" hidden><th>관리자 메모</th><td>
+          <!-- 오른쪽 저장: 입금 등록 없이 메모만 즉시 저장 → 주문 관리자 메모(구분 결제)·주문 히스토리. 입금 등록을 누르면 입금 내역 메모로 함께 남음 -->
+          <ul class="memo-list" id="dpMemoList" hidden></ul>
+          <div class="memo-save">
+            <textarea id="dpMemo" maxlength="200" placeholder="입금자명, 분할 입금 사유, 확인 내용 등 (입금 내역과 주문 히스토리에 남음)" style="height:56px"></textarea>
+            <button type="button" class="btn btn-gray" id="dpMemoSave">저장</button>
+          </div>
+        </td></tr>
       </table>
       <div class="readonly at-note" id="dpNote"></div>
     </form>
@@ -85,6 +92,16 @@
     $('dpAmount').addEventListener('input', e => {
       const n = e.target.value.replace(/[^\d]/g, '');
       e.target.value = n ? Number(n).toLocaleString() : '';
+    });
+    // 관리자 메모 옆 저장: 입금 등록과 별개로 메모만 즉시 저장 (주문 상세 > 관리자메모에 구분 '결제'로 표시)
+    $('dpMemoSave').addEventListener('click', () => {
+      const text = $('dpMemo').value.trim();
+      if (!current) return;
+      if (!text) { toast('메모 내용을 입력하세요.'); $('dpMemo').focus(); return; }
+      const saved = OrderData.addMemo(current.orderNo, '결제', text, ADMIN_NAME);
+      $('dpMemo').value = '';
+      renderMemos(current);
+      toast(saved ? '관리자 메모를 저장했습니다.' : '저장소를 사용할 수 없어 이 화면에만 반영되었습니다.');
     });
     el.querySelectorAll('[data-dclose]').forEach(b => b.addEventListener('click', close));
     el.addEventListener('click', e => { if (e.target === el) close(); });
@@ -120,6 +137,13 @@
     $('dpPayFoot').innerHTML = `<tr><td colspan="3" style="text-align:right">입금 합계</td><td class="num">${won(paid)}</td>
         <td colspan="2" class="left">총 결제금액 ${won(total)} · ${paid >= total ? `<b>전액 입금</b>${paid > total ? ` (초과 ${won(paid - total)})` : ''}` : `잔액 <b>${won(total - paid)}</b>`}</td></tr>`;
     return { paid, remaining: Math.max(0, total - paid) };
+  }
+
+  // 저장한 관리자 메모 (주문 관리자 메모 중 구분 '결제')
+  function renderMemos(o) {
+    const list = OrderData.adminLog(o.orderNo).memos.filter(mm => mm.category === '결제');
+    $('dpMemoList').hidden = !list.length;
+    $('dpMemoList').innerHTML = list.map(mm => `<li><span class="memo-text">${esc(mm.text)}</span> <span class="memo-meta">(${esc(mm.at.slice(0, 16))} · ${esc(mm.by)})</span></li>`).join('');
   }
 
   function open(order, done) {
@@ -163,6 +187,7 @@
     $('dpAmount').placeholder = post ? '잔액' : '총 결제금액';
     $('dpAmountHint').textContent = post ? `미입력 시 잔액 ${won(remaining)}으로 처리. 일부만 입금되면 부분결제, 전액이면 결제완료` : '미입력 시 총 결제금액으로 처리';
     $('dpMemo').value = '';
+    renderMemos(order);
     $('dpAt').value = nowLocal();
     $('dpAt').max = nowLocal();
     $('dpNote').textContent = post

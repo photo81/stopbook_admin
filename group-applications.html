@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 단체회원 신청 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261113">
+<link rel="stylesheet" href="admin.css?v=20261134">
 </head>
 <body>
 <div class="layout">
@@ -24,8 +24,16 @@
         <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="orders.html">통합 주문 리스트</a></li>
+          <li><a href="paid-orders.html">결제완료 주문 리스트</a></li>
           <li><a href="unpaid-orders.html">미입금 주문 리스트</a></li>
           <li><a href="postpay-orders.html">후결제 주문 리스트</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">제작관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="making-orders.html">제작중 주문 리스트</a></li>
+          <li><a href="outsource-orders.html">외주제작 주문 리스트</a></li>
         </ul>
       </li>
     </ul>
@@ -173,7 +181,11 @@
             </div>
           </td></tr>
           <tr><th>반려 사유</th><td>
-            <textarea id="rejectReason" maxlength="300" placeholder="반려할 때만 입력합니다. 고객에게 안내되는 문구입니다."></textarea>
+            <!-- 오른쪽 저장: 반려 처리 전 사유만 즉시 저장 (다시 열면 저장한 사유가 채워짐) -->
+            <div class="memo-save">
+              <textarea id="rejectReason" maxlength="300" placeholder="반려할 때만 입력합니다. 고객에게 안내되는 문구입니다."></textarea>
+              <button type="button" class="btn btn-gray" id="btnReasonSave">저장</button>
+            </div>
             <div class="err" id="eReview"></div>
           </td></tr>
         </table>
@@ -202,8 +214,8 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261113"></script>
-<script src="member-data.js?v=20261113"></script>
+<script src="member-type-store.js?v=20261134"></script>
+<script src="member-data.js?v=20261134"></script>
 <script>
 (function () {
   'use strict';
@@ -412,7 +424,7 @@
     $('btnReject').hidden = !pending;
     $('chkInfo').checked = false;
     $('chkCert').checked = false;
-    $('rejectReason').value = '';
+    $('rejectReason').value = pending ? a.rejectDraft || '' : '';   // 저장해 둔 반려 사유 (반려 처리 전)
     // 기본 적용 기간: 오늘부터 1년
     const today = new Date();
     const yearLater = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate() - 1);
@@ -425,6 +437,20 @@
       <tr><td>${h.at}</td><td class="left">${esc(h.content)}</td><td>${esc(h.by)}</td></tr>`).join('');
   }
 
+  // 반려 사유 옆 저장: 반려 처리 없이 사유만 즉시 저장 (승인 대기 상태 유지, 처리 히스토리에 기록)
+  // TODO: 실서비스에서는 PUT /api/admin/group-applications/{no}/reject-draft
+  $('btnReasonSave').addEventListener('click', () => {
+    const a = current, reason = $('rejectReason').value.trim();
+    if (!a) return;
+    if (!reason) { toast('반려 사유를 입력하세요.'); $('rejectReason').focus(); return; }
+    a.rejectDraft = reason;
+    a.history.push({ at: fmtDateTime(new Date()), by: ADMIN_NAME, content: `반려 사유 저장: ${reason.length > 40 ? reason.slice(0, 40) + '…' : reason}` });
+    const saved = saveApplication(a);
+    $('dHistory').innerHTML = a.history.slice().reverse().map(h => `
+      <tr><td>${h.at}</td><td class="left">${esc(h.content)}</td><td>${esc(h.by)}</td></tr>`).join('');
+    toast(saved ? '반려 사유를 저장했습니다.' : '저장소를 사용할 수 없어 이 화면에만 반영되었습니다.');
+  });
+
   // 두 항목을 모두 확인해야 승인 가능
   const syncApprove = () => { $('btnApprove').disabled = !($('chkInfo').checked && $('chkCert').checked); };
 
@@ -433,7 +459,7 @@
   function finish(status, extra) {
     const a = current;
     const now = fmtDateTime(new Date());
-    Object.assign(a, { status, processedAt: now, processedBy: ADMIN_NAME, rejectReason: '' }, extra);
+    Object.assign(a, { status, processedAt: now, processedBy: ADMIN_NAME, rejectReason: '', rejectDraft: '' }, extra);
     a.history.push({
       at: now, by: ADMIN_NAME,
       content: status === '승인'

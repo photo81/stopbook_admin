@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261113">
+<link rel="stylesheet" href="admin.css?v=20261134">
 </head>
 <body>
 <div class="layout">
@@ -24,8 +24,16 @@
         <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="orders.html">통합 주문 리스트</a></li>
+          <li><a href="paid-orders.html">결제완료 주문 리스트</a></li>
           <li><a href="unpaid-orders.html">미입금 주문 리스트</a></li>
           <li><a href="postpay-orders.html">후결제 주문 리스트</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">제작관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="making-orders.html">제작중 주문 리스트</a></li>
+          <li><a href="outsource-orders.html">외주제작 주문 리스트</a></li>
         </ul>
       </li>
     </ul>
@@ -359,7 +367,11 @@
       <table class="form-table">
         <tr><th>관리자 메모</th><td>
           <ul class="memo-list" id="memoList"></ul>
-          <textarea id="fMemo" placeholder="새 메모 입력 후 저장하면 작성일시와 작성자가 함께 기록됩니다."></textarea>
+          <!-- 오른쪽 저장: 메모만 즉시 저장 (아래 회원 정보 저장 버튼을 눌러도 함께 저장됨) -->
+          <div class="memo-save">
+            <textarea id="fMemo" placeholder="새 메모 입력 후 저장하면 작성일시와 작성자가 함께 기록됩니다."></textarea>
+            <button type="button" class="btn btn-gray" id="btnMemoSave">저장</button>
+          </div>
         </td></tr>
       </table>
 
@@ -512,9 +524,9 @@
 <div class="viz-tip" id="vizTip" role="tooltip" hidden></div>
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261113"></script>
-<script src="member-type-store.js?v=20261113"></script>
-<script src="member-data.js?v=20261113"></script>
+<script src="alimtalk.js?v=20261134"></script>
+<script src="member-type-store.js?v=20261134"></script>
+<script src="member-data.js?v=20261134"></script>
 <script>
 (function () {
   'use strict';
@@ -1409,17 +1421,29 @@
       addHistory(m, `사업자 정보 삭제: ${b.companyName} (${b.bizNo}) - 회원구분 ${NORMAL_NAME} 변경`);
       fillBusiness(m);
     }
-    if (memoText) {
-      m.memos.push({ text: memoText, at: nowText(), by: ADMIN_NAME });
-      addHistory(m, `관리자 메모 작성: ${memoText.length > 30 ? memoText.slice(0, 30) + '…' : memoText}`);
-      $('fMemo').value = '';
-      renderMemos(m);
-    }
+    if (memoText) addMemo(m, memoText);
 
     applyFilter();
     render();
     toast('회원 정보가 저장되었습니다.');
   }
+
+  // 관리자 메모 추가 (메모 옆 저장 버튼 / 회원 정보 저장 공통)
+  function addMemo(m, text) {
+    m.memos.push({ text, at: nowText(), by: ADMIN_NAME });
+    addHistory(m, `관리자 메모 작성: ${text.length > 30 ? text.slice(0, 30) + '…' : text}`);
+    $('fMemo').value = '';
+    renderMemos(m);
+  }
+  // 메모 옆 저장: 다른 입력값은 건드리지 않고 메모만 즉시 저장
+  // TODO: 실서비스에서는 POST /api/admin/members/{no}/memos
+  $('btnMemoSave').addEventListener('click', () => {
+    const m = state.editing, text = $('fMemo').value.trim();
+    if (!m) return;
+    if (!text) { toast('메모 내용을 입력하세요.'); $('fMemo').focus(); return; }
+    addMemo(m, text);
+    toast('관리자 메모를 저장했습니다.');
+  });
 
   // ===== 엑셀(CSV) 다운로드 =====
   function downloadExcel() {

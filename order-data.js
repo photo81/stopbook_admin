@@ -26,6 +26,13 @@
   const EXTRA_KEY = 'stopbook.orderExtraPayments.v1';
   let EXTRAS = {};
   try { EXTRAS = JSON.parse(localStorage.getItem(EXTRA_KEY)) || {}; } catch (e) { /* 저장소 사용 불가 시 요청 없음 */ }
+  // 외주 제작 의뢰 (제작관리 > 외주제작 주문 리스트 > 제작관리 > 의뢰완료 처리)
+  // { [orderNo]: { [상품 index]: { at, by, memo } } }
+  // 의뢰한 상품은 공정 주문접수 → 의뢰완료, 제작상태 주문완료 → 제작중
+  // TODO: 실서비스에서는 POST /api/admin/orders/{orderNo}/items/{itemId}/outsource-request (제작처 발주 연동)
+  const REQUEST_KEY = 'stopbook.outsourceRequests.v1';
+  let REQUESTS = {};
+  try { REQUESTS = JSON.parse(localStorage.getItem(REQUEST_KEY)) || {}; } catch (e) { /* 저장소 사용 불가 시 의뢰 내역 없음 */ }
   // 관리자 메모·변경 이력 (주문 상세 > 관리정보 탭)
   // 관리자가 수정·추가한 배송지 (주문 상세 > 배송정보)
   // { [orderNo]: { base: { recipient, phone, zip, address, detail, request }, extras: [{ id, ...같은 항목, items: [상품 index] }] } }
@@ -85,20 +92,23 @@
   //   금액: 판매가 × 수량 비율로 주문금액·할인금액을 나누고(10원 단위, 끝자리는 마지막 상품에), 전체취소 주문은 상품 전부, 부분취소 주문은 상품 하나 취소
   //   결제금액 = 주문금액 - 할인금액 - 취소금액 (상품별 합계 = 주문 상세의 총결제금액)
   //   진행상태: 주문 제작상태에서 정함. 배송중(부분)이면 일부 상품만 배송중, 나머지는 제작중
-  // 제작처 (샘플):
+  // 제작처 (샘플): KSI(자체 제작) 외에는 외주 제작처 (주문관리 > 외주제작 주문 리스트)
   //   포토북 → KSI 디지털센터 / KSI 오프셋센터 (상품마다 둘 중 하나)
-  //   아크릴액자 → 핸드웍 / 아크릴키링 → 올댓프린팅 / 우드아크릴액자 → 굿즈마루
-  //   그 밖의 액자 → 핸드웍, 캘린더·엽서·노트 등 인쇄물 → KSI 디지털센터
+  //   아크릴액자 → 핸드웍 / 우드스탠드아크릴액자 → 굿즈마루 / 아크릴키링·스마트톡 → 올댓프린팅 (외주)
+  //   그 밖의 액자·캘린더·엽서·노트 등 → KSI 디지털센터
   // 주문번호별 별도 난수 → 다른 샘플 값에 영향 없음
   // TODO: 실서비스에서는 주문 상품(주문 상세 API)의 상품별 금액·진행상태·제작처 사용 (상품 마스터의 제작처 설정)
   // 추가 상품 후보: 회원 샘플 상품 목록 + 제작처 샘플용 아크릴 상품 (주문 상품의 두 번째 이후 상품에만 쓰임)
   // 레더북·러브데이북: 후가공(금박) 샘플용 포토북
-  const EXTRA_PRODUCTS = [['아크릴키링', '팬시·굿즈', 5900], ['우드아크릴액자', '액자', 24900], ['레더북', '포토북', 39000], ['러브데이북', '포토북', 32000]];
+  const EXTRA_PRODUCTS = [['아크릴키링', '팬시·굿즈', 5900], ['우드스탠드아크릴액자', '액자', 24900], ['레더북', '포토북', 39000], ['러브데이북', '포토북', 32000]];
+  // 스마트톡: 아크릴키링으로 뽑힌 상품의 절반을 스마트톡으로 바꿔 씀 (후보 목록 길이가 그대로라 다른 주문의 상품 구성이 바뀌지 않음)
+  const SMART_TOK = ['스마트톡', '팬시·굿즈', 6900];
+  const isKsiMaker = maker => /^KSI/.test(maker);   // 자체 제작처 (KSI 디지털센터·오프셋센터)
   function makerOf(p, r) {
     if (p[1] === '포토북') return r() < 0.5 ? 'KSI 디지털센터' : 'KSI 오프셋센터';
-    if (p[0].includes('우드아크릴')) return '굿즈마루';
-    if (p[0].includes('아크릴키링')) return '올댓프린팅';
-    if (p[0].includes('아크릴액자') || p[1] === '액자') return '핸드웍';
+    if (p[0] === '우드스탠드아크릴액자') return '굿즈마루';
+    if (p[0] === '아크릴키링' || p[0] === '스마트톡') return '올댓프린팅';
+    if (p[0].includes('아크릴액자')) return '핸드웍';
     return 'KSI 디지털센터';
   }
   // ===== 상품 제작 상세 (주문 상세 > 주문 상품 > 상품명을 눌러 펼침) =====
@@ -178,6 +188,8 @@
       const p = P[Math.floor(r() * P.length)];
       if (!picked.includes(p)) picked.push(p);
     }
+    // 아크릴키링 → 절반은 스마트톡 (주문번호 기준, 위 난수와 별개)
+    picked.forEach((p, i) => { if (p[0] === '아크릴키링' && [...`${o.orderNo}#tok${i}`].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 3) % 2) picked[i] = SMART_TOK; });
     // 수량: 1부씩 먼저 배정하고 남은 부수를 무작위 상품에 추가
     const qtys = picked.map(() => 1);
     for (let i = kinds; i < o.qty; i++) qtys[Math.floor(r() * kinds)]++;
@@ -213,10 +225,10 @@
       // 진행상태: 취소된 상품은 진행상태 없음('') — 결제상태 '취소'로 표시
       const status = canceled ? '' : before;
       const spec = makeSpec(o, p, i, new Date(o.at));   // 상품 제작 상세 (별도 난수)
-      const flow = adminCancel ? Object.assign(makeFlow(o, i, before, false, orderedAt), { canceled: true, delivered: false, status: '' })
-        : makeFlow(o, i, status, canceled, orderedAt);   // 제작 공정 진행 (별도 난수)
-      return {
-        name: p[0], category: p[1], code: productCode(p, P), qty: qtys[i],
+      const flow = adminCancel ? Object.assign(makeFlow(o, i, before, false, orderedAt, makers[i]), { canceled: true, delivered: false, status: '' })
+        : makeFlow(o, i, status, canceled, orderedAt, makers[i]);   // 제작 공정 진행 (별도 난수, 제작처에 따라 자체/외주 공정)
+      const item = {
+        name: p[0], category: p[1], code: productCode(p, P.concat([SMART_TOK])), qty: qtys[i],
         listPrice: lp[i], discount: dc[i], cancel, paid: net - cancel,
         payStatus, status, maker: makers[i],
         spec,
@@ -224,7 +236,50 @@
         flow,
         cancelInfo: adminCancel   // 관리자 취소 내역 (사유·환불수단·비고·처리일시·처리자)
       };
+      const req = (REQUESTS[o.orderNo] || {})[i];
+      if (req) applyRequest(item, req);   // 관리자가 외주 제작을 의뢰한 상품
+      return item;
     });
+  }
+
+  // ===== 외주 제작 의뢰 =====
+  // 의뢰대기: 외주 상품 중 결제완료 + 제작상태 주문완료 (공정 주문접수) → 제작처에 의뢰할 차례
+  // 의뢰완료: 의뢰 이후 공정에 있는 상품 전부 (의뢰완료·제작중·출고완료·배송중·배송완료). 취소 상품 제외
+  const isRequestWaiting = it => it.flow.outsource && !it.flow.canceled && it.payStatus === '결제완료' && it.flow.steps[it.flow.step] === '주문접수';
+  const isRequested = it => it.flow.outsource && !it.flow.canceled && it.flow.step >= it.flow.steps.indexOf('의뢰완료');
+  function applyRequest(it, rec) {
+    if (!isRequestWaiting(it)) return;
+    it.status = '제작중';
+    it.flow.status = '제작중';
+    it.flow.step = it.flow.steps.indexOf('의뢰완료');
+    it.flow.times[it.flow.step] = rec.at.slice(5, 16);
+    it.request = rec;
+  }
+  // 의뢰 메모 (제작관리 모달 > 의뢰 메모 옆 저장): 의뢰완료 처리와 별개로 메모만 저장. { [orderNo]: { [상품 index]: 메모 } }
+  // 다시 열면 마지막 저장 메모가 채워지고, 저장할 때마다 주문 히스토리(제작의뢰)에 남음
+  const REQ_MEMO_KEY = 'stopbook.outsourceRequestMemos.v1';
+  let REQ_MEMOS = {};
+  try { REQ_MEMOS = JSON.parse(localStorage.getItem(REQ_MEMO_KEY)) || {}; } catch (e) { /* 저장소 사용 불가 시 메모 없음 */ }
+  const requestMemoOf = (orderNo, idx) => (REQ_MEMOS[orderNo] || {})[idx] || '';
+  function saveRequestMemo(orderNo, idx, memo, by) {
+    const ord = ORDERS.find(x => x.orderNo === orderNo);
+    const it = ord && ord.items[idx];
+    if (!it) return false;
+    (REQ_MEMOS[orderNo] = REQ_MEMOS[orderNo] || {})[idx] = memo;
+    addHistory(orderNo, '제작의뢰', `의뢰 메모 저장: ${memo} (제작번호 ${it.spec.makeNo})`, by);
+    try { localStorage.setItem(REQ_MEMO_KEY, JSON.stringify(REQ_MEMOS)); return true; } catch (e) { return false; }
+  }
+  // 의뢰 처리: 저장 + 화면의 주문에 바로 반영 + 주문 히스토리. 반환: 저장 성공 여부 (대상이 아니면 false)
+  function requestOutsource(orderNo, idx, memo, by) {
+    const ord = ORDERS.find(x => x.orderNo === orderNo);
+    const it = ord && ord.items[idx];
+    if (!it || !isRequestWaiting(it)) return false;
+    const rec = { at: nowText(), by, memo: memo || '' };
+    (REQUESTS[orderNo] = REQUESTS[orderNo] || {})[idx] = rec;
+    applyRequest(it, rec);
+    ord.statusCounts = ITEM_STATUS_ORDER.map(st => [st, ord.items.filter(x => x.status === st).length]).filter(([, n]) => n);
+    addHistory(orderNo, '제작의뢰', `외주 제작 의뢰완료: ${it.name} ${it.qty}부 → ${it.maker}${rec.memo ? ` · ${rec.memo}` : ''} (제작번호 ${it.spec.makeNo})`, by);
+    try { localStorage.setItem(REQUEST_KEY, JSON.stringify(REQUESTS)); return true; } catch (e) { return false; }
   }
 
   // ===== 상품 가격 구성 (주문 상세 > 주문 상품 > 펼침 하단) =====
@@ -252,39 +307,54 @@
   //     합성완료 ~ 제본완료      → 제작중
   //     출고완료 ~ 배송중        → 배송중 (제작상태 배송중이면 현재 단계 = 배송중)
   //     배송완료                → 배송완료 (마지막 단계까지 모두 끝난 상태, delivered)
-  //   취소된 상품은 주문접수~리핑완료 중 한 단계에서 멈춘 것으로 표시 (canceled)
-  // TODO: 실서비스에서는 공정 시스템(MES)의 상품별 공정 이력 + 택배사 배송 추적 사용
+  //   취소된 상품은 주문접수 이후 앞쪽 단계(최대 4단계) 중 하나에서 멈춘 것으로 표시 (canceled)
+  //   외주 제작 상품(제작처가 KSI가 아님)은 공정이 다름: 접수대기 → 주문접수 → 의뢰완료 → 제작중 → 출고완료 → 배송중 → 배송완료
+  //     제작상태 제작중 = 의뢰완료 ~ 제작중 (제작처에 제작을 의뢰한 뒤 제작처에서 제작)
+  // TODO: 실서비스에서는 공정 시스템(MES)의 상품별 공정 이력(외주는 제작처 연동) + 택배사 배송 추적 사용
   const PROCESS_STEPS = ['접수대기', '주문접수', '합성완료', '조판완료', '리핑완료', '출력완료', '제본완료', '출고완료', '배송중', '배송완료'];
+  const OUTSOURCE_STEPS = ['접수대기', '주문접수', '의뢰완료', '제작중', '출고완료', '배송중', '배송완료'];
   const stepAt = name => PROCESS_STEPS.indexOf(name);
   // 고객에게 노출되는 제작상태 = 공정 구간 (from~to: 단계 index). 주문 상세 > 제작 공정 아래에 구간으로 표시
   // TODO: 고객 화면(마이페이지 주문 조회)도 같은 구간 기준으로 표시
-  const PROCESS_GROUPS = [
-    { label: '주문대기', from: stepAt('접수대기'), to: stepAt('접수대기') },
-    { label: '주문완료', from: stepAt('주문접수'), to: stepAt('주문접수') },
-    { label: '제작중',   from: stepAt('합성완료'), to: stepAt('제본완료') },
-    { label: '배송중',   from: stepAt('출고완료'), to: stepAt('배송중') },
-    { label: '배송완료', from: stepAt('배송완료'), to: stepAt('배송완료') }
-  ];
-  function makeFlow(o, i, status, canceled, orderedAt) {
+  const groupsOf = (steps, makeFirst, makeLast) => {
+    const at = name => steps.indexOf(name);
+    return [
+      { label: '주문대기', from: at('접수대기'), to: at('접수대기') },
+      { label: '주문완료', from: at('주문접수'), to: at('주문접수') },
+      { label: '제작중',   from: at(makeFirst), to: at(makeLast) },
+      { label: '배송중',   from: at('출고완료'), to: at('배송중') },
+      { label: '배송완료', from: at('배송완료'), to: at('배송완료') }
+    ];
+  };
+  const PROCESS_GROUPS = groupsOf(PROCESS_STEPS, '합성완료', '제본완료');
+  const OUTSOURCE_GROUPS = groupsOf(OUTSOURCE_STEPS, '의뢰완료', '제작중');
+  // 제작처별 공정: { steps, groups, makeFirst, makeLast } (KSI = 자체 공정, 그 외 = 외주 공정)
+  const processOf = maker => (!maker || isKsiMaker(maker)
+    ? { steps: PROCESS_STEPS, groups: PROCESS_GROUPS, outsource: false }
+    : { steps: OUTSOURCE_STEPS, groups: OUTSOURCE_GROUPS, outsource: true });
+  function makeFlow(o, i, status, canceled, orderedAt, maker) {
     let s = [...`${o.orderNo}#flow${i}`].reduce((h, c) => (h * 47 + c.charCodeAt(0)) % 233280, 19);
     const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
-    const MAKE_FIRST = stepAt('합성완료'), MAKE_LAST = stepAt('제본완료');
-    const step = canceled ? stepAt('주문접수') + Math.floor(r() * 4)                     // 주문접수 ~ 리핑완료
-      : status === '제작중' ? MAKE_FIRST + Math.floor(r() * (MAKE_LAST - MAKE_FIRST + 1))  // 합성완료 ~ 제본완료
-      : status === '배송중' ? stepAt('배송중')                                           // 출고완료 후 배송중
-      : status === '배송완료' ? stepAt('배송완료')                                       // 배송완료 (전 단계 완료)
-      : status === '주문완료' ? stepAt('주문접수')
-      : stepAt('접수대기');                                                              // 주문대기 (입금 전)
+    const proc = processOf(maker), steps = proc.steps;
+    const at = name => steps.indexOf(name);
+    const make = proc.groups[2];   // 제작중 구간
+    const step = canceled ? at('주문접수') + Math.floor(r() * Math.min(4, make.to - at('주문접수') + 1))   // 주문접수 ~ 제작 구간 앞쪽
+      : status === '제작중' ? make.from + Math.floor(r() * (make.to - make.from + 1))       // 제작중 구간 (자체: 합성완료~제본완료 / 외주: 의뢰완료~제작중)
+      : status === '배송중' ? at('배송중')                                               // 출고완료 후 배송중
+      : status === '배송완료' ? at('배송완료')                                           // 배송완료 (전 단계 완료)
+      : status === '주문완료' ? at('주문접수')
+      : at('접수대기');                                                                  // 주문대기 (입금 전)
     // 단계별 시각: 주문 시각부터 단계마다 1~10시간씩, 기준일을 넘지 않게
     let t = new Date(orderedAt.replace(' ', 'T')).getTime();
     const limit = TODAY.getTime() + DAY - 60000;
-    const times = PROCESS_STEPS.map((_, k) => {
+    const times = steps.map((_, k) => {
       if (k > step) return '';
       if (k > 0) t = Math.min(t + (1 + Math.floor(r() * 10)) * 3600000, limit);
       const d = new Date(t);
       return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     });
-    return { step, times, canceled, status, delivered: status === '배송완료' };
+    // steps·groups: 이 상품의 공정 단계와 고객 노출 제작상태 구간 (화면·엑셀은 이 값을 씀)
+    return { step, times, canceled, status, delivered: status === '배송완료', steps, groups: proc.groups, outsource: proc.outsource };
   }
   MemberData.members.forEach(m => (m.orders || []).forEach(o => {
     let s = [...o.orderNo].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 233280, 7);
@@ -340,6 +410,28 @@
     else if (ord.payMethod === '후결제' && ord.payStatus === '후결제대기') { const part = samplePartialPayment(ord); if (part) applyDeposit(ord, part); }   // 입금 전 후결제 샘플 일부 → 1차 입금만 된 부분결제
     ORDERS.push(ord);
   }));
+
+  // 의뢰대기 시연 샘플 보충: 제작중인 외주 상품(결제완료) 중 5건을 아직 의뢰 전(제작상태 주문완료, 공정 주문접수)으로 되돌림
+  //   출고 전 상품만 골라 배송정보와 어긋나지 않게 함. 공정 제작중 단계 상품을 먼저, 그다음 최근 주문 순
+  //   관리자가 이 상품을 의뢰완료 처리했으면 다시 반영 (applyRequest)
+  // TODO: 실서비스에서는 불필요 (샘플 전용)
+  (() => {
+    const DEMO_WAITING = 5;
+    const cands = ORDERS.flatMap(o => o.items.map((it, i) => ({ o, it, i })))
+      .filter(x => x.it.flow.outsource && !x.it.flow.canceled && x.it.payStatus === '결제완료' && x.it.status === '제작중')
+      .sort((a, b) => (Number(b.it.flow.steps[b.it.flow.step] === '제작중') - Number(a.it.flow.steps[a.it.flow.step] === '제작중')) || b.o.orderedAt.localeCompare(a.o.orderedAt))
+      .slice(0, DEMO_WAITING);
+    cands.forEach(({ o, it, i }) => {
+      const f = it.flow, recv = f.steps.indexOf('주문접수');
+      it.status = '주문완료';
+      f.status = '주문완료';
+      f.step = recv;
+      f.times = f.times.map((t, k) => (k > recv ? '' : t));
+      const req = (REQUESTS[o.orderNo] || {})[i];
+      if (req) applyRequest(it, req);
+      o.statusCounts = ITEM_STATUS_ORDER.map(st => [st, o.items.filter(x => x.status === st).length]).filter(([, n]) => n);
+    });
+  })();
 
   // 결제가 끝난 후결제 샘플 주문의 입금 내역 (입금관리 모달 > 입금 내역, 주문 히스토리). 저장소에는 넣지 않음
   //   대부분 1회 전액 입금, 5만 원 이상 주문 일부(약 40%)는 2회 분할 입금. 입금일시는 결제일(주문 7일 뒤) 기준
@@ -409,7 +501,8 @@
         if (it.status === '주문대기') it.status = '주문완료';
         if (it.flow && it.flow.status === '주문대기') {   // 입금 확인 → 공정 접수대기 → 주문접수 (입금일시를 주문접수 시각으로)
           it.flow.status = '주문완료';
-          if (!it.flow.canceled && it.flow.step === stepAt('접수대기')) { it.flow.step = stepAt('주문접수'); it.flow.times[it.flow.step] = last.at.slice(5, 16); }
+          const fs = it.flow.steps;
+          if (!it.flow.canceled && it.flow.step === fs.indexOf('접수대기')) { it.flow.step = fs.indexOf('주문접수'); it.flow.times[it.flow.step] = last.at.slice(5, 16); }
         }
       });
     } else {
@@ -623,9 +716,10 @@
   }
 
   window.OrderData = {
-    ORDERS, TODAY, PROCESS_STEPS, PROCESS_GROUPS, ITEM_STATUS_ORDER, PAY_METHODS, DEPOSIT_METHODS,
+    ORDERS, TODAY, PROCESS_STEPS, PROCESS_GROUPS, OUTSOURCE_STEPS, OUTSOURCE_GROUPS, ITEM_STATUS_ORDER, PAY_METHODS, DEPOSIT_METHODS,
     find: orderNo => ORDERS.find(o => o.orderNo === orderNo) || null,
-    isUnpaid, isPostpayOrder, isPostpay, isWaiting, addDeposit, depositsOf,
+    isUnpaid, isPostpayOrder, isPostpay, isWaiting, addDeposit, depositsOf, isKsiMaker,
+    isRequestWaiting, isRequested, requestOutsource, requestMemoOf, saveRequestMemo,
     saveCancel, restoreCancel, saveExtraRequest,
     adminLog, memoCategories, addMemo, updateMemo, deleteMemo, addHistory, systemHistory,
     saveAddress, deleteAddress, ADDRESS_FIELDS,

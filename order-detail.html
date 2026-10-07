@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 주문 상세</title>
-<link rel="stylesheet" href="admin.css?v=20261113">
+<link rel="stylesheet" href="admin.css?v=20261134">
 </head>
 <body>
 <div class="layout">
@@ -24,8 +24,16 @@
         <a href="#" class="menu-parent" aria-expanded="true">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="orders.html" class="active" aria-current="page">통합 주문 리스트</a></li>
+          <li><a href="paid-orders.html">결제완료 주문 리스트</a></li>
           <li><a href="unpaid-orders.html">미입금 주문 리스트</a></li>
           <li><a href="postpay-orders.html">후결제 주문 리스트</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">제작관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="making-orders.html">제작중 주문 리스트</a></li>
+          <li><a href="outsource-orders.html">외주제작 주문 리스트</a></li>
         </ul>
       </li>
     </ul>
@@ -127,6 +135,8 @@
             <span class="readonly" id="selCount"></span>
             <!-- 입금처리: 미입금(입금대기)·후결제(후결제대기) 주문에서만 표시. 결제수단·입금액·입금일시 입력 → 결제완료 (미입금은 주문 접수까지) -->
             <button type="button" class="btn btn-primary" id="btnDeposit" hidden>입금처리</button>
+            <!-- 제작관리: 외주 제작 상품(제작처가 KSI가 아님)이 있는 주문에서만 표시. 외주제작 주문 리스트의 제작관리와 같은 처리(의뢰완료) -->
+            <button type="button" class="btn" id="btnMake" hidden>제작관리</button>
             <button type="button" class="btn" id="btnRestoreItems">취소원복</button>
             <button type="button" class="btn btn-danger" id="btnCancelItems">주문취소</button>
           </div>
@@ -470,11 +480,13 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261113"></script>
-<script src="member-type-store.js?v=20261113"></script>
-<script src="member-data.js?v=20261113"></script>
-<script src="order-data.js?v=20261113"></script>
-<script src="deposit-modal.js?v=20261113"></script>
+<script src="alimtalk.js?v=20261134"></script>
+<script src="member-type-store.js?v=20261134"></script>
+<script src="member-data.js?v=20261134"></script>
+<script src="order-data.js?v=20261134"></script>
+<script src="deposit-modal.js?v=20261134"></script>
+<script src="make-modal.js?v=20261134"></script>
+<script src="item-detail.js?v=20261134"></script>
 <script>
 (function () {
   'use strict';
@@ -964,78 +976,8 @@
     $('itemSummary').textContent = `· ${o.items.length}건 / ${sum('qty')}부`;
     // 상품명을 누르면 바로 아래 행에 상품 제작 상세가 펼쳐짐 (아코디언, 여러 개 동시에 펼칠 수 있음)
     const dash = v => (v ? esc(v) : '<span class="muted">-</span>');
-    // 제작 공정 플로우: 지난 단계 ✓(채움) · 현재 단계(강조) · 남은 단계(빈 원). 단계 아래 처리 시각
-    // 취소된 상품은 멈춘 단계 뒤를 흐리게 하고 '취소' 표시
-    // 단계 아래에 고객에게 노출되는 제작상태 구간을 표시 (주문대기=접수대기 | 주문완료=주문접수 | 제작중=합성완료~제본완료 | 배송중=출고완료~배송중 | 배송완료)
-    const flowHtml = f => {
-      const steps = OrderData.PROCESS_STEPS;
-      // 고객 노출 제작상태 구간: 지난 구간(done) · 현재 구간(current, 취소면 stopped) · 남은 구간(todo)
-      const gCls = g => (f.step > g.to || (f.delivered && f.step === g.to) ? 'done' : f.step >= g.from ? (f.canceled ? 'stopped' : 'current') : 'todo');
-      const groupsHtml = `<div class="flow-groups-cap">고객 노출 제작상태</div>
-        <div class="flow-groups" style="grid-template-columns:repeat(${steps.length},1fr)">${OrderData.PROCESS_GROUPS.map(g => `
-          <div class="flow-group ${gCls(g)}" style="grid-column:${g.from + 1} / span ${g.to - g.from + 1}">${esc(g.label)}</div>`).join('')}
-        </div>`;
-      // 배송완료: 마지막 단계(배송완료)까지 모두 끝남 → 전 단계 ✓
-      const cls = k => (k < f.step || (f.delivered && k === f.step) ? 'done' : k === f.step ? (f.canceled ? 'stopped' : 'current') : 'todo');
-      const statusBadge = f.status ? `<span class="badge ${MemberData.statusClass(f.status)}">${esc(f.status)}</span>` : '';
-      const head = f.canceled
-        ? `<span class="badge ps-취소">취소</span> ${esc(steps[f.step])} 단계에서 취소되었습니다.`
-        : f.delivered
-          ? `${statusBadge} 제작부터 배송까지 모든 단계가 완료되었습니다.`
-          : `${statusBadge} 현재 공정 <b>${esc(steps[f.step])}</b> <span class="muted">(${f.step + 1}/${steps.length}단계)</span>`;
-      return `<div class="flow${f.canceled ? ' is-canceled' : ''}">
-        <div class="flow-head"><b>제작 공정</b> <span class="flow-now">${head}</span></div>
-        <ol class="flow-steps">${steps.map((name, k) => `
-          <li class="flow-step ${cls(k)}"${k === f.step ? ' aria-current="step"' : ''}>
-            <span class="flow-dot">${k < f.step || (f.delivered && k === f.step) ? '✓' : k + 1}</span>
-            <span class="flow-label">${esc(name)}</span>
-            <span class="flow-time">${f.times[k] || ''}</span>
-          </li>`).join('')}
-        </ol>
-        ${groupsHtml}
-      </div>`;
-    };
-    // 페이지: 기본 페이지수(추가 페이지수). 예) 24p(+6p), 추가 없으면 24p
-    const pagesText = sp => (sp.basePages ? `${sp.basePages}p${sp.addPages ? `(+${sp.addPages}p)` : ''}` : '');
-    // 펼친 상세 순서: 상품정보 → 제작 공정 (상품별 금액은 표의 주문금액~결제금액 열에서 확인)
-    const specRow = (it, i) => {
-      const sp = it.spec;
-      const opts = [['상품형태', sp.form], ['사이즈', sp.size], ['커버종류', sp.cover], ['코팅종류', sp.coating], ['페이지', pagesText(sp)], ['후가공', sp.finishing]];
-      // 항목명 칸(회색)과 값 칸(흰색)을 테두리로 나눈 표 (항목명+값 3쌍 = 6칸). 주문사양은 사양명 아래 값이 오는 6칸
-      // 상품 코드: 누르면 상품 정보 페이지를 새 탭으로 (주문 상세는 그대로 유지)
-      // 편집 서비스: 직접편집 / 편집메이트, 오른쪽 끝에 편집내용보기(스탑북 뷰어)
-      const editorCell = `<div class="spec-title"><span class="badge edit-${sp.editService === '편집메이트' ? 'mate' : 'self'}">${esc(sp.editService)}</span>
-        <a class="btn btn-xs" href="${esc(sp.viewerUrl)}" target="_blank" rel="noopener" data-viewer>편집내용보기</a></div>`;
-      return `<tr class="item-detail" id="itemDetail${i}" hidden><td colspan="12">
-        <div class="spec-box">
-        <div class="flow-head"><b>상품정보</b></div>
-        <!-- 첫 줄은 항목 3쌍(6칸), 아래 줄들은 항목 2쌍(4칸)이라 표를 나눠 각 표 안에서 칸 폭을 같게 맞춤 -->
-        <table class="spec-table">
-          <colgroup><col class="c-th"><col><col class="c-th"><col><col class="c-th"><col></colgroup>
-          <tr>
-            <th>상품 제작 번호</th><td class="mono">${esc(sp.makeNo)}</td>
-            <th>상품 코드</th><td><button type="button" class="link-btn mono" data-product="${i}" title="상품 정보 보기">${esc(it.code)}</button></td>
-            <th>편집 서비스 이용</th><td>${editorCell}</td>
-          </tr>
-        </table>
-        <table class="spec-table spec-table-sub">
-          <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
-          <tr><th>주문사양</th><td colspan="3" class="spec-opts-cell">
-            <div class="spec-opts">${opts.map(([k, v]) => `<div><span>${k}</span><b>${dash(v)}</b></div>`).join('')}</div>
-          </td></tr>
-          <tr>
-            <th>부가서비스</th><td>${dash(sp.services.join(', '))}</td>
-            <th>추가상품 구매</th><td>${sp.addons.length
-              ? `<div class="addon-list">${sp.addons.map(a => `<span class="addon-chip">${esc(a.name)} <b>${a.qty}개</b></span>`).join('')}</div>`
-              : dash('')}</td>
-          </tr>
-          <tr><th>표지 디자인</th><td>${dash(sp.coverDesign)}</td><th>내지 디자인</th><td>${dash(sp.innerDesign)}</td></tr>
-          <tr><th>최초 편집 시작일</th><td>${esc(sp.editStartedAt)}</td><th>편집 완료일</th><td>${esc(sp.editDoneAt)}</td></tr>
-        </table>
-        </div>
-        ${flowHtml(it.flow)}
-      </td></tr>`;
-    };
+    // 상품정보 + 제작 공정: item-detail.js (제작중·외주제작 주문 리스트의 상품제작번호 아코디언과 같은 화면)
+    const specRow = (it, i) => `<tr class="item-detail" id="itemDetail${i}" hidden><td colspan="12">${ItemDetail.html(it, i, { productLink: true })}</td></tr>`;
     // 펼칠 수 있음을 알 수 있게: 상품 행 전체를 누를 수 있고(마우스 올리면 강조), 상품명 칸 오른쪽에 '상세보기 ▾' 버튼 표시
     $('itemBody').innerHTML = o.items.map((it, i) => `<tr class="item-row" data-item="${i}">
         <td class="c-chk"><input type="checkbox" class="item-chk" value="${i}" aria-label="${esc(it.name)} 선택"${it.payStatus === '취소' && !it.cancelInfo ? ' disabled title="원복할 수 없는 취소 상품"' : ''}></td>
@@ -1054,13 +996,8 @@
       </tr>${specRow(it, i)}`).join('');
 
     $('itemBody').addEventListener('click', e => {
-      // 편집내용보기: 스탑북 뷰어를 새 창(팝업)으로. 팝업이 막히면 링크의 target=_blank로 새 탭에서 열림
-      const v = e.target.closest('[data-viewer]');
-      if (v) {
-        const w = window.open(v.href, 'stopbookViewer', 'width=1100,height=900,resizable=yes,scrollbars=yes');
-        if (w) { w.opener = null; w.focus(); e.preventDefault(); }
-        return;
-      }
+      // 편집내용보기: 스탑북 뷰어를 새 창(팝업)으로 (item-detail.js)
+      if (ItemDetail.openViewer(e)) return;
       // 상품 코드: 상품 정보 모달
       const pc = e.target.closest('[data-product]');
       if (pc) { openProduct(o.items[Number(pc.dataset.product)]); return; }
@@ -1203,13 +1140,45 @@
       DepositModal.open(o, () => location.replace(`order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}&deposited=1`));
     });
 
+    // ===== 제작관리 (외주 제작 상품) =====
+    // 대상 상품: 체크한 외주 상품 1개. 체크가 없고 외주 상품이 하나뿐이면 그 상품
+    // 의뢰대기(결제완료·주문완료) 상품은 의뢰완료 처리 → 공정 의뢰완료·제작상태 제작중 (외주제작 주문 리스트에도 반영)
+    const outIdx = o.items.map((it, i) => (it.flow.outsource ? i : -1)).filter(i => i >= 0);
+    $('btnMake').hidden = !outIdx.length;
+    // 아직 의뢰하지 않은(의뢰대기) 외주 상품이 있으면 리스트와 같이 강조(검정 버튼)
+    $('btnMake').classList.toggle('btn-primary', outIdx.some(i => OrderData.isRequestWaiting(o.items[i])));
+    // 제작관리 모달(make-modal.js): 상품·제작처·현재 공정·의뢰서 다운로드·히스토리 + 의뢰완료
+    $('btnMake').addEventListener('click', () => {
+      const sel = selectedIdx();
+      const selOut = sel.filter(i => outIdx.includes(i));
+      if (sel.length && selOut.length !== sel.length) { AdminUtil.toast('외주 제작 상품만 선택하세요. (제작처가 KSI인 상품은 제작관리 대상이 아닙니다)'); return; }
+      if (selOut.length > 1) { AdminUtil.toast('제작관리는 상품 1개씩 처리합니다. 상품을 하나만 선택하세요.'); return; }
+      const idx = selOut.length ? selOut[0] : outIdx.length === 1 ? outIdx[0] : -1;
+      if (idx < 0) { AdminUtil.toast('제작관리할 외주 제작 상품을 선택하세요.'); return; }
+      MakeModal.open(o, idx, ok => {
+        if (!ok) { AdminUtil.toast('저장소를 사용할 수 없어 의뢰를 저장하지 못했습니다.'); return; }
+        location.replace(`order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}&requested=1&item=${idx}`);
+      });
+    });
+
     // 취소·원복·추가결제·입금처리 후 다시 불러온 경우 안내 (주소의 값은 안내 후 지움)
     const qs = new URLSearchParams(location.search);
-    const done = qs.get('canceled') ? `${qs.get('canceled')}건을 주문취소했습니다.`
+    const done = qs.get('requested') ? '의뢰완료 처리했습니다. 제작 공정에 반영되었습니다.'
+      : qs.get('canceled') ? `${qs.get('canceled')}건을 주문취소했습니다.`
       : qs.get('restored') ? `${qs.get('restored')}건의 취소를 원복했습니다.`
       : qs.get('deposited') ? '입금을 등록했습니다. 결제정보에 반영되었습니다.'
       : qs.get('extra') ? `추가결제 ${won(Number(qs.get('extra')))}를 생성했습니다. (결제대기)`
       : qs.get('addr') ? { add: '배송지를 추가했습니다.', edit: '배송지를 수정했습니다.', del: '추가 배송지를 삭제했습니다.' }[qs.get('addr')] || '' : '';
+    // 외주제작 주문 리스트 > 제작관리: &item=상품 순번 → 주문정보 탭에서 그 상품을 펼쳐 제작 공정을 보여줌
+    const focusItem = qs.get('item');
+    if (focusItem !== null && $('itemDetail' + focusItem)) {
+      showTab('items');
+      const tr = document.querySelector(`#itemBody tr.item-row[data-item="${CSS.escape(focusItem)}"]`);
+      $('itemDetail' + focusItem).hidden = false;
+      tr.classList.add('open');
+      tr.querySelector('.item-toggle').setAttribute('aria-expanded', 'true');
+      setTimeout(() => tr.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0);
+    }
     if (done) {
       AdminUtil.toast(done);
       if (qs.get('extra') || qs.get('deposited')) showTab('pay');
@@ -1219,7 +1188,7 @@
   }
   // 목록: 통합 주문·미입금·후결제 주문 리스트에서 왔으면 뒤로 가기(검색 조건·페이지 유지), 아니면 통합 주문 리스트로 이동
   $('btnList').addEventListener('click', e => {
-    if (document.referrer && /\/(orders|unpaid-orders|postpay-orders)\.html/.test(document.referrer) && history.length > 1) { e.preventDefault(); history.back(); }
+    if (document.referrer && /\/(orders|paid-orders|unpaid-orders|postpay-orders|outsource-orders|making-orders)\.html/.test(document.referrer) && history.length > 1) { e.preventDefault(); history.back(); }
   });
   AdminUtil.initSidebar();
 })();
