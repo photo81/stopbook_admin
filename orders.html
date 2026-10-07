@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 통합 주문 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261149">
+<link rel="stylesheet" href="admin.css?v=20261151">
 </head>
 <body>
 <div class="layout">
@@ -45,11 +45,11 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 주문관리 &gt; <b>통합 주문 리스트</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.00 (2026-10-07)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.01 (2026-10-07)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>통합 주문 리스트</h1>
+      <h1>통합 주문 리스트 <span class="page-desc">모든 주문을 결제·제작 상태와 상관없이 검색하고 관리합니다.</span></h1>
 
       <!-- 검색 조건: 검색어 + 기간이 기본, 상세검색은 접어 둠 -->
       <form class="panel" id="searchForm" novalidate>
@@ -150,11 +150,11 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261149"></script>
-<script src="member-data.js?v=20261149"></script>
-<script src="order-data.js?v=20261149"></script>
-<script src="deposit-modal.js?v=20261149"></script>
-<script src="order-list.js?v=20261149"></script>
+<script src="member-type-store.js?v=20261151"></script>
+<script src="member-data.js?v=20261151"></script>
+<script src="order-data.js?v=20261151"></script>
+<script src="deposit-modal.js?v=20261151"></script>
+<script src="order-list.js?v=20261151"></script>
 <script>OrderList.init({ mode: 'accepted' });</script>
 </body>
 </html>

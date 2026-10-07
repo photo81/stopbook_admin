@@ -55,6 +55,7 @@ a { color: var(--accent); }
 .breadcrumb a { color: var(--muted); }
 .content { padding: 28px; max-width: 1480px; }
 h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 20px; }
+.page-desc { margin-left: 10px; color: var(--faint); font-size: 13px; font-weight: 400; letter-spacing: 0; }   /* 메뉴 화면 제목 옆 설명 (연한 회색) */
 
 .panel { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
 
