@@ -1,18 +1,18 @@
-// 주문 목록 화면 공용 스크립트 (통합 주문 리스트 orders.html / 결제완료 주문 리스트 paid-orders.html / 미입금 주문 리스트 unpaid-orders.html / 후결제 주문 리스트 postpay-orders.html)
+// 주문 목록 화면 공용 스크립트 (통합 주문 관리 orders.html / 결제 완료 주문 paid-orders.html / 미입금 주문 unpaid-orders.html / 후결제 주문 postpay-orders.html)
 // member-type-store.js, member-data.js, order-data.js, deposit-modal.js 다음에 로드하고 OrderList.init({ mode }) 호출
 //   mode 'accepted': 주문 전부 (미입금 주문은 결제상태 입금대기로 표시. 후결제 주문은 접수 즉시 여기에도 나옴)
-//   mode 'canceled': 취소된 상품이 있는 주문 (취소 주문 리스트 canceled-orders.html, 부분취소·전체취소). 상품별 보기는 취소된 상품만
-//   mode 'paid':     결제가 이루어진 주문 (결제상태 입금대기·후결제대기 제외). 구성은 통합 주문 리스트와 같음
+//   mode 'canceled': 취소된 상품이 있는 주문 (취소 주문 canceled-orders.html, 부분취소·전체취소). 상품별 보기는 취소된 상품만
+//   mode 'paid':     결제가 이루어진 주문 (결제상태 입금대기·후결제대기·전체취소 제외, 상품별 보기는 취소 상품 제외). 구성은 통합 주문 관리와 같음
 //                    → 미입금·후결제 주문에 입금을 등록하면 이 목록에 들어옴
-//   mode 'outsource': 제작처가 KSI가 아닌 상품 (외주제작 주문 리스트 outsource-orders.html). 상품 1개 = 1행
-//   mode 'ordered':  제작상태가 주문완료(공정 주문접수)인 상품 전부 (주문완료 리스트 ordered-orders.html). 접수 후 제작이 시작되지 않은 상품 확인용
-//   mode 'making':   제작상태가 제작중인 상품 전부 (제작중 주문 리스트 making-orders.html). 열은 외주제작과 같고 관리 열·탭 없음
-//   mode 'shipping': 제작상태가 배송중인 상품 전부 (배송중 주문 리스트 shipping-orders.html). 구성은 제작중 주문 리스트와 같음
-//   mode 'delivered': 제작상태가 배송완료인 상품 전부 (배송완료 주문 리스트 delivered-orders.html). 기본 검색 줄은 배송방법, 공정상태는 상세검색 맨 뒤
+//   mode 'outsource': 제작처가 KSI가 아닌 상품 (외주 제작 outsource-orders.html). 상품 1개 = 1행
+//   mode 'ordered':  제작상태가 주문완료(공정 주문접수)인 상품 전부 (주문 완료 ordered-orders.html). 접수 후 제작이 시작되지 않은 상품 확인용
+//   mode 'making':   제작상태가 제작중인 상품 전부 (제작 중 making-orders.html). 열은 외주제작과 같고 관리 열·탭 없음
+//   mode 'shipping': 제작상태가 배송중인 상품 전부 (배송 중 shipping-orders.html). 구성은 제작 중과 같음
+//   mode 'delivered': 제작상태가 배송완료인 상품 전부 (배송 완료 delivered-orders.html). 기본 검색 줄은 배송방법, 공정상태는 상세검색 맨 뒤
 //                    → 주문수량·금액·결제상태는 상품 기준, 제작처 열 + 관리 열(제작관리 → 주문 상세에서 그 상품의 제작 공정)
-//   mode 'unpaid':   무통장입금 미입금 주문 (결제상태 입금대기). 맨 오른쪽 관리 열에 입금처리 버튼 → 처리하면 이 목록에서 빠지고 통합 주문 리스트에는 결제완료로 반영
+//   mode 'unpaid':   무통장입금 미입금 주문 (결제상태 입금대기). 맨 오른쪽 관리 열에 입금처리 버튼 → 처리하면 이 목록에서 빠지고 통합 주문 관리에는 결제완료로 반영
 //   mode 'postpay':  후결제 주문 전부 (선결제 없이 주문, 상품 수령 후 결제). 구성은 미입금과 같고 후결제대기 건에만 입금처리 버튼
-//                    → 처리하면 결제상태(결제완료)·결제수단(입금받은 수단)이 바뀌어 이 목록과 통합 주문 리스트에 같이 반영 (목록에서 빠지지 않음)
+//                    → 처리하면 결제상태(결제완료)·결제수단(입금받은 수단)이 바뀌어 이 목록과 통합 주문 관리에 같이 반영 (목록에서 빠지지 않음)
 // 세 화면의 검색 조건·목록·엑셀 구성은 같고, 화면별 HTML(검색 폼·표)은 각 파일에 둠
 (function () {
   'use strict';
@@ -28,7 +28,7 @@
     const canceled = mode === 'canceled';   // 취소 주문: 취소된 상품이 있는 주문 (부분취소·전체취소). 상품별 보기는 취소된 상품만
     const isCanceledOrder = o => o.items.some(it => it.payStatus === '취소');
     const outsource = mode === 'outsource';   // 외주제작: 주문이 아니라 상품 1개 = 1행
-    // 제작상태별 상품 목록: 주문완료 / 제작중 / 배송중 / 배송완료 주문 리스트 (같은 구성, 보여주는 제작상태만 다름)
+    // 제작상태별 상품 목록: 주문완료 / 제작중 / 배송중 / 배송 완료 (같은 구성, 보여주는 제작상태만 다름)
     //   주문완료 = 공정 주문접수 (접수는 끝났지만 아직 제작이 시작되지 않은 상품)
     const STATUS_LIST = { ordered: '주문완료', making: '제작중', shipping: '배송중', delivered: '배송완료' }[mode] || '';
     const making = !!STATUS_LIST;             // 제작중·배송중: 그 제작상태인 상품 전부 (자체·외주), 상품 1개 = 1행, 관리 열·탭 없음
@@ -37,8 +37,8 @@
     const postpay = mode === 'postpay';
     // 주문관리 리스트(통합·결제완료·미입금·후결제): 주문별 / 상품별 보기 탭. 상품별은 주문 상품 1개 = 1행 (상품제작번호·제작상태 열 추가)
     const orderList = !itemMode;
-    // 결제완료 주문 리스트에서 빼는 결제상태 (결제 전)
-    const UNPAID_STATUSES = ['입금대기', '후결제대기'];
+    // 결제 완료 주문에서 빼는 결제상태: 결제 전(입금대기·후결제대기) + 결제 후 전체취소
+    const UNPAID_STATUSES = ['입금대기', '후결제대기', '전체취소'];
     // ===== 주문 데이터: order-data.js (주문 상세와 공유) =====
     const { ORDERS } = OrderData;
     // 출고일: 상품 공정의 출고완료 단계 처리 시각('MM-DD HH:MM')에 주문 연도를 붙인 날짜 (주문일보다 앞이면 다음 해)
@@ -62,7 +62,7 @@
     const OUT_EXCLUDED = ['입금대기', '취소'];
     const source = () => (outsource ? ORDERS.flatMap(o => o.items.map((it, i) => (OrderData.isKsiMaker(it.maker) || OUT_EXCLUDED.includes(it.payStatus) ? null : itemRow(o, it, i))).filter(Boolean))
       : making ? ORDERS.flatMap(o => o.items.map((it, i) => (it.status === STATUS_LIST && it.payStatus !== '취소' ? itemRow(o, it, i) : null)).filter(Boolean))
-      : orderList && state.view === 'item' ? orderSource().flatMap(o => o.items.map((it, i) => (canceled && it.payStatus !== '취소' ? null : Object.assign(itemRow(o, it, i), { orderPayStatus: o.payStatus })))).filter(Boolean)
+      : orderList && state.view === 'item' ? orderSource().flatMap(o => o.items.map((it, i) => ((canceled && it.payStatus !== '취소') || (paid && it.payStatus === '취소') ? null :   /* 취소 주문: 취소 상품만 / 결제 완료 주문: 취소 상품 제외 */ Object.assign(itemRow(o, it, i), { orderPayStatus: o.payStatus })))).filter(Boolean)
       : orderSource());
     // 주문관리 리스트의 주문 목록 (주문별 보기 = 이 목록, 상품별 보기 = 이 주문들의 상품)
     const orderSource = () => (postpay ? ORDERS.filter(OrderData.isPostpayOrder) : unpaid ? ORDERS.filter(OrderData.isUnpaid)
@@ -80,36 +80,36 @@
     })() : [];
 
     // ===== 상세검색 항목 (다중 선택) =====
-    // 회원구분 선택지는 회원 유형 관리 > 회원구분 탭의 항목 (회원 리스트와 같은 방식, 숨긴 구분도 검색 가능)
+    // 회원구분 선택지는 회원 유형 관리 > 회원구분 탭의 항목 (전체 회원 관리와 같은 방식, 숨긴 구분도 검색 가능)
     // 결제수단 선택지는 order-data.js의 PAY_METHODS (별도결제 포함). 미입금 화면은 결제수단·결제상태가 정해져 있어 두 항목을 뺌
     // TODO: 결제수단·입금상태·진행상태·배송방법 선택지는 실서비스에서 주문 설정값으로 대체
     const CAT_TREE = MemberTypeStore.categoryTree();
     const DETAIL_FIELDS = [
       ...(unpaid && !postpay ? [] : [
         ...(postpay || itemMode ? [] : [{ key: 'payMethod', label: '결제수단', options: OrderData.PAY_METHODS.map(v => [v, v]) }]),
-        // 입금대기: 무통장입금 미입금 (통합 주문 리스트에만) / 후결제대기·부분결제: 후결제 주문 중 입금 전·일부 입금 (통합 주문 리스트에도 나오므로 두 화면 모두 선택지에 둠)
-        // 결제완료 주문 리스트: 결제 전 상태(입금대기·후결제대기)는 목록에 없으므로 선택지에서 뺌
+        // 입금대기: 무통장입금 미입금 (통합 주문 관리에만) / 후결제대기·부분결제: 후결제 주문 중 입금 전·일부 입금 (통합 주문 관리에도 나오므로 두 화면 모두 선택지에 둠)
+        // 결제 완료 주문: 결제 전 상태(입금대기·후결제대기)는 목록에 없으므로 선택지에서 뺌
         // 외주제작(상품 행): 상품별 결제상태 (부분취소·전체취소 대신 상품 단위 '취소')
         { key: 'payStatus', label: '결제상태', options: (itemMode ? ['후결제대기', '부분결제', '결제완료']
           : ['입금대기', '후결제대기', '부분결제', '결제완료', '부분취소', '전체취소'])
           .filter(v => !(postpay && v === '입금대기') && !(paid && UNPAID_STATUSES.includes(v)) && !(canceled && !['부분취소', '전체취소'].includes(v))).map(v => [v, v]) }
       ]),
-      // main: 상세검색이 아니라 기본 검색 줄(기간 오른쪽)에 둠 → 외주제작 주문 리스트는 제작처, 제작중 주문 리스트는 공정상태
+      // main: 상세검색이 아니라 기본 검색 줄(기간 오른쪽)에 둠 → 외주 제작은 제작처, 제작 중은 공정상태
       ...(outsource ? [{ key: 'maker', label: '제작처', options: OUT_MAKERS.map(v => [v, v]), main: true }] : []),
       // 공정상태: 제작중은 기본 검색 줄, 외주제작은 상세검색
       ...(itemMode ? [{ key: 'step', label: '공정상태', options: STEP_OPTIONS.map(v => [v, v]), main: making && mode !== 'delivered' }] : []),
       // 제작상태: 상품별 진행상태. 고른 상태의 상품이 하나라도 있는 주문을 찾음 (미입금은 입금 전이라 주문대기뿐, 후결제는 제작·배송이 진행됨)
       { key: 'status', label: '제작상태', options: (unpaid && !postpay ? ['주문대기'] : OrderData.ITEM_STATUS_ORDER).map(v => [v, v]) },
-      // 제작중 주문 리스트: 제작처는 상세검색 (결제상태 · 제작상태 · 제작처 · 회원구분 · 상담여부 · 배송방법 순)
+      // 제작 중: 제작처는 상세검색 (결제상태 · 제작상태 · 제작처 · 회원구분 · 상담여부 · 배송방법 순)
       ...(making ? [{ key: 'maker', label: '제작처', options: OUT_MAKERS.map(v => [v, v]) }] : []),
       { key: 'category', label: '회원구분', options: CAT_TREE.map(c => [c.code, c.label + (c.hidden ? ' (숨김)' : '')]) },
       // 상담여부: 관리자 메모 구분 (주문 상세 > 관리정보에서 등록). 고른 구분의 메모가 있는 주문을 찾음
       { key: 'inquiry', label: '상담여부', options: OrderData.MEMO_CATEGORIES.map(c => [c, c]) },
-      // 배송완료 주문 리스트: 배송방법을 기본 검색 줄에 (공정상태와 자리를 바꿈)
+      // 배송 완료: 배송방법을 기본 검색 줄에 (공정상태와 자리를 바꿈)
       { key: 'shipMethod', label: '배송방법', options: ['택배', '방문수령', '퀵서비스'].map(v => [v, v]), main: mode === 'delivered' }
     ];
-    // 제작중 주문 리스트의 상세검색 순서: 제작처 · 제작상태 · 결제상태 · 회원구분 · 상담여부 · 배송방법 (기본 검색 줄의 공정상태는 맨 앞 유지)
-    // 외주제작 주문 리스트의 상세검색 순서: 제작상태 · 공정상태 · 결제상태 · 회원구분 · 상담여부 · 배송방법 (제작처는 기본 검색 줄)
+    // 제작 중의 상세검색 순서: 제작처 · 제작상태 · 결제상태 · 회원구분 · 상담여부 · 배송방법 (기본 검색 줄의 공정상태는 맨 앞 유지)
+    // 외주 제작의 상세검색 순서: 제작상태 · 공정상태 · 결제상태 · 회원구분 · 상담여부 · 배송방법 (제작처는 기본 검색 줄)
     if (itemMode) {
       const ORDER = mode === 'delivered' ? ['shipMethod', 'maker', 'status', 'payStatus', 'category', 'inquiry', 'step']
         : making ? ['step', 'maker', 'status', 'payStatus', 'category', 'inquiry', 'shipMethod'] : ['maker', 'status', 'step', 'payStatus', 'category', 'inquiry', 'shipMethod'];
@@ -234,17 +234,17 @@
     // 상세 조건은 항목 안에서는 '하나라도 해당', 항목끼리는 '모두 해당'
     // 상품명 검색은 주문의 모든 상품명(productNames)에서 찾음 ('마이트립북 외 2종'의 나머지 상품도 검색됨)
     const KEYWORD_FIELDS = ['orderNo', 'name', 'recipient', 'userId', 'email', 'phone', 'productNames'];
-    const DATE_KEY = { orderedAt: 'orderDate', paidAt: 'paidAt', shippedAt: 'shippedAt', outAt: 'outDate' };   // outAt: 출고일 (배송중·외주제작 주문 리스트, 상품 기준)
+    const DATE_KEY = { orderedAt: 'orderDate', paidAt: 'paidAt', shippedAt: 'shippedAt', outAt: 'outDate' };   // outAt: 출고일 (배송중·외주 제작, 상품 기준)
     const state = { filtered: [], page: 1, size: 10, sortKey: 'orderedAt', sortDir: 'desc', search: null, tab: 'all', view: 'order' };
     const inSet = (list, v) => !list || !list.length || list.includes(v);
     // 상담여부: 고른 구분의 관리자 메모가 하나라도 있으면 해당
     const matchInquiry = (list, o) => !list.length || OrderData.memoCategories(o.orderNo).some(c => list.includes(c));
     const inquiryText = o => OrderData.memoCategories(o.orderNo).join(', ');   // 엑셀 상담여부 열: 메모 구분 나열
 
-    // ===== 결제상태 탭 (후결제 주문 리스트: 전체 / 후결제대기 / 부분결제 / 결제완료) =====
+    // ===== 결제상태 탭 (후결제 주문: 전체 / 후결제대기 / 부분결제 / 결제완료) =====
     // 검색 조건과 함께 적용. 탭 건수는 검색 결과 기준. 입금을 등록하면 입금 합계에 따라 후결제대기 → 부분결제 → 결제완료 탭으로 옮겨감
     // (부분취소·전체취소 건은 전체 탭에서만 보임)
-    // 외주제작 주문 리스트: 전체 / 의뢰대기(결제완료·주문완료, 공정 주문접수) / 의뢰완료(의뢰완료 이후 공정 전부: 의뢰완료~배송완료, 취소 제외)
+    // 외주 제작: 전체 / 의뢰대기(결제완료·주문완료, 공정 주문접수) / 의뢰완료(의뢰완료 이후 공정 전부: 의뢰완료~배송완료, 취소 제외)
     const TABS = !$('statusTabs') ? null : outsource ? [
       { key: 'all', label: '전체', test: () => true },
       { key: 'waiting', label: '의뢰대기', test: r => OrderData.isRequestWaiting(r.item) },
@@ -271,7 +271,7 @@
     // ===== 주문별 / 상품별 보기 탭 (주문관리 리스트) =====
     // 탭 옆 건수는 검색 전 전체 기준 (주문 수 / 그 주문들의 상품 수). 보기를 바꿔도 검색 조건·결제상태 탭은 유지
     function renderViewTabs() {
-      const orders = orderSource(), items = orders.reduce((n, o) => n + o.items.filter(it => !canceled || it.payStatus === '취소').length, 0);
+      const orders = orderSource(), items = orders.reduce((n, o) => n + o.items.filter(it => (canceled ? it.payStatus === '취소' : !(paid && it.payStatus === '취소'))).length, 0);
       $('viewTabs').innerHTML = [['order', '주문별', orders.length], ['item', '상품별', items]].map(([k, label, n]) => `
         <button type="button" role="tab" class="tab ${state.view === k ? 'active' : ''}" aria-selected="${state.view === k}" data-view="${k}">
           ${label} <span class="tab-count">${n.toLocaleString()}</span></button>`).join('');
@@ -413,10 +413,10 @@
       if (b && !b.disabled) { state.page = Number(b.dataset.page); render(); }
     });
 
-    // ===== 입금처리 / 입금관리 (미입금·후결제 주문 리스트 > 관리) =====
-    // 미입금: 입금처리 모달에서 결제수단·입금액·입금일시 입력 → 결제완료·주문 접수 → 이 목록에서 빠지고 통합 주문 리스트에는 결제완료로 반영
-    // 후결제: 입금관리 모달에서 사업자 정보·입금 내역을 보고 입금을 등록 (분할 가능) → 결제완료/부분결제. 이 목록에 남고 통합 주문 리스트에도 반영
-    // ===== 상품제작번호 아코디언 (제작중·외주제작 주문 리스트) =====
+    // ===== 입금처리 / 입금관리 (미입금·후결제 주문 > 관리) =====
+    // 미입금: 입금처리 모달에서 결제수단·입금액·입금일시 입력 → 결제완료·주문 접수 → 이 목록에서 빠지고 통합 주문 관리에는 결제완료로 반영
+    // 후결제: 입금관리 모달에서 사업자 정보·입금 내역을 보고 입금을 등록 (분할 가능) → 결제완료/부분결제. 이 목록에 남고 통합 주문 관리에도 반영
+    // ===== 상품제작번호 아코디언 (제작중·외주 제작) =====
     // 상품제작번호를 누르면 바로 아래 행에 상품정보·제작 공정이 펼쳐짐 (주문 상세 > 주문정보와 같은 화면, 여러 개 동시에 펼칠 수 있음)
     // 펼칠 때 그 상품의 최신 상태로 그림 (의뢰완료 처리 뒤 다시 펼치면 반영)
     $('listBody').addEventListener('click', e => {
@@ -481,7 +481,7 @@
         toast(`${rows[0].maker} 의뢰서 ${rows.length}건을 다운로드했습니다.`);
       });
     }
-    // ===== 제작관리 (외주제작 주문 리스트 > 관리) =====
+    // ===== 제작관리 (외주 제작 > 관리) =====
     // 제작관리 모달(make-modal.js): 상품·제작처·현재 공정·의뢰서 다운로드·히스토리, 의뢰대기 상품은 의뢰완료 처리
     // 처리하면 의뢰대기 탭에서 의뢰완료 탭으로 옮겨감. 모달에서 주문 상세(그 상품의 제작 공정)로 이동 가능
     if (outsource) $('listBody').addEventListener('click', e => {

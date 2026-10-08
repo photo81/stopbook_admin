@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>스탑북 관리자 - 단체회원 신청 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261163">
+<title>스탑북 관리자 - 단체 회원 신청 관리</title>
+<link rel="stylesheet" href="admin.css?v=20261170">
 </head>
 <body>
 <div class="layout">
@@ -14,8 +14,8 @@
       <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">회원관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="members.html">회원 리스트</a></li>
-          <li><a href="group-applications.html" class="active" aria-current="page">단체회원 신청 리스트</a></li>
+          <li><a href="members.html">전체 회원 관리</a></li>
+          <li><a href="group-applications.html" class="active" aria-current="page">단체 회원 신청 관리</a></li>
           <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
           <li><a href="member-types.html">회원 유형 관리</a></li>
         </ul>
@@ -23,22 +23,22 @@
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="orders.html">통합 주문 리스트</a></li>
-          <li><a href="paid-orders.html">결제완료 주문 리스트</a></li>
-          <li><a href="unpaid-orders.html">미입금 주문 리스트</a></li>
-          <li><a href="postpay-orders.html">후결제 주문 리스트</a></li>
-          <li><a href="prepaid-orders.html">선결제 주문 리스트</a></li>
-          <li><a href="canceled-orders.html">취소 주문 리스트</a></li>
+          <li><a href="orders.html">통합 주문 관리</a></li>
+          <li><a href="paid-orders.html">결제 완료 주문</a></li>
+          <li><a href="unpaid-orders.html">미입금 주문</a></li>
+          <li><a href="postpay-orders.html">후결제 주문</a></li>
+          <li><a href="prepaid-orders.html">선결제 주문</a></li>
+          <li><a href="canceled-orders.html">취소 주문</a></li>
         </ul>
       </li>
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">제작관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="ordered-orders.html">주문완료 리스트</a></li>
-          <li><a href="making-orders.html">제작중 주문 리스트</a></li>
-          <li><a href="shipping-orders.html">배송중 주문 리스트</a></li>
-          <li><a href="delivered-orders.html">배송완료 주문 리스트</a></li>
-          <li><a href="outsource-orders.html">외주제작 주문 리스트</a></li>
+          <li><a href="ordered-orders.html">주문 완료</a></li>
+          <li><a href="making-orders.html">제작 중</a></li>
+          <li><a href="shipping-orders.html">배송 중</a></li>
+          <li><a href="delivered-orders.html">배송 완료</a></li>
+          <li><a href="outsource-orders.html">외주 제작</a></li>
         </ul>
       </li>
     </ul>
@@ -46,12 +46,12 @@
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>단체회원 신청 리스트</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.12 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>단체 회원 신청 관리</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.19 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>단체회원 신청 리스트 <span class="page-desc">단체회원 신청을 확인하고 승인 또는 반려합니다.</span></h1>
+      <h1>단체 회원 신청 관리 <span class="page-desc">단체회원 신청을 확인하고 승인 또는 반려합니다.</span></h1>
 
       <!-- 상태 탭 (탭 건수는 검색 결과 기준) -->
       <div class="tabs" role="tablist" id="statusTabs"></div>
@@ -219,9 +219,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261163"></script>
-<script src="feedback.js?v=20261163"></script>
-<script src="member-data.js?v=20261163"></script>
+<script src="member-type-store.js?v=20261170"></script>
+<script src="feedback.js?v=20261170"></script>
+<script src="member-data.js?v=20261170"></script>
 <script>
 (function () {
   'use strict';
@@ -246,7 +246,7 @@
 
   // ===== 회원 구분 표시 =====
   // 승인 대기·반려: 고객이 신청한 구분 > 종류 / 승인·해제·만료: 관리자가 승인하며 지정한 구분 > 종류
-  // 배지 색은 회원 리스트와 같게 (기본 구분·단체는 고정색, 그 외는 기본 점). 삭제된 구분은 저장된 이름에 '(삭제됨)'
+  // 배지 색은 전체 회원 관리와 같게 (기본 구분·단체는 고정색, 그 외는 기본 점). 삭제된 구분은 저장된 이름에 '(삭제됨)'
   const ALL_CATS = MemberTypeStore.categoryTree();
   const catClass = code => (code === 'normal' ? '일반' : code === 'group' ? '단체' : 'etc');
   const shownCategory = a => (a.status === '대기' || a.status === '반려' || !a.assignCategoryCode)

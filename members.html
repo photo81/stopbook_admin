@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>스탑북 관리자 - 회원 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261163">
+<title>스탑북 관리자 - 전체 회원 관리</title>
+<link rel="stylesheet" href="admin.css?v=20261170">
 </head>
 <body>
 <div class="layout">
@@ -14,8 +14,8 @@
       <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">회원관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="members.html" class="active" aria-current="page">회원 리스트</a></li>
-          <li><a href="group-applications.html">단체회원 신청 리스트</a></li>
+          <li><a href="members.html" class="active" aria-current="page">전체 회원 관리</a></li>
+          <li><a href="group-applications.html">단체 회원 신청 관리</a></li>
           <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
           <li><a href="member-types.html">회원 유형 관리</a></li>
         </ul>
@@ -23,22 +23,22 @@
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="orders.html">통합 주문 리스트</a></li>
-          <li><a href="paid-orders.html">결제완료 주문 리스트</a></li>
-          <li><a href="unpaid-orders.html">미입금 주문 리스트</a></li>
-          <li><a href="postpay-orders.html">후결제 주문 리스트</a></li>
-          <li><a href="prepaid-orders.html">선결제 주문 리스트</a></li>
-          <li><a href="canceled-orders.html">취소 주문 리스트</a></li>
+          <li><a href="orders.html">통합 주문 관리</a></li>
+          <li><a href="paid-orders.html">결제 완료 주문</a></li>
+          <li><a href="unpaid-orders.html">미입금 주문</a></li>
+          <li><a href="postpay-orders.html">후결제 주문</a></li>
+          <li><a href="prepaid-orders.html">선결제 주문</a></li>
+          <li><a href="canceled-orders.html">취소 주문</a></li>
         </ul>
       </li>
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">제작관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="ordered-orders.html">주문완료 리스트</a></li>
-          <li><a href="making-orders.html">제작중 주문 리스트</a></li>
-          <li><a href="shipping-orders.html">배송중 주문 리스트</a></li>
-          <li><a href="delivered-orders.html">배송완료 주문 리스트</a></li>
-          <li><a href="outsource-orders.html">외주제작 주문 리스트</a></li>
+          <li><a href="ordered-orders.html">주문 완료</a></li>
+          <li><a href="making-orders.html">제작 중</a></li>
+          <li><a href="shipping-orders.html">배송 중</a></li>
+          <li><a href="delivered-orders.html">배송 완료</a></li>
+          <li><a href="outsource-orders.html">외주 제작</a></li>
         </ul>
       </li>
     </ul>
@@ -46,12 +46,12 @@
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>회원 리스트</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.12 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>전체 회원 관리</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.19 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>회원 리스트 <span class="page-desc">전체 회원을 검색, 관리하고 분석 내용을 확인합니다.</span></h1>
+      <h1>전체 회원 관리 <span class="page-desc">전체 회원을 검색, 관리하고 분석 내용을 확인합니다.</span></h1>
 
       <div class="tabs" role="tablist" id="tabs">
         <button type="button" role="tab" class="tab" id="tab-list" data-tab="list" aria-controls="panelList">리스트 <span class="tab-count" id="tabListCount"></span></button>
@@ -529,10 +529,10 @@
 <div class="viz-tip" id="vizTip" role="tooltip" hidden></div>
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261163"></script>
-<script src="member-type-store.js?v=20261163"></script>
-<script src="feedback.js?v=20261163"></script>
-<script src="member-data.js?v=20261163"></script>
+<script src="alimtalk.js?v=20261170"></script>
+<script src="member-type-store.js?v=20261170"></script>
+<script src="feedback.js?v=20261170"></script>
+<script src="member-data.js?v=20261170"></script>
 <script>
 (function () {
   'use strict';
@@ -697,7 +697,7 @@
   }
 
   // ===== 분석 (검색 결과 기준: 두 탭이 같은 검색 조건을 공유) =====
-  // 집계는 회원 리스트 데이터(members)와 회원 상세 > 이용 정보 데이터(orders/inquiries/cart)를 그대로 사용
+  // 집계는 전체 회원 관리 데이터(members)와 회원 상세 > 이용 정보 데이터(orders/inquiries/cart)를 그대로 사용
   const TODAY = new Date(2026, 9, 1);   // 샘플 데이터 기준일 (member-data.js base와 동일). TODO: 실서비스에서는 new Date()
   const daysSince = d => Math.floor((TODAY.getTime() - new Date(d).getTime()) / 86400000);
   const pct = (a, b) => (b ? Math.round(a / b * 1000) / 10 : 0);
@@ -1343,7 +1343,7 @@
 
   // ===== 후불 결제 (적용 시 기간 필수) =====
   // 후불 결제는 단체 회원(기본 구분 normal을 제외한 모든 구분) 전체에 적용 가능 → 상세에서 기본 구분(일반)을 고르면 '적용'을 고를 수 없고 미적용으로 바뀜
-  // (후결제 주문은 이 설정이 적용된 회원만 할 수 있음 → 주문관리 > 후결제 주문 리스트)
+  // (후결제 주문은 이 설정이 적용된 회원만 할 수 있음 → 주문관리 > 후결제 주문)
   const POSTPAY_EXCLUDED_CATEGORY = 'normal';
   const postpayText = p => (p.postpay === 'Y' ? `적용 (${p.postpayFrom} ~ ${p.postpayTo})` : '미적용');
 

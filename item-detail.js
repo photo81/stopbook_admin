@@ -1,5 +1,5 @@
 // 상품 제작 상세 (상품정보 + 제작 공정) 공용 렌더링
-// 주문 상세 > 주문정보의 상품 아코디언, 제작중·외주제작 주문 리스트의 상품제작번호 아코디언에서 같은 화면을 씀
+// 주문 상세 > 주문정보의 상품 아코디언, 제작중·외주 제작의 상품제작번호 아코디언에서 같은 화면을 씀
 // member-type-store.js(AdminUtil), member-data.js(MemberData) 다음에 로드
 // 사용: ItemDetail.html(item, i, { productLink })  → 상품정보 상자 + 제작 공정 플로우 HTML
 //   productLink: 상품 코드를 버튼(data-product=i)으로 그림 (주문 상세에서 상품 정보 모달을 엶). 없으면 글자만

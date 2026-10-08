@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 주문 상세</title>
-<link rel="stylesheet" href="admin.css?v=20261163">
+<link rel="stylesheet" href="admin.css?v=20261170">
 </head>
 <body>
 <div class="layout">
@@ -14,8 +14,8 @@
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">회원관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="members.html">회원 리스트</a></li>
-          <li><a href="group-applications.html">단체회원 신청 리스트</a></li>
+          <li><a href="members.html">전체 회원 관리</a></li>
+          <li><a href="group-applications.html">단체 회원 신청 관리</a></li>
           <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
           <li><a href="member-types.html">회원 유형 관리</a></li>
         </ul>
@@ -23,22 +23,22 @@
       <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="orders.html" class="active" aria-current="page">통합 주문 리스트</a></li>
-          <li><a href="paid-orders.html">결제완료 주문 리스트</a></li>
-          <li><a href="unpaid-orders.html">미입금 주문 리스트</a></li>
-          <li><a href="postpay-orders.html">후결제 주문 리스트</a></li>
-          <li><a href="prepaid-orders.html">선결제 주문 리스트</a></li>
-          <li><a href="canceled-orders.html">취소 주문 리스트</a></li>
+          <li><a href="orders.html" class="active" aria-current="page">통합 주문 관리</a></li>
+          <li><a href="paid-orders.html">결제 완료 주문</a></li>
+          <li><a href="unpaid-orders.html">미입금 주문</a></li>
+          <li><a href="postpay-orders.html">후결제 주문</a></li>
+          <li><a href="prepaid-orders.html">선결제 주문</a></li>
+          <li><a href="canceled-orders.html">취소 주문</a></li>
         </ul>
       </li>
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">제작관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="ordered-orders.html">주문완료 리스트</a></li>
-          <li><a href="making-orders.html">제작중 주문 리스트</a></li>
-          <li><a href="shipping-orders.html">배송중 주문 리스트</a></li>
-          <li><a href="delivered-orders.html">배송완료 주문 리스트</a></li>
-          <li><a href="outsource-orders.html">외주제작 주문 리스트</a></li>
+          <li><a href="ordered-orders.html">주문 완료</a></li>
+          <li><a href="making-orders.html">제작 중</a></li>
+          <li><a href="shipping-orders.html">배송 중</a></li>
+          <li><a href="delivered-orders.html">배송 완료</a></li>
+          <li><a href="outsource-orders.html">외주 제작</a></li>
         </ul>
       </li>
     </ul>
@@ -46,8 +46,8 @@
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 주문관리 &gt; <a href="orders.html">통합 주문 리스트</a> &gt; <b>주문 상세</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.12 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div class="breadcrumb">홈 &gt; 주문관리 &gt; <a href="orders.html">통합 주문 관리</a> &gt; <b>주문 상세</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.19 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -140,7 +140,7 @@
             <span class="readonly" id="selCount"></span>
             <!-- 입금처리: 미입금(입금대기)·후결제(후결제대기) 주문에서만 표시. 결제수단·입금액·입금일시 입력 → 결제완료 (미입금은 주문 접수까지) -->
             <button type="button" class="btn btn-primary" id="btnDeposit" hidden>입금처리</button>
-            <!-- 제작관리: 외주 제작 상품(제작처가 KSI가 아님)이 있는 주문에서만 표시. 외주제작 주문 리스트의 제작관리와 같은 처리(의뢰완료) -->
+            <!-- 제작관리: 외주 제작 상품(제작처가 KSI가 아님)이 있는 주문에서만 표시. 외주 제작의 제작관리와 같은 처리(의뢰완료) -->
             <button type="button" class="btn" id="btnMake" hidden>제작관리</button>
             <button type="button" class="btn" id="btnRestoreItems">취소원복</button>
             <button type="button" class="btn btn-danger" id="btnCancelItems">주문취소</button>
@@ -292,7 +292,7 @@
   </div>
 </div>
 
-<!-- 회원정보 모달: 회원 리스트의 회원 상세 화면을 그대로 띄움 (members.html?embed=1&member=회원번호)
+<!-- 회원정보 모달: 전체 회원 관리의 회원 상세 화면을 그대로 띄움 (members.html?embed=1&member=회원번호)
      회원 상세에서 저장·혜택 지급·알림톡 등 모든 기능을 그대로 사용. 회원 상세의 닫기를 누르면 이 모달도 닫힘 -->
 <div class="modal-bg member-frame-modal" id="memberModal">
   <div class="modal" role="dialog" aria-modal="true" aria-label="회원 상세정보">
@@ -485,14 +485,14 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261163"></script>
-<script src="member-type-store.js?v=20261163"></script>
-<script src="feedback.js?v=20261163"></script>
-<script src="member-data.js?v=20261163"></script>
-<script src="order-data.js?v=20261163"></script>
-<script src="deposit-modal.js?v=20261163"></script>
-<script src="make-modal.js?v=20261163"></script>
-<script src="item-detail.js?v=20261163"></script>
+<script src="alimtalk.js?v=20261170"></script>
+<script src="member-type-store.js?v=20261170"></script>
+<script src="feedback.js?v=20261170"></script>
+<script src="member-data.js?v=20261170"></script>
+<script src="order-data.js?v=20261170"></script>
+<script src="deposit-modal.js?v=20261170"></script>
+<script src="make-modal.js?v=20261170"></script>
+<script src="item-detail.js?v=20261170"></script>
 <script>
 (function () {
   'use strict';
@@ -507,7 +507,7 @@
   }
   if (!o) {
     $('notFound').hidden = false;
-    $('notFoundMsg').textContent = orderNo ? `주문번호 ${orderNo}에 해당하는 주문이 없습니다. 통합 주문 리스트에서 다시 선택해 주세요.` : '통합 주문 리스트에서 주문번호를 눌러 들어와 주세요.';
+    $('notFoundMsg').textContent = orderNo ? `주문번호 ${orderNo}에 해당하는 주문이 없습니다. 통합 주문 관리에서 다시 선택해 주세요.` : '통합 주문 관리에서 주문번호를 눌러 들어와 주세요.';
   } else {
     $('detail').hidden = false;
     $('dOrderedAt').textContent = o.orderedAt;
@@ -759,7 +759,7 @@
     showTab('all');
 
     // ----- 회원정보 모달 -----
-    // TODO: 실서비스에서는 회원 상세 컴포넌트를 공통으로 분리해 직접 띄움 (프로토타입은 회원 리스트 화면을 iframe으로)
+    // TODO: 실서비스에서는 회원 상세 컴포넌트를 공통으로 분리해 직접 띄움 (프로토타입은 전체 회원 관리 화면을 iframe으로)
     const closeMember = () => { $('memberModal').classList.remove('open'); $('memberFrame').src = 'about:blank'; };
     $('btnMemberInfo').addEventListener('click', () => {
       $('memberFrame').src = `members.html?embed=1&member=${o.member.no}`;
@@ -982,7 +982,7 @@
     $('itemSummary').textContent = `· ${o.items.length}건 / ${sum('qty')}부`;
     // 상품명을 누르면 바로 아래 행에 상품 제작 상세가 펼쳐짐 (아코디언, 여러 개 동시에 펼칠 수 있음)
     const dash = v => (v ? esc(v) : '<span class="muted">-</span>');
-    // 상품정보 + 제작 공정: item-detail.js (제작중·외주제작 주문 리스트의 상품제작번호 아코디언과 같은 화면)
+    // 상품정보 + 제작 공정: item-detail.js (제작중·외주 제작의 상품제작번호 아코디언과 같은 화면)
     const specRow = (it, i) => `<tr class="item-detail" id="itemDetail${i}" hidden><td colspan="12">${ItemDetail.html(it, i, { productLink: true })}</td></tr>`;
     // 펼칠 수 있음을 알 수 있게: 상품 행 전체를 누를 수 있고(마우스 올리면 강조), 상품명 칸 오른쪽에 '상세보기 ▾' 버튼 표시
     $('itemBody').innerHTML = o.items.map((it, i) => `<tr class="item-row" data-item="${i}">
@@ -1148,7 +1148,7 @@
 
     // ===== 제작관리 (외주 제작 상품) =====
     // 대상 상품: 체크한 외주 상품 1개. 체크가 없고 외주 상품이 하나뿐이면 그 상품
-    // 의뢰대기(결제완료·주문완료) 상품은 의뢰완료 처리 → 공정 의뢰완료·제작상태 제작중 (외주제작 주문 리스트에도 반영)
+    // 의뢰대기(결제완료·주문완료) 상품은 의뢰완료 처리 → 공정 의뢰완료·제작상태 제작중 (외주 제작에도 반영)
     const outIdx = o.items.map((it, i) => (it.flow.outsource ? i : -1)).filter(i => i >= 0);
     $('btnMake').hidden = !outIdx.length;
     // 아직 의뢰하지 않은(의뢰대기) 외주 상품이 있으면 리스트와 같이 강조(검정 버튼)
@@ -1175,7 +1175,7 @@
       : qs.get('deposited') ? '입금을 등록했습니다. 결제정보에 반영되었습니다.'
       : qs.get('extra') ? `추가결제 ${won(Number(qs.get('extra')))}를 생성했습니다. (결제대기)`
       : qs.get('addr') ? { add: '배송지를 추가했습니다.', edit: '배송지를 수정했습니다.', del: '추가 배송지를 삭제했습니다.' }[qs.get('addr')] || '' : '';
-    // 외주제작 주문 리스트 > 제작관리: &item=상품 순번 → 주문정보 탭에서 그 상품을 펼쳐 제작 공정을 보여줌
+    // 외주 제작 > 제작관리: &item=상품 순번 → 주문정보 탭에서 그 상품을 펼쳐 제작 공정을 보여줌
     const focusItem = qs.get('item');
     if (focusItem !== null && $('itemDetail' + focusItem)) {
       showTab('items');
@@ -1192,7 +1192,7 @@
       try { history.replaceState(null, '', `order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}`); } catch (err) { /* file:// 등 */ }
     }
   }
-  // 목록: 통합 주문·미입금·후결제 주문 리스트에서 왔으면 뒤로 가기(검색 조건·페이지 유지), 아니면 통합 주문 리스트로 이동
+  // 목록: 통합 주문 관리·미입금·후결제 주문에서 왔으면 뒤로 가기(검색 조건·페이지 유지), 아니면 통합 주문 관리로 이동
   $('btnList').addEventListener('click', e => {
     if (document.referrer && /\/(orders|paid-orders|canceled-orders|unpaid-orders|postpay-orders|outsource-orders|ordered-orders|making-orders|shipping-orders|delivered-orders)\.html/.test(document.referrer) && history.length > 1) { e.preventDefault(); history.back(); }
   });

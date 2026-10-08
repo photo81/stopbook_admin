@@ -1,4 +1,4 @@
-// 선결제 주문 리스트 (prepaid-orders.html): 선결제로 구매한 상품권(스탑북 제작권) 목록
+// 선결제 주문 (prepaid-orders.html): 선결제로 구매한 상품권(스탑북 제작권) 목록
 // member-type-store.js(AdminUtil), member-data.js, order-data.js(OrderData.VOUCHERS) 다음에 로드
 //   열: 기기 · 주문일시(상품권 구매 일시) · 주문자명 · 이메일 · 주문번호 · 상품권명 · 주문수량 · 결제수단 · 주문금액 · 사용금액 · 잔액 · 상태 · 관리
 //   상태: 입금대기(무통장입금 입금 전) / 결제완료(사용 전) / 부분사용 / 사용완료 / 결제취소

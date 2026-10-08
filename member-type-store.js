@@ -745,6 +745,6 @@
   window.AdminUtil = { fmtDateTime, esc, toast, initSidebar, setDefaultRange, listToday, ADMIN_NAME: '관리자' };  // TODO: 로그인 관리자명
 
   // 상단바 프로토타입 버전 표시. 버전을 올릴 때는 여기만 바꾸면 모든 화면에 반영됨 (HTML의 같은 문구는 스크립트 실패 시 대비용)
-  const PROTO_VERSION = '프로토타입 v2.12 (2026-10-08)';
+  const PROTO_VERSION = '프로토타입 v2.19 (2026-10-08)';
   document.querySelectorAll('[data-proto-version]').forEach(el => { el.textContent = PROTO_VERSION; });
 })();
