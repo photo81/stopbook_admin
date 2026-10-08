@@ -76,6 +76,7 @@ input[type=radio], input[type=checkbox] { accent-color: var(--accent); margin: 0
 .field input, .field select { flex: 1; min-width: 0; }
 .field .range { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; color: var(--faint); }
 .field .range input { min-width: 0; flex: 1; }
+.field .range input[type=date] { min-width: 140px; }   /* 기간 기본값(YYYY-MM-DD)이 잘리지 않게 */
 .detail-toggle { display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 0; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 500; }
 .detail-toggle:hover { color: var(--text); }
 .detail-toggle .chev { font-size: 8px; transition: transform .15s; }
@@ -765,3 +766,11 @@ td.cat-desc { max-width: 360px; overflow: hidden; text-overflow: ellipsis; color
   .content { padding: 16px; }
   .topbar { padding: 0 16px; }
 }
+
+/* 피드백 입력 플로팅 버튼 (모든 화면 왼쪽 아래, feedback.js) */
+.fb-float { position: fixed; left: 16px; bottom: 16px; z-index: 90; display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--text); color: #fff; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.18); transition: transform .12s, background .12s; }
+.fb-float:hover { background: #3f3f46; transform: translateY(-1px); }
+.fb-float:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 6px 18px rgba(0,0,0,.18); }
+.fb-meta { margin-top: 4px; text-align: right; font-size: 11px; }
+.fb-note { margin: 10px 0 0; font-size: 12px; }
+@media print { .fb-float { display: none; } }

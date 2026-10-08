@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 단체회원 신청 리스트</title>
-<link rel="stylesheet" href="admin.css?v=20261152">
+<link rel="stylesheet" href="admin.css?v=20261158">
 </head>
 <body>
 <div class="layout">
@@ -45,7 +45,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>단체회원 신청 리스트</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.02 (2026-10-07)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.07 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -217,8 +217,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261152"></script>
-<script src="member-data.js?v=20261152"></script>
+<script src="member-type-store.js?v=20261158"></script>
+<script src="feedback.js?v=20261158"></script>
+<script src="member-data.js?v=20261158"></script>
 <script>
 (function () {
   'use strict';
@@ -521,7 +522,8 @@
   });
   $('btnReset').addEventListener('click', () => {
     $('searchForm').reset();
-    search = null;
+    AdminUtil.setDefaultRange();   // 초기화하면 기간은 기본값(최근 1개월)으로
+    search = readSearch();
     render();
   });
   $('statusTabs').addEventListener('click', e => {
@@ -552,6 +554,8 @@
   });
 
   initSidebar();
+  AdminUtil.setDefaultRange();   // 처음 열면 신청일 최근 1개월 (관리자가 바꿔 검색 가능)
+  search = readSearch();
   render();
 })();
 </script>

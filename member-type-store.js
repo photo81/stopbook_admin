@@ -729,9 +729,22 @@
 
   window.MemberTypeStore = { load, save, FLAGS, flagsFor, categoryTree, checkSub,
     categoryName, categoryByCode, codeByName, normalizeCategoryRefs, checkCategoryName, PROTECTED_CATEGORIES, GradeBenefit, GradePolicy, GradeCriteria, GradeEvaluator, WithdrawStore };
-  window.AdminUtil = { fmtDateTime, esc, toast, initSidebar, ADMIN_NAME: '관리자' };  // TODO: 로그인 관리자명
+  // 리스트 검색 기간 기본값: 최근 1개월 (오늘로부터 30일 전 ~ 오늘). 화면을 열 때와 초기화할 때 채움, 관리자가 바꿔 검색할 수 있음
+  // 기준일 = 실제 오늘 날짜 (기간 빠른 선택 버튼도 같은 기준. 샘플 주문은 2026-10-01까지만 있음)
+  const listToday = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); };
+  function setDefaultRange(fromId = 'sFrom', toId = 'sTo') {
+    const today = listToday();
+    const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30);
+    const f = document.getElementById(fromId), t = document.getElementById(toId);
+    if (f) f.value = fmtDate(from);
+    if (t) t.value = fmtDate(today);
+    // 기간 빠른 선택 버튼이 있으면 '1개월' 표시
+    document.querySelectorAll('[data-days]').forEach(b => b.classList.toggle('btn-adjust', b.dataset.days === '30'));
+  }
+
+  window.AdminUtil = { fmtDateTime, esc, toast, initSidebar, setDefaultRange, listToday, ADMIN_NAME: '관리자' };  // TODO: 로그인 관리자명
 
   // 상단바 프로토타입 버전 표시. 버전을 올릴 때는 여기만 바꾸면 모든 화면에 반영됨 (HTML의 같은 문구는 스크립트 실패 시 대비용)
-  const PROTO_VERSION = '프로토타입 v2.02 (2026-10-07)';
+  const PROTO_VERSION = '프로토타입 v2.07 (2026-10-08)';
   document.querySelectorAll('[data-proto-version]').forEach(el => { el.textContent = PROTO_VERSION; });
 })();
