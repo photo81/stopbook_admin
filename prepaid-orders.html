@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>스탑북 관리자 - 미입금 주문 리스트</title>
+<title>스탑북 관리자 - 선결제 주문 리스트</title>
 <link rel="stylesheet" href="admin.css?v=20261163">
 </head>
 <body>
@@ -25,9 +25,9 @@
         <ul class="submenu">
           <li><a href="orders.html">통합 주문 리스트</a></li>
           <li><a href="paid-orders.html">결제완료 주문 리스트</a></li>
-          <li><a href="unpaid-orders.html" class="active" aria-current="page">미입금 주문 리스트</a></li>
+          <li><a href="unpaid-orders.html">미입금 주문 리스트</a></li>
           <li><a href="postpay-orders.html">후결제 주문 리스트</a></li>
-          <li><a href="prepaid-orders.html">선결제 주문 리스트</a></li>
+          <li><a href="prepaid-orders.html" class="active" aria-current="page">선결제 주문 리스트</a></li>
           <li><a href="canceled-orders.html">취소 주문 리스트</a></li>
         </ul>
       </li>
@@ -46,17 +46,14 @@
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 주문관리 &gt; <b>미입금 주문 리스트</b></div>
+      <div class="breadcrumb">홈 &gt; 주문관리 &gt; <b>선결제 주문 리스트</b></div>
       <div><span class="proto-ver" data-proto-version>프로토타입 v2.12 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>미입금 주문 리스트 <span class="page-desc">무통장입금 주문 중 입금 전인 주문을 확인하고 입금처리합니다.</span></h1>
+      <h1>선결제 주문 리스트 <span class="page-desc">선결제로 구매한 상품권(스탑북 제작권)의 사용 현황과 이력을 관리합니다.</span></h1>
 
-      <!-- 주문별 / 상품별 보기 탭 (상품별: 주문 상품 1개 = 1행, 상품제작번호·제작상태 열 추가). order-list.js에서 구성 -->
-      <div class="tabs view-tabs" role="tablist" id="viewTabs"></div>
-
-      <!-- 검색 조건: 통합 주문 리스트와 같음 (결제수단·결제상태는 무통장입금·입금대기로 정해져 있어 상세검색에서 뺌) -->
+      <!-- 검색 조건: 검색어 + 구매일 기간(기본 최근 1개월) + 상품권명 + 상태 -->
       <form class="panel" id="searchForm" novalidate>
         <div class="search-row">
           <div class="search-grid order-search">
@@ -64,23 +61,18 @@
               <label for="sType">검색어</label>
               <select id="sType" style="flex:0 0 110px">
                 <option value="all">전체</option>
-                <option value="orderNo">주문번호</option>
+                <option value="no">주문번호</option>
                 <option value="name">주문자명</option>
-                <option value="recipient">수취인명</option>
                 <option value="userId">아이디</option>
                 <option value="email">이메일</option>
                 <option value="phone">휴대폰</option>
-                <option value="product">상품명</option>
               </select>
               <input type="text" id="sKeyword" placeholder="검색어 입력">
             </div>
             <div class="field f-period">
-              <label for="sDateType">기간</label>
-              <select id="sDateType" style="flex:0 0 100px">
-                <option value="orderedAt">주문일</option>
-              </select>
+              <label for="sFrom">구매일</label>
               <div class="range">
-                <input type="date" id="sFrom" aria-label="기간 시작"> ~ <input type="date" id="sTo" aria-label="기간 종료">
+                <input type="date" id="sFrom" aria-label="구매일 시작"> ~ <input type="date" id="sTo" aria-label="구매일 종료">
               </div>
               <div class="quick-range" role="group" aria-label="기간 빠른 선택">
                 <button type="button" class="btn btn-xs" data-days="0">오늘</button>
@@ -96,30 +88,28 @@
             <button type="button" class="btn" id="btnReset">초기화</button>
           </div>
         </div>
-
-        <button type="button" class="detail-toggle" id="btnDetail" aria-expanded="false" aria-controls="detailSearch">
-          상세검색 <span id="detailCount"></span><span class="chev">▼</span>
-        </button>
-        <div class="search-grid detail-search" id="detailSearch" hidden></div>
+        <div class="search-grid detail-search" style="display:flex">
+          <div class="field"><label for="sFace">상품권명</label><select id="sFace"><option value="">전체</option></select></div>
+          <div class="field"><label for="sStatus">상태</label><select id="sStatus"><option value="">전체</option></select></div>
+        </div>
       </form>
 
-      <!-- 미입금 주문 목록: 무통장입금으로 주문하고 아직 입금하지 않은 건 (결제상태 입금대기)
-           형식은 통합 주문 리스트와 같고 맨 오른쪽 관리 열에 입금처리 버튼. 입금처리하면 결제완료·주문 접수되어 이 목록에서 빠짐 (통합 주문 리스트에는 입금대기 → 결제완료로 반영) -->
+      <!-- 선결제(상품권) 목록: 상품권 구매 1건 = 1행. 사용금액은 결제수단 '상품권'으로 결제한 주문 금액의 합계 -->
       <section class="panel">
         <div class="list-head">
-          <div class="count">검색결과 <b id="totalCount">0</b>건 / 전체 <span id="allCount">0</span>건 <span class="muted" id="viewUnit"></span> <span id="listGuide"></span>
-            <span class="muted">· 입금을 확인하면 입금처리를 눌러 주세요. 처리한 주문은 이 목록에서 빠지고 통합 주문 리스트에 결제완료로 반영됩니다.</span></div>
+          <div class="count">검색결과 <b id="totalCount">0</b>건 / 전체 <span id="allCount">0</span>건 <span id="listGuide"></span></div>
           <div class="right">
             <select id="pageSize">
               <option value="10" selected>10개씩</option>
               <option value="20">20개씩</option>
               <option value="50">50개씩</option>
             </select>
+            <!-- 엑셀 다운로드: 목록 열 + 관리 모달 내용 전부. 누르면 단위 선택 -->
             <div class="dl-wrap">
               <button type="button" class="btn btn-excel" id="btnExcel" aria-haspopup="menu" aria-expanded="false" aria-controls="dlMenu">엑셀 다운로드 ▾</button>
               <div class="dl-menu" id="dlMenu" role="menu" hidden>
-                <button type="button" role="menuitem" data-unit="order"><b>주문번호 단위</b><span>주문 1건 = 1행</span></button>
-                <button type="button" role="menuitem" data-unit="item"><b>상품 제작번호 단위</b><span>주문 상품 1개 = 1행 (옵션·공정 포함)</span></button>
+                <button type="button" role="menuitem" data-unit="voucher"><b>상품권 단위</b><span>상품권 1건 = 1행 (사용 주문·메모·히스토리 포함)</span></button>
+                <button type="button" role="menuitem" data-unit="history"><b>히스토리 단위</b><span>이력 1건 = 1행 (구매·소진·결제취소·관리자 메모)</span></button>
               </div>
             </div>
           </div>
@@ -129,19 +119,17 @@
             <thead>
               <tr>
                 <th class="w-env" title="결제 기기 (PC / MO)">기기</th>
-                <th class="sortable w-dt" data-key="orderedAt">주문일시</th>
+                <th class="sortable w-dt" data-key="purchasedAt">주문일시</th>
                 <th class="sortable w-name" data-key="name">주문자명</th>
                 <th class="w-email">이메일</th>
-                <th class="sortable w-ono" data-key="orderNo">주문번호</th>
-                <th class="w-mkno v-item" hidden>상품제작번호</th>
-                <th class="w-prod">주문상품</th>
+                <th class="sortable w-ono" data-key="no">주문번호</th>
+                <th class="w-prod">상품권명</th>
                 <th class="sortable w-qty" data-key="qty">주문수량</th>
-                <th class="sortable w-amt" data-key="listPrice">주문금액</th>
-                <th class="sortable w-amt" data-key="discount">할인금액</th>
-                <th class="sortable w-amt" data-key="amount">결제금액</th>
                 <th class="w-pay">결제수단</th>
-                <th class="w-st">결제상태</th>
-                <th class="w-st v-item" hidden>제작상태</th>
+                <th class="sortable w-amt" data-key="amount">주문금액</th>
+                <th class="sortable w-amt" data-key="used">사용금액</th>
+                <th class="sortable w-amt" data-key="balance">잔액</th>
+                <th class="w-st">상태</th>
                 <th class="w-act">관리</th>
               </tr>
             </thead>
@@ -154,15 +142,47 @@
   </div>
 </div>
 
+<!-- 관리 모달: 상품권 정보 + 관리자 메모 + 히스토리(구매·소진·결제취소·관리자 메모, 주문번호 열 분리) -->
+<div class="modal-bg" id="vModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="vTitle">
+    <div class="modal-header">
+      <h2 id="vTitle">선결제 관리</h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <table class="form-table multi-col">
+        <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
+        <tbody id="vInfo"></tbody>
+      </table>
+      <div class="section-title">관리자 메모</div>
+      <table class="form-table">
+        <tr><th>관리자 메모</th><td>
+          <div class="memo-save">
+            <textarea id="vMemo" maxlength="300" placeholder="메모를 입력하고 저장하면 작성일시·작성자와 함께 히스토리에 남습니다." style="height:64px"></textarea>
+            <button type="button" class="btn btn-gray" id="vMemoSave">저장</button>
+          </div>
+        </td></tr>
+      </table>
+      <div class="section-title">히스토리</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:140px">일시</th><th style="width:90px">구분</th><th style="width:150px">주문번호</th><th>내용</th><th style="width:80px">처리자</th></tr></thead>
+          <tbody id="vHistory"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>닫기</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="member-type-store.js?v=20261163"></script>
 <script src="feedback.js?v=20261163"></script>
 <script src="member-data.js?v=20261163"></script>
 <script src="order-data.js?v=20261163"></script>
-<script src="deposit-modal.js?v=20261163"></script>
-<script src="item-detail.js?v=20261163"></script>
-<script src="order-list.js?v=20261163"></script>
-<script>OrderList.init({ mode: 'unpaid' });</script>
+<script src="voucher-list.js?v=20261163"></script>
 </body>
 </html>

@@ -55,8 +55,9 @@
   // 결제수단 선택지: 주문 시 고객이 고르는 수단 + 후결제(후불 결제 회원, 상품 수령 후 결제) + 별도결제(관리자 입금처리에서 계좌 외 방법으로 받은 경우)
   // DEPOSIT_METHODS: 입금처리 모달에서 고르는 '입금받은 수단' (후결제는 받는 방법이 아니므로 제외)
   // TODO: 실서비스에서는 결제 설정값
-  const PAY_METHODS = ['신용카드', '무통장입금', '계좌이체', '휴대폰결제', '네이버페이', '토스페이', '카카오페이', '후결제', '별도결제'];
-  const DEPOSIT_METHODS = PAY_METHODS.filter(m => m !== '후결제');
+  // 상품권: 선결제로 구매한 스탑북 제작권으로 결제 (주문관리 > 선결제 주문 리스트). 결제한 금액만큼 상품권 사용금액에 반영
+  const PAY_METHODS = ['신용카드', '무통장입금', '계좌이체', '휴대폰결제', '네이버페이', '토스페이', '카카오페이', '상품권', '후결제', '별도결제'];
+  const DEPOSIT_METHODS = PAY_METHODS.filter(m => m !== '후결제' && m !== '상품권');
   const WAITING = ['입금대기', '후결제대기', '부분결제'];   // 아직 결제가 끝나지 않은 결제상태 (미입금 / 후결제 입금 전 / 후결제 일부 입금)
   const TYPE_GROUPS = MemberTypeStore.load();   // 회원 유형 관리 설정 (회원구분 무료배송·할인율, 등급 할인 혜택) — 한 번만 읽음
   const DISCOUNT_KINDS = ['쿠폰', '마일리지', '상품가할인', '배송비할인', '회원할인', '등급할인'];   // 할인금액 세부 항목
@@ -79,7 +80,7 @@
   ];
   // 결제수단별 PG사 (샘플). TODO: 실서비스에서는 결제 내역의 PG사
   const PG_NAMES = { '신용카드': 'KG이니시스', '무통장입금': '가상계좌(KG이니시스)', '계좌이체': 'KG이니시스', '휴대폰결제': '다날',
-    '네이버페이': '네이버페이', '토스페이': '토스페이먼츠', '카카오페이': '카카오페이', '후결제': '후결제 (PG 미경유)', '별도결제': '별도결제 (PG 미경유)' };
+    '네이버페이': '네이버페이', '토스페이': '토스페이먼츠', '카카오페이': '카카오페이', '후결제': '후결제 (PG 미경유)', '별도결제': '별도결제 (PG 미경유)', '상품권': '스탑북 상품권 (PG 미경유)' };
 
   MemberTypeStore.normalizeCategoryRefs(MemberData);   // 회원의 회원구분 code 정리 (회원구분 검색용)
   const NAMES = ['김서연', '이도윤', '박지우', '최하준', '정수아', '강지호', '조채원', '윤현우'];
@@ -434,6 +435,116 @@
     });
   })();
 
+  // ===== 선결제 상품권 (주문관리 > 선결제 주문 리스트) =====
+  // 선결제는 '스탑북 제작권' 상품권을 미리 구매하는 방식. 주문 결제 때 결제수단 '상품권'으로 쓰면 결제금액만큼 사용금액에 반영
+  //   상태: 입금대기(무통장입금 입금 전) / 결제완료(사용 전) / 부분사용 / 사용완료 / 결제취소(구매 취소, 환불)
+  //   샘플 20건: 회원의 실제 결제완료 주문 일부를 '상품권' 결제로 바꿔 사용 내역을 만듦 (주문 상세의 결제수단·PG 로그·히스토리에도 반영)
+  //   관리자 메모는 localStorage에 보관 (구매·소진 이력은 데이터에서 만들고, 메모와 함께 히스토리로 보여줌)
+  // TODO: 실서비스에서는 GET /api/admin/vouchers, POST /api/admin/vouchers/{no}/memos (사용 내역은 주문 결제 시 서버에서 차감)
+  const VOUCHER_FACES = [10000, 30000, 50000, 100000, 300000, 500000];
+  const voucherName = face => `스탑북 제작권 ${face.toLocaleString()}원권`;
+  const VOUCHER_STATUSES = ['입금대기', '결제완료', '부분사용', '사용완료', '결제취소'];
+  const VOUCHER_MEMO_KEY = 'stopbook.voucherMemos.v1';
+  let VOUCHER_MEMOS = {};
+  try { VOUCHER_MEMOS = JSON.parse(localStorage.getItem(VOUCHER_MEMO_KEY)) || {}; } catch (e) { /* 저장소 사용 불가 시 메모 없음 */ }
+  const VOUCHERS = [];
+  (() => {
+    let s = 7919;
+    const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    const pick = arr => arr[Math.floor(r() * arr.length)];
+    const p2 = n => String(n).padStart(2, '0');
+    const dt = (d, h, mi, se) => `${fmtDate(d)} ${p2(h)}:${p2(mi)}:${p2(se)}`;
+    const PAYABLE = ['신용카드', '계좌이체', '휴대폰결제', '네이버페이', '토스페이', '카카오페이'];
+    const usable = ORDERS.filter(o => o.payStatus === '결제완료' && PAYABLE.includes(o.payMethod) && !o.deposit && o.payment.total <= 500000);
+    const byMember = new Map();
+    usable.forEach(o => { const k = o.userId; if (!byMember.has(k)) byMember.set(k, []); byMember.get(k).push(o); });
+    const members = [...byMember.keys()].sort();
+    const PATTERN = ['부분사용', '사용완료', '결제완료', '부분사용', '사용완료', '결제취소', '부분사용', '결제완료', '사용완료', '부분사용'];
+    const used = new Set();
+    let noUse = 0;
+    const markOrder = (o, v, amount) => {
+      used.add(o.orderNo);
+      o.payMethod = '상품권';
+      o.voucherUse = { no: v.no, amount };
+      o.payment = paymentOf(o, o.member);
+    };
+    for (let k = 0, m = 0; k < 20 && m < members.length * 2; m++) {
+      const userId = members[(m * 13) % members.length];
+      if (VOUCHERS.some(v => v.userId === userId)) continue;
+      const orders = byMember.get(userId).filter(o => !used.has(o.orderNo)).sort((a, b) => a.orderedAt.localeCompare(b.orderedAt));
+      if (!orders.length) continue;
+      const target = PATTERN[k % PATTERN.length];
+      const o0 = orders[orders.length - 1];
+      const v = {
+        no: '', member: o0.member, name: o0.name, userId, email: o0.email, phone: o0.phone,
+        env: r() < 0.6 ? 'MO' : 'PC', payMethod: pick(['신용카드', '신용카드', '계좌이체', '카카오페이', '네이버페이']),
+        face: 0, qty: 1, amount: 0, purchasedAt: '', canceledAt: '', usages: [], used: 0, status: target
+      };
+      let plan = [];   // 사용할 주문
+      if (target === '부분사용') {
+        const o = o0;
+        v.face = VOUCHER_FACES.find(f => f > o.payment.total) || 500000;
+        plan = [o];
+      } else if (target === '사용완료') {
+        const recent = orders.slice(-3);
+        const sum = recent.reduce((n, o) => n + o.payment.total, 0);
+        v.face = [...VOUCHER_FACES].reverse().find(f => f <= sum) || 0;
+        if (!v.face) { v.status = '부분사용'; v.face = VOUCHER_FACES.find(f => f > sum) || 500000; }
+        plan = recent;
+      } else {
+        // 사용 전·취소 건은 권종을 골고루 (300,000원권 등 사용 샘플로 잘 안 나오는 권종 포함)
+        v.face = [300000, 10000, 500000, 50000, 30000, 100000][noUse++ % 6];
+        v.qty = k % 3 === 0 ? 2 : 1;
+      }
+      v.amount = v.face * v.qty;
+      // 구매일시: 사용 주문 1~10일 전 / 사용 전·취소 건은 기준일 2~70일 전
+      const baseDay = plan.length ? new Date(plan[0].orderDate) : new Date(TODAY.getTime() - (2 + Math.floor(r() * 69)) * DAY);
+      const buyDay = plan.length ? new Date(baseDay.getTime() - (1 + Math.floor(r() * 10)) * DAY) : baseDay;
+      v.purchasedAt = dt(buyDay, 9 + Math.floor(r() * 13), Math.floor(r() * 60), Math.floor(r() * 60));
+      v.no = `GV${v.purchasedAt.slice(0, 10).replace(/-/g, '')}-${String(101 + k).padStart(4, '0')}`;
+      let remaining = v.amount;
+      plan.forEach(o => {
+        if (remaining <= 0) return;
+        const amt = Math.min(o.payment.total, remaining);
+        remaining -= amt;
+        markOrder(o, v, amt);
+        v.usages.push({ orderNo: o.orderNo, at: o.orderedAt, amount: amt, balance: remaining });
+      });
+      v.used = v.amount - remaining;
+      v.status = target === '결제취소' ? '결제취소' : !v.used ? '결제완료' : remaining ? '부분사용' : '사용완료';
+      if (v.status === '결제취소') v.canceledAt = dt(new Date(Math.min(buyDay.getTime() + (1 + Math.floor(r() * 5)) * DAY, TODAY.getTime())), 10 + Math.floor(r() * 8), Math.floor(r() * 60), Math.floor(r() * 60));
+      VOUCHERS.push(v);
+      k++;
+    }
+    // 입금대기 샘플: 사용 전(결제완료) 상품권 2건을 무통장입금으로 주문하고 아직 입금하지 않은 건으로 (주문일은 기준일 1~3일 전)
+    VOUCHERS.filter(v => v.status === '결제완료').slice(-2).forEach((v, n) => {
+      const day = new Date(TODAY.getTime() - (1 + n * 2) * DAY);
+      v.status = '입금대기';
+      v.payMethod = '무통장입금';
+      v.purchasedAt = dt(day, 10 + n * 5, Math.floor(r() * 60), Math.floor(r() * 60));
+      v.no = `GV${v.purchasedAt.slice(0, 10).replace(/-/g, '')}-${v.no.slice(-4)}`;
+    });
+    VOUCHERS.sort((a, b) => b.purchasedAt.localeCompare(a.purchasedAt));
+  })();
+  // 잔액: 입금대기·결제취소는 사용할 수 있는 금액이 없으므로 0
+  const voucherBalance = v => (v.status === '입금대기' || v.status === '결제취소' ? 0 : v.amount - v.used);
+  // 상품권 히스토리: 구매 · 소진(주문 결제에 사용) · 결제취소 · 관리자 메모, 최근 순
+  //   orderNo: 구매·결제취소는 상품권 주문번호, 소진은 상품권으로 결제한 주문번호, 관리자 메모는 '' (화면에서 주문번호 열로 따로 표시)
+  function voucherHistory(v) {
+    const rows = [{ at: v.purchasedAt, type: '구매', orderNo: v.no, content: v.status === '입금대기'
+      ? `상품권 주문: ${voucherName(v.face)} × ${v.qty}매, 주문금액 ${v.amount.toLocaleString()}원 (${v.payMethod}, 입금대기)`
+      : `상품권 구매: ${voucherName(v.face)} × ${v.qty}매, 결제금액 ${v.amount.toLocaleString()}원 (${v.payMethod})`, by: '고객' }];
+    v.usages.forEach(u => rows.push({ at: u.at, type: '소진', orderNo: u.orderNo, content: `${u.amount.toLocaleString()}원 사용 (잔액 ${u.balance.toLocaleString()}원)`, by: '시스템' }));
+    if (v.canceledAt) rows.push({ at: v.canceledAt, type: '결제취소', orderNo: v.no, content: `상품권 결제취소: ${v.amount.toLocaleString()}원 환불 (${v.payMethod})`, by: '관리자' });
+    (VOUCHER_MEMOS[v.no] || []).forEach(mm => rows.push({ at: mm.at, type: '관리자 메모', orderNo: '', content: mm.text, by: mm.by }));
+    return rows.sort((a, b) => b.at.localeCompare(a.at));
+  }
+  const voucherMemos = no => (VOUCHER_MEMOS[no] || []).slice();
+  function addVoucherMemo(no, text, by) {
+    (VOUCHER_MEMOS[no] = VOUCHER_MEMOS[no] || []).push({ text, at: nowText(), by });
+    try { localStorage.setItem(VOUCHER_MEMO_KEY, JSON.stringify(VOUCHER_MEMOS)); return true; } catch (e) { return false; }
+  }
+
   // 결제가 끝난 후결제 샘플 주문의 입금 내역 (입금관리 모달 > 입금 내역, 주문 히스토리). 저장소에는 넣지 않음
   //   대부분 1회 전액 입금, 5만 원 이상 주문 일부(약 40%)는 2회 분할 입금. 입금일시는 결제일(주문 7일 뒤) 기준
   //   주문번호별 별도 난수 → 다른 샘플 값에 영향 없음
@@ -656,7 +767,8 @@
       approvalNo: dp ? '' : approvalNo,
       result: dp ? `관리자 입금 확인 ${dp.payments.length}회 · 합계 ${dp.paid.toLocaleString()}원${dp.full ? '' : ` (부분결제, 잔액 ${dp.remaining.toLocaleString()}원)`}`
         : ord.payStatus === '입금대기' ? '가상계좌 발급 (입금 대기)' : ord.payStatus === '후결제대기' ? '후결제 (상품 수령 후 결제 대기)'
-        : ord.payStatus === '전체취소' ? '승인 취소' : ord.payMethod === '후결제' ? '후결제 입금 확인' : '승인 성공'
+        : ord.payStatus === '전체취소' ? '승인 취소' : ord.payMethod === '후결제' ? '후결제 입금 확인'
+        : ord.payMethod === '상품권' && ord.voucherUse ? `상품권 사용 (${ord.voucherUse.no}, ${ord.voucherUse.amount.toLocaleString()}원)` : '승인 성공'
     };
     // 증빙발급: 현금성 결제(무통장입금·계좌이체)만 요청 가능
     //   현금영수증 — 소득공제(휴대폰 / 주민번호) 또는 지출증빙(사업자번호)
@@ -720,6 +832,7 @@
     ORDERS, TODAY, PROCESS_STEPS, PROCESS_GROUPS, OUTSOURCE_STEPS, OUTSOURCE_GROUPS, ITEM_STATUS_ORDER, PAY_METHODS, DEPOSIT_METHODS,
     find: orderNo => ORDERS.find(o => o.orderNo === orderNo) || null,
     isUnpaid, isPostpayOrder, isPostpay, isWaiting, addDeposit, depositsOf, isKsiMaker,
+    VOUCHERS, VOUCHER_FACES, VOUCHER_STATUSES, voucherName, voucherBalance, voucherHistory, voucherMemos, addVoucherMemo,
     isRequestWaiting, isRequested, requestOutsource, requestMemoOf, saveRequestMemo,
     saveCancel, restoreCancel, saveExtraRequest,
     adminLog, memoCategories, addMemo, updateMemo, deleteMemo, addHistory, systemHistory,
@@ -824,7 +937,7 @@
       ps.forEach((x, i) => add(x.at, '결제', `입금 확인${n > 1 ? ` ${i + 1}회차` : ''} (${x.method} ${x.amount.toLocaleString()}원${x.memo ? ` · ${x.memo}` : ''}, 처리 ${x.by})`
         + (i === n - 1 ? (ord.deposit.full ? (post ? ' → 결제완료' : ' → 결제완료 · 주문 접수') : ` → 부분결제 (잔액 ${ord.deposit.remaining.toLocaleString()}원)`) : '')));
     } else {
-      add(p.paidDateTime, '결제', ['무통장입금', '후결제'].includes(ord.payMethod) ? `입금 확인 (${p.total.toLocaleString()}원${ord.payMethod === '후결제' ? ', 후결제' : ''})` : `결제 승인 (${p.pgLog.pg}, 승인번호 ${p.pgLog.approvalNo})`);
+      add(p.paidDateTime, '결제', ord.payMethod === '상품권' && ord.voucherUse ? `상품권 결제 (${ord.voucherUse.no}, ${ord.voucherUse.amount.toLocaleString()}원 사용)` : ['무통장입금', '후결제'].includes(ord.payMethod) ? `입금 확인 (${p.total.toLocaleString()}원${ord.payMethod === '후결제' ? ', 후결제' : ''})` : `결제 승인 (${p.pgLog.pg}, 승인번호 ${p.pgLog.approvalNo})`);
     }
     if (p.docType && p.docAt) add(p.docAt, '서류발급', `${p.docType}${p.docPurpose ? `(${p.docPurpose})` : ''} 발급 완료`);
     if (d.shippedAt) add(d.shippedAt, '배송', `집하 스캔 (${d.courier}${d.waybill ? ` ${d.waybill}` : ''})`);
