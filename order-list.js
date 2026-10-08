@@ -1,6 +1,7 @@
 // 주문 목록 화면 공용 스크립트 (통합 주문 리스트 orders.html / 결제완료 주문 리스트 paid-orders.html / 미입금 주문 리스트 unpaid-orders.html / 후결제 주문 리스트 postpay-orders.html)
 // member-type-store.js, member-data.js, order-data.js, deposit-modal.js 다음에 로드하고 OrderList.init({ mode }) 호출
 //   mode 'accepted': 주문 전부 (미입금 주문은 결제상태 입금대기로 표시. 후결제 주문은 접수 즉시 여기에도 나옴)
+//   mode 'canceled': 취소된 상품이 있는 주문 (취소 주문 리스트 canceled-orders.html, 부분취소·전체취소). 상품별 보기는 취소된 상품만
 //   mode 'paid':     결제가 이루어진 주문 (결제상태 입금대기·후결제대기 제외). 구성은 통합 주문 리스트와 같음
 //                    → 미입금·후결제 주문에 입금을 등록하면 이 목록에 들어옴
 //   mode 'outsource': 제작처가 KSI가 아닌 상품 (외주제작 주문 리스트 outsource-orders.html). 상품 1개 = 1행
@@ -24,6 +25,8 @@
 
   function init({ mode }) {
     const paid = mode === 'paid';
+    const canceled = mode === 'canceled';   // 취소 주문: 취소된 상품이 있는 주문 (부분취소·전체취소). 상품별 보기는 취소된 상품만
+    const isCanceledOrder = o => o.items.some(it => it.payStatus === '취소');
     const outsource = mode === 'outsource';   // 외주제작: 주문이 아니라 상품 1개 = 1행
     // 제작상태별 상품 목록: 주문완료 / 제작중 / 배송중 / 배송완료 주문 리스트 (같은 구성, 보여주는 제작상태만 다름)
     //   주문완료 = 공정 주문접수 (접수는 끝났지만 아직 제작이 시작되지 않은 상품)
@@ -37,7 +40,7 @@
     // 결제완료 주문 리스트에서 빼는 결제상태 (결제 전)
     const UNPAID_STATUSES = ['입금대기', '후결제대기'];
     // ===== 주문 데이터: order-data.js (주문 상세와 공유) =====
-    const { ORDERS, TODAY } = OrderData;
+    const { ORDERS } = OrderData;
     // 출고일: 상품 공정의 출고완료 단계 처리 시각('MM-DD HH:MM')에 주문 연도를 붙인 날짜 (주문일보다 앞이면 다음 해)
     const outDateOf = (o, it) => {
       const f = it.flow, k = f.steps.indexOf('출고완료');
@@ -59,11 +62,11 @@
     const OUT_EXCLUDED = ['입금대기', '취소'];
     const source = () => (outsource ? ORDERS.flatMap(o => o.items.map((it, i) => (OrderData.isKsiMaker(it.maker) || OUT_EXCLUDED.includes(it.payStatus) ? null : itemRow(o, it, i))).filter(Boolean))
       : making ? ORDERS.flatMap(o => o.items.map((it, i) => (it.status === STATUS_LIST && it.payStatus !== '취소' ? itemRow(o, it, i) : null)).filter(Boolean))
-      : orderList && state.view === 'item' ? orderSource().flatMap(o => o.items.map((it, i) => Object.assign(itemRow(o, it, i), { orderPayStatus: o.payStatus })))
+      : orderList && state.view === 'item' ? orderSource().flatMap(o => o.items.map((it, i) => (canceled && it.payStatus !== '취소' ? null : Object.assign(itemRow(o, it, i), { orderPayStatus: o.payStatus })))).filter(Boolean)
       : orderSource());
     // 주문관리 리스트의 주문 목록 (주문별 보기 = 이 목록, 상품별 보기 = 이 주문들의 상품)
     const orderSource = () => (postpay ? ORDERS.filter(OrderData.isPostpayOrder) : unpaid ? ORDERS.filter(OrderData.isUnpaid)
-      : paid ? ORDERS.filter(o => !UNPAID_STATUSES.includes(o.payStatus)) : ORDERS);
+      : paid ? ORDERS.filter(o => !UNPAID_STATUSES.includes(o.payStatus)) : canceled ? ORDERS.filter(isCanceledOrder) : ORDERS);
     // 상품 행으로 보여주는지 (제작관리 리스트는 항상, 주문관리 리스트는 상품별 탭일 때)
     const byItem = () => itemMode || state.view === 'item';
     // 결제상태 검색·결제상태 탭은 주문관리 리스트의 상품별 보기에서도 주문의 결제상태 기준 (부분취소·전체취소 등 주문 단위 값)
@@ -89,7 +92,7 @@
         // 외주제작(상품 행): 상품별 결제상태 (부분취소·전체취소 대신 상품 단위 '취소')
         { key: 'payStatus', label: '결제상태', options: (itemMode ? ['후결제대기', '부분결제', '결제완료']
           : ['입금대기', '후결제대기', '부분결제', '결제완료', '부분취소', '전체취소'])
-          .filter(v => !(postpay && v === '입금대기') && !(paid && UNPAID_STATUSES.includes(v))).map(v => [v, v]) }
+          .filter(v => !(postpay && v === '입금대기') && !(paid && UNPAID_STATUSES.includes(v)) && !(canceled && !['부분취소', '전체취소'].includes(v))).map(v => [v, v]) }
       ]),
       // main: 상세검색이 아니라 기본 검색 줄(기간 오른쪽)에 둠 → 외주제작 주문 리스트는 제작처, 제작중 주문 리스트는 공정상태
       ...(outsource ? [{ key: 'maker', label: '제작처', options: OUT_MAKERS.map(v => [v, v]), main: true }] : []),
@@ -182,10 +185,11 @@
       if (!b) return;
       const d = b.dataset.days;
       if (d === 'all') { $('sFrom').value = ''; $('sTo').value = ''; }
-      else {
-        const from = new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate() - Number(d));
+      else {   // 오늘 기준 (기간 기본값과 같은 기준일)
+        const today = AdminUtil.listToday();
+        const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - Number(d));
         $('sFrom').value = fmtDate(from);
-        $('sTo').value = fmtDate(TODAY);
+        $('sTo').value = fmtDate(today);
       }
       document.querySelectorAll('[data-days]').forEach(x => x.classList.toggle('btn-adjust', x === b));
     });
@@ -267,7 +271,7 @@
     // ===== 주문별 / 상품별 보기 탭 (주문관리 리스트) =====
     // 탭 옆 건수는 검색 전 전체 기준 (주문 수 / 그 주문들의 상품 수). 보기를 바꿔도 검색 조건·결제상태 탭은 유지
     function renderViewTabs() {
-      const orders = orderSource(), items = orders.reduce((n, o) => n + o.items.length, 0);
+      const orders = orderSource(), items = orders.reduce((n, o) => n + o.items.filter(it => !canceled || it.payStatus === '취소').length, 0);
       $('viewTabs').innerHTML = [['order', '주문별', orders.length], ['item', '상품별', items]].map(([k, label, n]) => `
         <button type="button" role="tab" class="tab ${state.view === k ? 'active' : ''}" aria-selected="${state.view === k}" data-view="${k}">
           ${label} <span class="tab-count">${n.toLocaleString()}</span></button>`).join('');
@@ -389,7 +393,7 @@
     });
     $('btnReset').addEventListener('click', () => {
       $('searchForm').reset();
-      document.querySelectorAll('[data-days]').forEach(x => x.classList.remove('btn-adjust'));
+      AdminUtil.setDefaultRange();   // 초기화하면 기간은 기본값(최근 1개월)으로
       closeMulti();
       syncAllMulti();
       updateDetailCount();
@@ -504,7 +508,7 @@
     // 단위 선택: 주문번호 단위(주문 1건 = 1행) / 상품 제작번호 단위(주문 상품 1개 = 1행, 주문 정보는 상품마다 반복)
     const catName = code => { const c = CAT_TREE.find(x => x.code === code); return c ? c.label : ''; };
     const payStatusText = o => (o.payStatus === '부분취소' ? `부분취소(${o.canceledItems})` : o.payStatus);
-    const FILE_PREFIX = postpay ? '후결제' : unpaid ? '미입금' : paid ? '결제완료' : outsource ? '외주제작' : making ? STATUS_LIST : '';
+    const FILE_PREFIX = postpay ? '후결제' : unpaid ? '미입금' : paid ? '결제완료' : canceled ? '취소' : outsource ? '외주제작' : making ? STATUS_LIST : '';
     // 주문 공통 열 (두 단위 모두 앞쪽에 들어감)
     const ORDER_HEAD_COLS = [
       ['주문일시', o => o.orderedAt], ['주문번호', o => o.orderNo], ['결제환경', o => o.env]
@@ -587,6 +591,7 @@
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDlMenu(); });
 
     initSidebar();
+    AdminUtil.setDefaultRange();   // 처음 열면 최근 1개월 (관리자가 바꿔 검색 가능)
     applySearch(readSearch());
   }
 
