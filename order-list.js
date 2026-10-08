@@ -5,6 +5,7 @@
 //   mode 'paid':     결제가 이루어진 주문 (결제상태 입금대기·후결제대기·전체취소 제외, 상품별 보기는 취소 상품 제외). 구성은 통합 주문 관리와 같음
 //                    → 미입금·후결제 주문에 입금을 등록하면 이 목록에 들어옴
 //   mode 'outsource': 제작처가 KSI가 아닌 상품 (외주 제작 outsource-orders.html). 상품 1개 = 1행
+//   mode 'production': 제작상태가 주문완료~배송완료인 상품 전부 (통합 제작 관리 production-orders.html). 기본 검색 줄은 제작상태
 //   mode 'ordered':  제작상태가 주문완료(공정 주문접수)인 상품 전부 (주문 완료 ordered-orders.html). 접수 후 제작이 시작되지 않은 상품 확인용
 //   mode 'making':   제작상태가 제작중인 상품 전부 (제작 중 making-orders.html). 열은 외주제작과 같고 관리 열·탭 없음
 //   mode 'shipping': 제작상태가 배송중인 상품 전부 (배송 중 shipping-orders.html). 구성은 제작 중과 같음
@@ -30,7 +31,10 @@
     const outsource = mode === 'outsource';   // 외주제작: 주문이 아니라 상품 1개 = 1행
     // 제작상태별 상품 목록: 주문완료 / 제작중 / 배송중 / 배송 완료 (같은 구성, 보여주는 제작상태만 다름)
     //   주문완료 = 공정 주문접수 (접수는 끝났지만 아직 제작이 시작되지 않은 상품)
-    const STATUS_LIST = { ordered: '주문완료', making: '제작중', shipping: '배송중', delivered: '배송완료' }[mode] || '';
+    const STATUS_LIST = { ordered: '주문완료', making: '제작중', shipping: '배송중', delivered: '배송완료', production: '통합 제작' }[mode] || '';
+    // 통합 제작 관리(production): 주문완료 ~ 배송완료 상품 전부. 나머지는 그 제작상태 하나
+    const production = mode === 'production';
+    const STATUS_SET = production ? ['주문완료', '제작중', '배송중', '배송완료'] : [STATUS_LIST];
     const making = !!STATUS_LIST;             // 제작중·배송중: 그 제작상태인 상품 전부 (자체·외주), 상품 1개 = 1행, 관리 열·탭 없음
     const itemMode = outsource || making;     // 상품 행 목록 (열 구성 공통)
     const unpaid = mode === 'unpaid' || mode === 'postpay';   // 미입금·후결제: 입금처리 대상 목록 (관리 열 표시)
@@ -61,7 +65,7 @@
     // 외주제작: 입금대기(무통장입금 미입금)·취소 상품은 제작 대상이 아니므로 제외
     const OUT_EXCLUDED = ['입금대기', '취소'];
     const source = () => (outsource ? ORDERS.flatMap(o => o.items.map((it, i) => (OrderData.isKsiMaker(it.maker) || OUT_EXCLUDED.includes(it.payStatus) ? null : itemRow(o, it, i))).filter(Boolean))
-      : making ? ORDERS.flatMap(o => o.items.map((it, i) => (it.status === STATUS_LIST && it.payStatus !== '취소' ? itemRow(o, it, i) : null)).filter(Boolean))
+      : making ? ORDERS.flatMap(o => o.items.map((it, i) => (STATUS_SET.includes(it.status) && it.payStatus !== '취소' ? itemRow(o, it, i) : null)).filter(Boolean))
       : orderList && state.view === 'item' ? orderSource().flatMap(o => o.items.map((it, i) => ((canceled && it.payStatus !== '취소') || (paid && it.payStatus === '취소') ? null :   /* 취소 주문: 취소 상품만 / 결제 완료 주문: 취소 상품 제외 */ Object.assign(itemRow(o, it, i), { orderPayStatus: o.payStatus })))).filter(Boolean)
       : orderSource());
     // 주문관리 리스트의 주문 목록 (주문별 보기 = 이 목록, 상품별 보기 = 이 주문들의 상품)
@@ -97,9 +101,10 @@
       // main: 상세검색이 아니라 기본 검색 줄(기간 오른쪽)에 둠 → 외주 제작은 제작처, 제작 중은 공정상태
       ...(outsource ? [{ key: 'maker', label: '제작처', options: OUT_MAKERS.map(v => [v, v]), main: true }] : []),
       // 공정상태: 제작중은 기본 검색 줄, 외주제작은 상세검색
-      ...(itemMode ? [{ key: 'step', label: '공정상태', options: STEP_OPTIONS.map(v => [v, v]), main: making && mode !== 'delivered' }] : []),
+      ...(itemMode ? [{ key: 'step', label: '공정상태', options: STEP_OPTIONS.map(v => [v, v]), main: making && mode !== 'delivered' && !production }] : []),
       // 제작상태: 상품별 진행상태. 고른 상태의 상품이 하나라도 있는 주문을 찾음 (미입금은 입금 전이라 주문대기뿐, 후결제는 제작·배송이 진행됨)
-      { key: 'status', label: '제작상태', options: (unpaid && !postpay ? ['주문대기'] : OrderData.ITEM_STATUS_ORDER).map(v => [v, v]) },
+      // 통합 제작 관리: 제작상태(주문완료~배송완료)를 기본 검색 줄에
+      { key: 'status', label: '제작상태', options: (unpaid && !postpay ? ['주문대기'] : production ? STATUS_SET : OrderData.ITEM_STATUS_ORDER).map(v => [v, v]), main: production },
       // 제작 중: 제작처는 상세검색 (결제상태 · 제작상태 · 제작처 · 회원구분 · 상담여부 · 배송방법 순)
       ...(making ? [{ key: 'maker', label: '제작처', options: OUT_MAKERS.map(v => [v, v]) }] : []),
       { key: 'category', label: '회원구분', options: CAT_TREE.map(c => [c.code, c.label + (c.hidden ? ' (숨김)' : '')]) },
@@ -111,7 +116,8 @@
     // 제작 중의 상세검색 순서: 제작처 · 제작상태 · 결제상태 · 회원구분 · 상담여부 · 배송방법 (기본 검색 줄의 공정상태는 맨 앞 유지)
     // 외주 제작의 상세검색 순서: 제작상태 · 공정상태 · 결제상태 · 회원구분 · 상담여부 · 배송방법 (제작처는 기본 검색 줄)
     if (itemMode) {
-      const ORDER = mode === 'delivered' ? ['shipMethod', 'maker', 'status', 'payStatus', 'category', 'inquiry', 'step']
+      const ORDER = production ? ['status', 'maker', 'step', 'payStatus', 'category', 'inquiry', 'shipMethod']
+        : mode === 'delivered' ? ['shipMethod', 'maker', 'status', 'payStatus', 'category', 'inquiry', 'step']
         : making ? ['step', 'maker', 'status', 'payStatus', 'category', 'inquiry', 'shipMethod'] : ['maker', 'status', 'step', 'payStatus', 'category', 'inquiry', 'shipMethod'];
       DETAIL_FIELDS.sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key));
     }

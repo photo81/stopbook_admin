@@ -745,6 +745,54 @@
   window.AdminUtil = { fmtDateTime, esc, toast, initSidebar, setDefaultRange, listToday, ADMIN_NAME: '관리자' };  // TODO: 로그인 관리자명
 
   // 상단바 프로토타입 버전 표시. 버전을 올릴 때는 여기만 바꾸면 모든 화면에 반영됨 (HTML의 같은 문구는 스크립트 실패 시 대비용)
-  const PROTO_VERSION = '프로토타입 v2.19 (2026-10-08)';
+  const PROTO_VERSION = '프로토타입 v2.26 (2026-10-08)';
   document.querySelectorAll('[data-proto-version]').forEach(el => { el.textContent = PROTO_VERSION; });
+
+  // ===== 상단 대메뉴(GNB): 회원 / 주문·배송 =====
+  // 상단바 왼쪽에 대메뉴를 넣고, 누르면 사이드 메뉴에 그 대메뉴의 카테고리만 보여줌
+  //   회원 → 회원관리 / 주문·배송 → 주문관리 · 제작/배송관리 · 클레임관리
+  // 처음 열면 현재 화면이 속한 대메뉴가 선택됨 (선택된 화면이 없으면 주문·배송). 사이드 메뉴 마크업은 각 화면에 그대로 두고 여기서 보이기만 조절
+  // TODO: 실서비스에서는 메뉴 구성을 공통 레이아웃(서버 템플릿/컴포넌트)에서 그림
+  const GNB = [
+    { key: 'member', label: '회원', cats: ['회원관리'] },
+    { key: 'order', label: '주문/배송', cats: ['주문관리', '제작/배송관리', '클레임관리'] }
+  ];
+  function initGnb() {
+    const sidebar = document.querySelector('.sidebar'), topbar = document.querySelector('.topbar');
+    if (!sidebar || !topbar || document.querySelector('.gnb')) return;
+    const groups = [...sidebar.querySelectorAll(':scope > ul > li.has-sub')];
+    const catOf = li => (li.querySelector('.menu-parent').childNodes[0].textContent || '').trim();
+    const sectionOf = li => (GNB.find(g => g.cats.includes(catOf(li))) || GNB[1]).key;
+    // 카테고리 구분 표시용 (admin.css .sidebar li[data-cat]: 카테고리명 연한 회색 배경)
+    const CAT_KEYS = { '회원관리': 'member', '주문관리': 'order', '제작/배송관리': 'production', '클레임관리': 'claim' };
+    groups.forEach(li => { li.dataset.cat = CAT_KEYS[catOf(li)] || 'etc'; });
+    const activeLi = groups.find(li => li.querySelector('.submenu a.active'));
+    let current = activeLi ? sectionOf(activeLi) : 'order';
+    const nav = document.createElement('nav');
+    nav.className = 'gnb';
+    nav.setAttribute('aria-label', '대메뉴');
+    nav.innerHTML = GNB.map(g => `<button type="button" class="gnb-item" data-gnb="${g.key}">${esc(g.label)}</button>`).join('');
+    const left = document.createElement('div');
+    left.className = 'topbar-left';
+    topbar.insertBefore(left, topbar.firstElementChild);
+    left.appendChild(nav);
+    const bc = topbar.querySelector('.breadcrumb');
+    if (bc) left.appendChild(bc);
+    // 대메뉴 전환: 해당 카테고리만 보이고, 다른 대메뉴에서 넘어오면 카테고리를 모두 펼쳐 바로 고를 수 있게
+    function show(key, expand) {
+      current = key;
+      nav.querySelectorAll('.gnb-item').forEach(b => { const on = b.dataset.gnb === key; b.classList.toggle('active', on); b.setAttribute('aria-current', on ? 'true' : 'false'); });
+      groups.forEach(li => {
+        const mine = sectionOf(li) === key;
+        li.hidden = !mine;
+        if (mine && expand) { li.classList.add('open'); li.querySelector('.menu-parent').setAttribute('aria-expanded', 'true'); }
+      });
+    }
+    nav.addEventListener('click', e => {
+      const b = e.target.closest('[data-gnb]');
+      if (b && b.dataset.gnb !== current) show(b.dataset.gnb, true);
+    });
+    show(current, !activeLi);
+  }
+  initGnb();
 })();

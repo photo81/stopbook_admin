@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>스탑북 관리자 - 주문 완료</title>
+<title>스탑북 관리자 - 통합 제작 관리</title>
 <link rel="stylesheet" href="admin.css?v=20261179">
 </head>
 <body>
@@ -34,8 +34,8 @@
       <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">제작/배송관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="production-orders.html">통합 제작 관리</a></li>
-          <li><a href="ordered-orders.html" class="active" aria-current="page">주문 완료</a></li>
+          <li><a href="production-orders.html" class="active" aria-current="page">통합 제작 관리</a></li>
+          <li><a href="ordered-orders.html">주문 완료</a></li>
           <li><a href="making-orders.html">제작 중</a></li>
           <li><a href="shipping-orders.html">배송 중</a></li>
           <li><a href="delivered-orders.html">배송 완료</a></li>
@@ -54,12 +54,12 @@
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 제작/배송관리 &gt; <b>주문 완료</b></div>
+      <div class="breadcrumb">홈 &gt; 제작/배송관리 &gt; <b>통합 제작 관리</b></div>
       <div><span class="proto-ver" data-proto-version>프로토타입 v2.26 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>주문 완료 <span class="page-desc">주문 접수가 끝났지만 아직 제작이 시작되지 않은 상품을 확인합니다. 주문 접수 이후 진행이 늦어지는 경우 확인이 필요합니다.</span></h1>
+      <h1>통합 제작 관리 <span class="page-desc">주문 완료부터 배송 완료까지 모든 상품의 제작·배송 진행 상태를 한눈에 확인합니다.</span></h1>
 
       <!-- 검색 조건: 검색어 + 기간이 기본, 상세검색은 접어 둠 -->
       <form class="panel" id="searchForm" novalidate>
@@ -84,6 +84,7 @@
               <select id="sDateType" style="flex:0 0 100px">
                 <option value="orderedAt">주문일</option>
                 <option value="paidAt">결제일</option>
+                <option value="outAt">출고일</option>
               </select>
               <div class="range">
                 <input type="date" id="sFrom" aria-label="기간 시작"> ~ <input type="date" id="sTo" aria-label="기간 종료">
@@ -110,7 +111,7 @@
         <div class="search-grid detail-search" id="detailSearch" hidden></div>
       </form>
 
-      <!-- 주문완료 목록: 제작상태가 주문완료(공정 주문접수)인 상품 전부 (자체 제작·외주 제작, 상품 1개 = 1행). 접수는 끝났지만 아직 제작이 시작되지 않은 상품 확인용. 구성은 제작 중과 같음 -->
+      <!-- 통합 제작 목록: 제작상태가 주문완료~배송완료인 상품 전부 (자체 제작·외주 제작, 상품 1개 = 1행, 취소 제외). 기본 검색 줄은 제작상태 -->
       <section class="panel">
         <div class="list-head">
           <div class="count">검색결과 <b id="totalCount">0</b>건 / 전체 <span id="allCount">0</span>건 <span class="muted">(상품 기준)</span> <span id="listGuide"></span></div>
@@ -165,6 +166,6 @@
 <script src="deposit-modal.js?v=20261179"></script>
 <script src="item-detail.js?v=20261179"></script>
 <script src="order-list.js?v=20261179"></script>
-<script>OrderList.init({ mode: 'ordered' });</script>
+<script>OrderList.init({ mode: 'production' });</script>
 </body>
 </html>

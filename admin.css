@@ -51,8 +51,29 @@ a { color: var(--accent); }
 .topbar a { color: var(--muted); text-decoration: none; }
 .topbar a:hover { color: var(--text); }
 .breadcrumb { color: var(--muted); }
-.breadcrumb b { color: var(--text); font-weight: 600; }
-.breadcrumb a { color: var(--muted); }
+/* 상단 대메뉴(GNB): 회원 / 주문·배송 (member-type-store.js initGnb). 누르면 사이드 메뉴가 그 대메뉴 카테고리로 바뀜
+   상단 띠(대메뉴단 + 사이드 로고)는 어두운 색으로 본문과 구분 */
+:root { --band: #ebebeb; --band-text: #27272a; --band-muted: #4a4a55; --band-line: #dfdfdf; }   /* 모노톤: 사이드 카테고리 배경(#e4e4e7)보다 한 단계 진한 회색 띠 */
+.topbar { background: var(--band); border-bottom-color: var(--band-line); color: var(--band-muted); }
+.topbar a { color: var(--band-text); }
+.topbar a:hover { color: var(--text); }
+.topbar .proto-ver { border-color: var(--band-line); color: var(--band-text); }
+.sidebar .logo { margin: 0 -8px; padding: 0 16px; background: var(--band); color: var(--text); border-bottom: 1px solid var(--band-line); }
+.sidebar .logo::before { background: var(--text); }
+.topbar-left { display: flex; align-items: center; gap: 20px; min-width: 0; height: 100%; }
+.gnb { display: flex; align-items: center; height: 100%; gap: 4px; }
+.gnb-item { position: relative; display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border: 0; border-radius: 8px; background: none; color: var(--band-text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: background .12s, color .12s; }
+.gnb-item:hover { background: rgba(0,0,0,.07); color: var(--text); }
+.gnb-item.active { background: #fff; color: var(--text); box-shadow: 0 0 0 1px var(--band-line), 0 1px 2px rgba(0,0,0,.06); }
+.gnb-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.topbar-left .breadcrumb { padding-left: 20px; border-left: 1px solid var(--band-line); color: var(--band-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-left .breadcrumb b { color: var(--text); }
+
+/* 사이드 메뉴 카테고리 구분 (모노톤): 카테고리명에 연한 회색 배경 띠, 하위 메뉴는 그 아래 */
+.sidebar li[data-cat] { margin-top: 10px; }
+.sidebar li[data-cat] > .menu-parent { margin-top: 0; height: 32px; padding: 0 10px; border-radius: var(--radius); background: #e4e4e7; color: var(--text); font-size: 12px; font-weight: 700; }
+.sidebar li[data-cat] > .menu-parent:hover { background: #d4d4d8; color: var(--text); }
+.sidebar li[data-cat] > .submenu { padding-top: 4px; }.breadcrumb a { color: var(--muted); }
 .content { padding: 28px; max-width: 1480px; }
 h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 20px; }
 .page-desc { margin-left: 10px; color: var(--faint); font-size: 13px; font-weight: 400; letter-spacing: 0; }   /* 메뉴 화면 제목 옆 설명 (연한 회색) */
@@ -311,12 +332,12 @@ tr.row-hidden td.keep { opacity: 1; }
 .order-search .f-period .range { flex: none; }
 .order-search .f-period .range input { flex: none; width: 170px; }
 /* 외주제작 주문 리스트: 기간 오른쪽 제작처. 한 줄에 들어가도록 검색어 칸·날짜 칸을 조금 줄임 (좁은 화면에서는 줄바꿈) */
-.order-search .f-maker, .order-search .f-step, .order-search .f-shipMethod { flex: 0 0 170px; }   /* 제작중 주문 리스트는 공정상태 */
-.order-search .f-maker > label, .order-search .f-step > label, .order-search .f-shipMethod > label { width: auto; white-space: nowrap; }
-.order-search:has(.f-maker), .order-search:has(.f-step), .order-search:has(.f-shipMethod) { column-gap: 20px; }
-.order-search:has(.f-maker) .f-keyword, .order-search:has(.f-step) .f-keyword, .order-search:has(.f-shipMethod) .f-keyword { flex: 1 1 180px; min-width: 0; }
-.order-search:has(.f-maker) .f-keyword input, .order-search:has(.f-step) .f-keyword input, .order-search:has(.f-shipMethod) .f-keyword input { min-width: 0; width: 0; }   /* 입력칸 기본 너비 때문에 줄바꿈되지 않게 (남는 폭을 채움) */
-.order-search:has(.f-maker) .f-period .range input, .order-search:has(.f-step) .f-period .range input, .order-search:has(.f-shipMethod) .f-period .range input { width: 140px; }
+.order-search .f-maker, .order-search .f-step, .order-search .f-shipMethod, .order-search .f-status { flex: 0 0 170px; }   /* 제작중 주문 리스트는 공정상태 */
+.order-search .f-maker > label, .order-search .f-step > label, .order-search .f-shipMethod > label, .order-search .f-status > label { width: auto; white-space: nowrap; }
+.order-search:has(.f-maker), .order-search:has(.f-step), .order-search:has(.f-shipMethod), .order-search:has(.f-status) { column-gap: 20px; }
+.order-search:has(.f-maker) .f-keyword, .order-search:has(.f-step) .f-keyword, .order-search:has(.f-shipMethod) .f-keyword, .order-search:has(.f-status) .f-keyword { flex: 1 1 180px; min-width: 300px; }
+.order-search:has(.f-maker) .f-keyword input, .order-search:has(.f-step) .f-keyword input, .order-search:has(.f-shipMethod) .f-keyword input, .order-search:has(.f-status) .f-keyword input { min-width: 0; width: 0; }   /* 입력칸 기본 너비 때문에 줄바꿈되지 않게 (남는 폭을 채움) */
+.order-search:has(.f-maker) .f-period .range input, .order-search:has(.f-step) .f-period .range input, .order-search:has(.f-shipMethod) .f-period .range input, .order-search:has(.f-status) .f-period .range input { width: 140px; }
 .quick-range { display: flex; gap: 4px; flex-wrap: wrap; margin-left: 6px; }   /* 기간 빠른 선택 (선택된 버튼은 .btn-adjust로 강조) */
 /* 상세검색: 다중 선택 드롭다운 (모양은 select와 같고, 펼치면 체크 목록) */
 .multi-select { position: relative; flex: 1; min-width: 0; }
