@@ -9,7 +9,7 @@
 
   const pad = n => String(n).padStart(2, '0');
   const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const TODAY = new Date(2026, 9, 1);   // 샘플 데이터 기준일 (member-data.js base와 동일). TODO: 실서비스에서는 new Date()
+  const TODAY = new Date(2026, 9, 8);   // 샘플 데이터 기준일 (member-data.js base와 동일). TODO: 실서비스에서는 new Date()
   const DAY = 86400000;
   // 결제정보 금액 기준 (paymentOf): 택배비, 무료배송 기준(할인 후), 퀵서비스비, 적립률
   const SHIP_FEE = 2500, FREE_SHIP_MIN = 15000, QUICK_FEE = 8000, REMOTE_FEE = 3000, POINT_RATE = 0.01;

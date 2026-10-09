@@ -9,7 +9,7 @@
 <body>
 <div class="layout">
   <aside class="sidebar">
-    <div class="logo">STOPBOOK Admin</div>
+    <a class="logo" href="dashboard.html" title="대시보드">STOPBOOK Admin</a>
     <ul>
       <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">회원관리<span class="chev">▼</span></a>
@@ -21,6 +21,14 @@
         </ul>
       </li>
       <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">메시지전송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="message-send.html">메시지 전송</a></li>
+          <li><a href="message-sms.html">SMS 발송 관리</a></li>
+          <li><a href="message-alimtalk.html">알림톡 발송 관리</a></li>
+          <li><a href="message-email.html">이메일 발송 관리</a></li>
+        </ul>
+      </li>      <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="orders.html">통합 주문 관리</a></li>
@@ -45,11 +53,27 @@
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">클레임관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="claim-cancel.html">취소 환불 관리</a></li>
+          <li><a href="claim-cancel.html">취소 요청 관리</a></li>
           <li><a href="claim-exchange.html">교환 반품 관리</a></li>
+          <li><a href="claim-documents.html">서류 발급 관리</a></li>
         </ul>
       </li>
-    </ul>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-all.html">게시판 통합 관리</a></li>
+          <li><a href="board-notice.html">공지사항 관리</a></li>
+          <li><a href="board-faq.html">FAQ 관리</a></li>
+          <li><a href="board-admin-notice.html">관리자 공지</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
+          <li><a href="board-review.html">이용후기 관리</a></li>
+        </ul>
+      </li>    </ul>
   </aside>
 
   <div class="main">
@@ -578,7 +602,7 @@
   const catLabel = m => (catOf(m.categoryCode) || { label: m.category }).label;   // 같은 이름이면 순번 표시
   const categoryText = (label, sub) => (sub ? `${label} > ${sub}` : label);
   // 배지 색: 기본 구분은 이름이 바뀌어도 같은 색 (admin.css .ct-일반 / .ct-단체), 그 외는 기본 점
-  const catClass = code => (code === 'normal' ? '일반' : code === 'group' ? '단체' : 'etc');
+  const catClass = code => (code === 'normal' ? '일반' : '단체');   // 기본 구분 외(기관·학교·유치원·어린이집·회사·단체)는 사업자 구분 색
   // 목록에는 구분만 표시 (종류는 회원 상세의 구분 > 종류에서 확인. 말풍선으로만 보여줌)
   const catBadge = m => `<span class="badge ct-${catClass(m.categoryCode)}"${m.subCategory ? ` title="종류: ${esc(m.subCategory)}"` : ''}>${esc(catLabel(m))}</span>`;
   // 검색: 숨긴 구분의 회원도 찾을 수 있도록 모두 표시
@@ -706,7 +730,7 @@
 
   // ===== 분석 (검색 결과 기준: 두 탭이 같은 검색 조건을 공유) =====
   // 집계는 전체 회원 관리 데이터(members)와 회원 상세 > 이용 정보 데이터(orders/inquiries/cart)를 그대로 사용
-  const TODAY = new Date(2026, 9, 1);   // 샘플 데이터 기준일 (member-data.js base와 동일). TODO: 실서비스에서는 new Date()
+  const TODAY = new Date(2026, 9, 8);   // 샘플 데이터 기준일 (member-data.js base와 동일). TODO: 실서비스에서는 new Date()
   const daysSince = d => Math.floor((TODAY.getTime() - new Date(d).getTime()) / 86400000);
   const pct = (a, b) => (b ? Math.round(a / b * 1000) / 10 : 0);
   const LOGIN_BUCKETS = [['7일 이내', 0, 6], ['30일 이내', 7, 29], ['90일 이내', 30, 89], ['90일 초과', 90, Infinity]];
@@ -716,7 +740,7 @@
     const sum = f => list.reduce((s, m) => s + f(m), 0);
     $('analysisScope').textContent = `· ${n === members.length ? `전체 회원 ${n}명` : `검색 결과 ${n}명 / 전체 ${members.length}명`} · 가입유형·회원구분 막대를 누르면 리스트에서 해당 회원을 볼 수 있습니다`;
 
-    const groupN = list.filter(m => m.categoryCode === 'group').length;
+    const groupN = list.filter(m => m.categoryCode !== 'normal').length;   // 사업자 구분(기관·학교·유치원·어린이집·회사·단체) 합계
     const newest30 = list.filter(m => daysSince(m.joinDate) < 30).length;
     const buyers = list.filter(m => validOrders(m).length).length;   // 주문은 취소 제외
     const orderCount = sum(m => validOrders(m).length);
@@ -727,7 +751,7 @@
     const cartMembers = list.filter(m => (m.cart || []).length).length;
     const waiting = sum(m => (m.inquiries || []).filter(q => q.status === '답변대기').length);
     const tiles = [
-      ['회원 수', `${n.toLocaleString()}명`, `${NORMAL_NAME} ${(n - groupN).toLocaleString()} · ${MemberTypeStore.categoryName('group') || '단체'} ${groupN.toLocaleString()}`],
+      ['회원 수', `${n.toLocaleString()}명`, `${NORMAL_NAME} ${(n - groupN).toLocaleString()} · 사업자 구분 ${groupN.toLocaleString()}`],
       ['최근 30일 신규 가입', `${newest30.toLocaleString()}명`, `전체 대비 ${pct(newest30, n)}%`],
       ['구매 회원', `${pct(buyers, n)}%`, `${buyers.toLocaleString()}명 · 주문 ${orderCount.toLocaleString()}건`],
       ['누적 주문금액', won(orderAmount), `구매 회원 1인 평균 ${won(buyers ? Math.round(orderAmount / buyers / 10) * 10 : 0)}`],

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스탑북 관리자 - 대시보드</title>
+<link rel="stylesheet" href="admin.css?v=20261179">
+</head>
+<body class="no-sidebar">
+<!-- 대시보드는 사이드 메뉴 없이 전체 폭으로 (body.no-sidebar: 사이드 메뉴 숨김, 로고는 상단 바로 이동 — member-type-store.js initGnb). 다른 화면은 대메뉴·메뉴로 이동 -->
+<div class="layout">
+  <aside class="sidebar">
+    <a class="logo" href="dashboard.html" title="대시보드">STOPBOOK Admin</a>
+    <ul>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">회원관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="members.html">전체 회원 관리</a></li>
+          <li><a href="group-applications.html">단체 회원 신청 관리</a></li>
+          <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
+          <li><a href="member-types.html">회원 유형 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">메시지전송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="message-send.html">메시지 전송</a></li>
+          <li><a href="message-sms.html">SMS 발송 관리</a></li>
+          <li><a href="message-alimtalk.html">알림톡 발송 관리</a></li>
+          <li><a href="message-email.html">이메일 발송 관리</a></li>
+        </ul>
+      </li>      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="orders.html">통합 주문 관리</a></li>
+          <li><a href="paid-orders.html">결제 완료 주문</a></li>
+          <li><a href="unpaid-orders.html">미입금 주문</a></li>
+          <li><a href="postpay-orders.html">후결제 주문</a></li>
+          <li><a href="prepaid-orders.html">선결제 주문</a></li>
+          <li><a href="canceled-orders.html">취소 주문</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">제작/배송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="production-orders.html">통합 제작 관리</a></li>
+          <li><a href="ordered-orders.html">주문 완료</a></li>
+          <li><a href="making-orders.html">제작 중</a></li>
+          <li><a href="shipping-orders.html">배송 중</a></li>
+          <li><a href="delivered-orders.html">배송 완료</a></li>
+          <li><a href="outsource-orders.html">외주 제작</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">클레임관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="claim-cancel.html">취소 요청 관리</a></li>
+          <li><a href="claim-exchange.html">교환 반품 관리</a></li>
+          <li><a href="claim-documents.html">서류 발급 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-all.html">게시판 통합 관리</a></li>
+          <li><a href="board-notice.html">공지사항 관리</a></li>
+          <li><a href="board-faq.html">FAQ 관리</a></li>
+          <li><a href="board-admin-notice.html">관리자 공지</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
+          <li><a href="board-review.html">이용후기 관리</a></li>
+        </ul>
+      </li>    </ul>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">홈 &gt; <b>대시보드</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.26 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
+    </header>
+
+    <main class="content">
+      <h1>대시보드 <span class="page-desc">주문·제작 현황과 운영 이슈, 주요 지표와 클레임을 한눈에 봅니다.</span></h1>
+
+      <!-- 최상단 콜아웃: 관리자끼리 공유하는 공지 (게시판관리 > 관리자 공지에서 등록·수정·삭제, notice-store.js 공용)
+           내용은 첫 줄만 보이고, 더보기를 누르면 관리자 공지 화면에서 전체 내용을 봄 -->
+      <section class="notice-callout" id="noticeBox" aria-label="관리자 공지사항">
+        <div class="notice-head">
+          <b>📌 관리자 공지</b> <span class="muted" id="noticeCount"></span>
+          <a class="btn btn-xs" id="btnNoticeMore" href="board-admin-notice.html">더보기</a>
+        </div>
+        <!-- 공지는 한 번에 하나씩, 5초마다 자동 전환 (마우스를 올리면 멈춤). 화살표로 앞뒤 이동, 오른쪽에 현재/전체 -->
+        <div class="notice-ticker" id="noticeTicker">
+          <ul class="notice-list" id="noticeList"></ul>
+          <div class="notice-nav">
+            <button type="button" class="btn btn-xs" id="noticePrev" aria-label="이전 공지">‹</button>
+            <span class="notice-pos" id="noticePos"></span>
+            <button type="button" class="btn btn-xs" id="noticeNext" aria-label="다음 공지">›</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 구성: 상단 전체 폭 = 주문·제작 현황 카드 6개 한 줄 / 아래 3열 = 주요 현황 · 클레임 현황 · 사이트 운영 이슈
+           기간(오늘 / 7일 / 15일 / 30일)은 상단 카드 패널 오른쪽 위에서 한 번만 고르고, 아래 주요 현황·클레임 현황도 같은 기간으로 집계 -->
+      <div class="dash-grid">
+        <!-- 상단: 주문·제작 현황 카드 (기간 안에 들어온 주문 기준). 카드를 누르면 해당 목록으로 -->
+        <section class="panel dash-panel dash-cards-panel">
+          <div class="dash-head">
+            <b>주문·제작 현황</b> <span class="muted">입금대기는 주문 건, 그 외는 상품 건 (주문취소는 취소된 상품 건)</span>
+            <div class="quick-range" role="group" aria-label="조회 기간 (아래 현황에도 함께 적용)" id="periodRange">
+              <button type="button" class="btn btn-xs" data-days="0">오늘</button>
+              <button type="button" class="btn btn-xs btn-adjust" data-days="7">7일</button>
+              <button type="button" class="btn btn-xs" data-days="15">15일</button>
+              <button type="button" class="btn btn-xs" data-days="30">30일</button>
+            </div>
+          </div>
+          <div class="kpi-row dash-cards" id="statusCards"></div>
+        </section>
+
+        <!-- 아래 왼쪽: 주요 현황 (매출 · 주문 · 회원). 이전 같은 기간과 비교 -->
+        <section class="panel dash-panel">
+          <div class="dash-head">
+            <b>주요 현황</b> <span class="muted">탭을 누르면 추이 그래프</span>
+            <span class="period-tag" data-period-label></span>
+          </div>
+          <!-- 매출 / 주문 / 회원 탭: 위에 합계·이전 기간 대비, 아래 기간 안 일별(오늘은 시간별) 추이 막대 그래프 (값은 막대에 올리면 말풍선) -->
+          <div class="tabs mini-tabs" role="tablist" id="mainTabs">
+            <button type="button" role="tab" class="tab active" aria-selected="true" data-tab="sales">매출</button>
+            <button type="button" role="tab" class="tab" aria-selected="false" data-tab="orders">주문</button>
+            <button type="button" role="tab" class="tab" aria-selected="false" data-tab="members">회원</button>
+          </div>
+          <div class="trend-head" id="mainHead"></div>
+          <div class="trend-chart" id="mainChart" aria-live="polite"></div>
+          <div class="trend-foot">
+            <span class="muted" id="mainChartNote"></span>
+          </div>
+        </section>
+
+        <!-- 아래 가운데: 클레임 현황 (문의 · 취소/환불 · 교환/반품) -->
+        <section class="panel dash-panel">
+          <div class="dash-head">
+            <b>클레임 현황</b> <span class="muted">1:1 문의 · 서류발급 · 취소 요청 · 교환/반품 · 이용후기</span>
+            <span class="period-tag" data-period-label></span>
+          </div>
+          <div class="stat-list" id="claimStats"></div>
+        </section>
+
+        <!-- 아래 오른쪽: 사이트 운영 이슈 (현재 상태 기준, 기간과 무관). 건수가 있는 항목이 위로 -->
+        <section class="panel dash-panel">
+          <div class="dash-head">
+            <b>사이트 운영 이슈</b> <span class="muted">지금 확인이 필요한 항목</span>
+          </div>
+          <ul class="issue-list" id="issueList"></ul>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="member-type-store.js?v=20261179"></script>
+<script src="member-data.js?v=20261179"></script>
+<script src="order-data.js?v=20261179"></script>
+<script src="claim-data.js?v=20261179"></script>
+<script src="document-data.js?v=20261179"></script>
+<script src="notice-store.js?v=20261179"></script>
+<script src="feedback.js?v=20261179"></script>
+<script>
+(function () {
+  'use strict';
+  // 대시보드: 로그인 직후 첫 화면 (사이드 로고를 눌러도 이 화면). 샘플 데이터로 집계
+  // 기준일 = 샘플 데이터 기준일(OrderData.TODAY). 샘플 주문·가입이 그날까지 생성되어 있어 '오늘·7일'에도 숫자가 보임
+  // TODO: 실서비스에서는 기준일 = 오늘, 집계는 GET /api/admin/dashboard?days= 로 서버에서
+  const { esc, initSidebar, toast, ADMIN_NAME } = AdminUtil;
+  const { ORDERS, TODAY } = OrderData;
+  const { members, applications } = MemberData;
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2, '0');
+  const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const won = n => `${Number(n).toLocaleString()}원`;
+  const num = n => Number(n).toLocaleString();
+  const daysAgo = n => fmtDate(new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate() - n));
+  const todayStr = fmtDate(TODAY);
+
+  // 기간: days = 0(오늘) / 7 / 15 / 30 → [from, to]. 비교 기간 = 바로 앞 같은 길이 (오늘은 어제)
+  const periodOf = days => ({ from: daysAgo(days), to: todayStr });
+  const prevOf = days => ({ from: daysAgo(days * 2 + 1), to: daysAgo(days + 1) });
+  const inRange = (d, p) => !!d && d.slice(0, 10) >= p.from && d.slice(0, 10) <= p.to;
+  const periodLabel = days => (days === 0 ? '오늘' : `최근 ${days}일`);
+  const prevLabel = days => (days === 0 ? '어제' : `이전 ${days}일`);
+
+  // 이전 기간 대비 증감 표시
+  const delta = (cur, prev, unit = '') => {
+    if (!prev && !cur) return '<span class="muted">변동 없음</span>';
+    if (!prev) return `<span class="up">신규 ${num(cur)}${unit}</span>`;
+    const diff = cur - prev, pct = Math.round(diff / prev * 100);
+    if (!diff) return '<span class="muted">변동 없음</span>';
+    return `<span class="${diff > 0 ? 'up' : 'down'}">${diff > 0 ? '▲' : '▼'} ${num(Math.abs(diff))}${unit} (${pct > 0 ? '+' : ''}${pct}%)</span>`;
+  };
+
+  // ===== 최상단: 관리자 공지 콜아웃 =====
+  // 게시판관리 > 관리자 공지에서 등록한 공지(notice-store.js). 중요 공지가 위, 그다음 최신순
+  // 한 번에 하나만 보여주고 ROTATE_MS마다 다음 공지로 자동 전환. 마우스를 올리면 멈춤. 내용은 첫 줄만, 더보기 → 관리자 공지 화면(그 공지가 펼쳐짐)
+  const ROTATE_MS = 5000;
+  let notices = [], noticeIdx = 0, noticeTimer = null, noticePaused = false;
+
+  function renderNotices() {
+    notices = NoticeStore.visible();   // 게시 기한 안에 있는 공지만
+    noticeIdx = 0;
+    $('noticeCount').textContent = `게시 중 ${notices.length}건 · 중요 ${notices.filter(n => n.type === '중요').length}건`;
+    showNotice();
+    startRotate();
+  }
+  function showNotice() {
+    const n = notices[noticeIdx];
+    $('noticePos').textContent = notices.length ? `${noticeIdx + 1} / ${notices.length}` : '0 / 0';
+    $('btnNoticeMore').href = n ? `board-admin-notice.html?view=${encodeURIComponent(n.id)}` : 'board-admin-notice.html';
+    $('noticeList').innerHTML = n ? `
+      <li class="${n.type === '중요' ? 'important' : ''}">
+        ${n.type === '중요' ? '<span class="badge nt-imp">중요</span>' : '<span class="badge">공지</span>'}
+        <span class="notice-text"><b><span class="notice-cat">[${esc(n.category)}]</span>${esc(n.title)}</b><span class="one-line" title="${esc(n.body)}">${esc(NoticeStore.firstLine(n.body))}</span></span>
+        <span class="notice-meta">${esc(n.by)} · ${esc(n.at)}</span>
+      </li>` : '<li><span class="notice-text muted">등록된 공지가 없습니다. 더보기에서 공지를 입력하세요.</span></li>';
+  }
+  const moveNotice = step => { if (!notices.length) return; noticeIdx = (noticeIdx + step + notices.length) % notices.length; showNotice(); };
+  function startRotate() {
+    clearInterval(noticeTimer);
+    if (notices.length < 2) return;
+    noticeTimer = setInterval(() => { if (!noticePaused && document.visibilityState !== 'hidden') moveNotice(1); }, ROTATE_MS);
+  }
+  $('noticePrev').addEventListener('click', () => { moveNotice(-1); startRotate(); });
+  $('noticeNext').addEventListener('click', () => { moveNotice(1); startRotate(); });
+  $('noticeTicker').addEventListener('mouseenter', () => { noticePaused = true; });
+  $('noticeTicker').addEventListener('mouseleave', () => { noticePaused = false; });
+  renderNotices();
+
+  // ===== 상단 왼쪽: 주문·제작 현황 카드 =====
+  // 입금대기 = 무통장입금 미입금 주문 건수. 그 외 = 기간 안 주문의 상품별 제작상태 건수 (취소 상품 제외)
+  //   출고완료 = 제작상태 배송중 중 공정이 출고완료 단계(택배 집하 전), 배송중 = 공정 배송중 단계
+  const stepOf = it => it.flow.steps[it.flow.step];
+  const CARDS = [
+    { key: 'unpaid', label: '입금대기', unit: '건', href: 'unpaid-orders.html', dot: '#f59e0b', count: p => ORDERS.filter(o => inRange(o.orderDate, p) && OrderData.isUnpaid(o)).length },
+    { key: 'ordered', label: '주문완료', unit: '건', href: 'ordered-orders.html', dot: '#8b5cf6', count: p => items(p).filter(it => it.status === '주문완료').length },
+    { key: 'making', label: '제작중', unit: '건', href: 'making-orders.html', dot: '#2563eb', count: p => items(p).filter(it => it.status === '제작중').length },
+    { key: 'out', label: '출고완료', unit: '건', href: 'shipping-orders.html', dot: '#0ea5e9', count: p => items(p).filter(it => it.status === '배송중' && stepOf(it) === '출고완료').length },
+    { key: 'shipping', label: '배송중', unit: '건', href: 'shipping-orders.html', dot: '#14b8a6', count: p => items(p).filter(it => it.status === '배송중' && stepOf(it) !== '출고완료').length },
+    { key: 'delivered', label: '배송완료', unit: '건', href: 'delivered-orders.html', dot: '#16a34a', count: p => items(p).filter(it => it.status === '배송완료').length },
+    // 주문취소 = 기간 안 주문 중 취소된 상품 건수 (전체취소·부분취소 모두, 상품 기준)
+    { key: 'canceled', label: '주문취소', unit: '건', href: 'canceled-orders.html', dot: '#dc2626', count: p => ORDERS.filter(o => inRange(o.orderDate, p)).flatMap(o => o.items).filter(it => it.payStatus === '취소').length }
+  ];
+  const items = p => ORDERS.filter(o => inRange(o.orderDate, p)).flatMap(o => o.items.filter(it => it.payStatus !== '취소'));
+
+  function renderCards(days) {
+    const p = periodOf(days);
+    $('statusCards').innerHTML = CARDS.map(c => `
+      <a class="kpi dash-card" href="${c.href}" title="${c.label} 목록으로">
+        <div class="kpi-label"><span class="dot" style="--dot:${c.dot}"></span>${c.label}</div>
+        <div class="kpi-value">${num(c.count(p))}<span class="unit">${c.unit}</span></div>
+        <div class="kpi-sub">${periodLabel(days)} 주문</div>
+      </a>`).join('');
+  }
+
+  // ===== 상단 오른쪽: 사이트 운영 이슈 (현재 상태) =====
+  // 건수가 있는 항목을 위로, 없는 항목은 흐리게. 누르면 해당 관리 화면으로
+  const liveItems = ORDERS.flatMap(o => o.items.filter(it => it.payStatus !== '취소').map(it => ({ o, it })));
+  const inquiries = members.flatMap(m => (m.inquiries || []).map(q => ({ m, q })));
+  const ISSUES = [
+    { label: '미입금 3일 이상 경과 주문', href: 'unpaid-orders.html', hint: '입금 확인 또는 고객 안내 필요',
+      count: ORDERS.filter(o => OrderData.isUnpaid(o) && o.orderDate <= daysAgo(3)).length },
+    { label: '후결제 수령 후 미입금 주문', href: 'postpay-orders.html', hint: '배송완료됐지만 입금이 끝나지 않은 후결제',
+      count: ORDERS.filter(o => OrderData.isPostpayOrder(o) && OrderData.isWaiting(o) && o.status === '배송완료').length },
+    { label: '외주 의뢰 대기 상품', href: 'outsource-orders.html', hint: '결제는 끝났지만 아직 제작처에 의뢰하지 않음',
+      count: liveItems.filter(x => OrderData.isRequestWaiting(x.it)).length },
+    { label: '주문완료 후 2일 이상 제작 미시작', href: 'ordered-orders.html', hint: '공정 주문접수 단계에 머문 상품',
+      count: liveItems.filter(x => x.it.status === '주문완료' && x.o.orderDate <= daysAgo(2)).length },
+    // 최근 30일 안에 출고된 상품만 (샘플에는 오래된 배송중 상품이 많아 그대로 세면 수백 건이 됨)
+    { label: '출고 후 3일 이상 배송중', href: 'shipping-orders.html', hint: '택배 배송 지연 확인 (최근 30일 출고분)',
+      count: liveItems.filter(x => x.it.status === '배송중' && x.o.shippedAt && x.o.shippedAt <= daysAgo(3) && x.o.shippedAt >= daysAgo(30)).length },
+    { label: '단체회원 신청 승인 대기', href: 'group-applications.html', hint: '사업자 정보 확인 후 승인·반려',
+      count: applications.filter(a => a.status === '대기').length }
+  ];
+  function renderIssues() {
+    const list = ISSUES.slice().sort((a, b) => b.count - a.count);
+    $('issueList').innerHTML = list.map(i => `
+      <li class="${i.count ? 'has' : 'none'}">
+        <a href="${i.href}">
+          <span class="issue-dot"></span>
+          <span class="issue-label">${esc(i.label)}<small>${esc(i.hint)}</small></span>
+          <b class="issue-count">${i.count ? `${num(i.count)}건` : '없음'}</b>
+        </a>
+      </li>`).join('');
+  }
+
+  // ===== 하단 왼쪽: 주요 현황 (매출 · 주문 · 회원) =====
+  // 매출 = 결제가 끝난 주문(결제완료·부분취소)의 총 결제금액 합계 (주문일 기준). 주문 = 기간 안 주문 건수 (전체취소 포함, 따로 표시). 회원 = 신규 가입
+  function mainStats(p) {
+    const ords = ORDERS.filter(o => inRange(o.orderDate, p));
+    const paid = ords.filter(o => ['결제완료', '부분취소'].includes(o.payStatus));
+    const sales = paid.reduce((t, o) => t + o.payment.total, 0);
+    const canceled = ords.filter(o => o.payStatus === '전체취소').length;
+    const joined = members.filter(m => inRange(m.joinDate, p)).length;
+    const apps = applications.filter(a => inRange(a.appliedAt, p)).length;
+    return { sales, paidCount: paid.length, orders: ords.length, canceled, avg: paid.length ? Math.round(sales / paid.length) : 0, joined, apps,
+      qty: ords.filter(o => o.payStatus !== '전체취소').reduce((t, o) => t + o.qty, 0) };
+  }
+  // 탭별 지표: 합계(headline)와 추이 데이터(기간 안 일별, 오늘은 시간별)
+  //   매출 = 결제가 끝난 주문의 총 결제금액 / 주문 = 주문 건수 / 회원 = 신규 가입 (가입일만 있어 '오늘'은 한 칸)
+  const isPaid = o => ['결제완료', '부분취소'].includes(o.payStatus);
+  const METRICS = {
+    sales: { label: '매출', href: 'paid-orders.html', fmt: won, unit: '원',
+      head: (c, p) => [won(c.sales), `결제 ${num(c.paidCount)}건 · 건당 평균 ${won(c.avg)}`, delta(c.sales, p.sales, '원')],
+      points: (o, add) => { if (isPaid(o)) add(o.orderedAt, o.payment.total); } },
+    orders: { label: '주문', href: 'orders.html', fmt: n => `${num(n)}건`, unit: '건',
+      head: (c, p) => [`${num(c.orders)}건`, `제작 부수 ${num(c.qty)}부${c.canceled ? ` · 전체취소 ${num(c.canceled)}건` : ''}`, delta(c.orders, p.orders, '건')],
+      points: (o, add) => add(o.orderedAt, 1) },
+    members: { label: '회원', href: 'members.html', fmt: n => `${num(n)}명`, unit: '명',
+      head: (c, p) => [`${num(c.joined)}명`, `신규 가입${c.apps ? ` · 단체회원 신청 ${num(c.apps)}건` : ''}`, delta(c.joined, p.joined, '명')],
+      points: null }
+  };
+  let mainTab = 'sales', mainDays = 7;
+
+  // 구간 나누기: 오늘 = 0~23시, 그 외 = from~to 일별. 반환: [{ key, label, value }]
+  function trendBuckets(key, days) {
+    const p = periodOf(days), m = METRICS[key];
+    const buckets = [];
+    const idx = {};
+    if (days === 0 && m.points) {
+      for (let h = 0; h < 24; h++) { idx[pad(h)] = buckets.length; buckets.push({ key: pad(h), label: `${h}시`, value: 0 }); }
+    } else {
+      for (let i = days; i >= 0; i--) { const d = daysAgo(i); idx[d] = buckets.length; buckets.push({ key: d, label: d.slice(5), value: 0 }); }
+    }
+    const add = (at, v) => { const k = days === 0 && m.points ? at.slice(11, 13) : at.slice(0, 10); if (k in idx) buckets[idx[k]].value += v; };
+    if (m.points) ORDERS.forEach(o => { if (inRange(o.orderDate, p)) m.points(o, add); });
+    else members.forEach(mm => { if (inRange(mm.joinDate, p)) add(mm.joinDate, 1); });
+    return buckets;
+  }
+
+  function renderMain(days) {
+    mainDays = days;
+    const m = METRICS[mainTab];
+    const cur = mainStats(periodOf(days)), prev = mainStats(prevOf(days));
+    const [value, sub, d] = m.head(cur, prev);
+    $('mainHead').innerHTML = `
+      <a class="trend-value" href="${m.href}" title="${esc(m.label)} 관련 목록으로"><b>${value}</b><small>${sub}</small></a>
+      <span class="stat-delta">${d}<small>${esc(prevLabel(days))} 대비</small></span>`;
+    const data = trendBuckets(mainTab, days);
+    $('mainChartNote').textContent = days === 0 ? (m.points ? '오늘 시간별' : '오늘 (가입일 기준, 시간 정보 없음)') : `${periodLabel(days)} 일별 ${m.label}`;
+    columnChart($('mainChart'), data, m.fmt, `${m.label}`);
+  }
+
+  // ===== 막대 추이 그래프 (단일 계열, 인라인 SVG) =====
+  // 막대 ≤ 24px, 위쪽 4px 둥글게, 막대 사이 2px 이상 여백, 가로 보조선 1px, 최댓값만 직접 표시. 막대 위에 올리면 말풍선(값 + 구간)
+  function columnChart(box, data, fmt, name) {
+    const W = Math.max(280, box.clientWidth || 520), H = 190;
+    const padL = 54, padR = 8, padT = 18, padB = 26;
+    const iw = W - padL - padR, ih = H - padT - padB;
+    const max = Math.max(0, ...data.map(b => b.value));
+    // 눈금 최댓값: 1·2·5 단위로 올림
+    const nice = v => { if (v <= 0) return 1; const e = Math.pow(10, Math.floor(Math.log10(v))); const f = v / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e; };
+    const top = nice(max);
+    const n = data.length, band = iw / n;
+    const bw = Math.min(24, Math.max(3, Math.floor(band - 2)));
+    const y = v => padT + ih - (v / top) * ih;
+    const ticks = [0, top / 2, top];
+    const compact = v => (v >= 1e6 ? `${(v / 1e6).toFixed(v % 1e6 ? 1 : 0)}M` : v >= 1e4 ? `${Math.round(v / 1e3)}K` : num(v));
+    const every = n <= 16 ? 1 : Math.ceil(n / 8);   // 가로 라벨 간격 (구간이 많으면 띄엄띄엄)
+    const maxIdx = max > 0 ? data.findIndex(b => b.value === max) : -1;
+    const bar = (b, i) => {
+      const x = padL + band * i + (band - bw) / 2, yv = y(b.value), h = Math.max(0, padT + ih - yv);
+      const r = Math.min(4, h, bw / 2);
+      const path = h <= 0 ? '' : `M${x},${padT + ih} v${-(h - r)} a${r},${r} 0 0 1 ${r},${-r} h${bw - 2 * r} a${r},${r} 0 0 1 ${r},${r} v${h - r} z`;
+      return `<g class="col" data-i="${i}">
+        <rect class="hit" x="${padL + band * i}" y="${padT}" width="${band}" height="${ih}" fill="transparent"></rect>
+        ${path ? `<path class="mark" d="${path}"></path>` : ''}
+        ${i === maxIdx ? `<text class="val" x="${x + bw / 2}" y="${yv - 5}" text-anchor="middle">${esc(fmt(b.value))}</text>` : ''}
+        ${i % every === 0 || n <= 16 ? `<text class="lbl" x="${padL + band * i + band / 2}" y="${H - 8}" text-anchor="middle">${esc(b.label)}</text>` : ''}
+      </g>`;
+    };
+    box.innerHTML = `<svg class="col-chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(name)} 추이 막대 그래프">
+      ${ticks.map(t => `<g><line class="grid" x1="${padL}" x2="${W - padR}" y1="${y(t)}" y2="${y(t)}"></line><text class="tick" x="${padL - 6}" y="${y(t) + 4}" text-anchor="end">${compact(t)}</text></g>`).join('')}
+      ${data.map(bar).join('')}
+    </svg><div class="chart-tip" id="mainTip" hidden></div>`;
+    // 말풍선: 막대(구간) 전체가 히트 영역. 값이 굵게, 구간명은 보조
+    const tip = () => $('mainTip');
+    box.onmousemove = e => {
+      const g = e.target.closest && e.target.closest('.col');
+      if (!g) { tip().hidden = true; box.querySelectorAll('.col.on').forEach(x => x.classList.remove('on')); return; }
+      const b = data[Number(g.dataset.i)];
+      box.querySelectorAll('.col.on').forEach(x => { if (x !== g) x.classList.remove('on'); });
+      g.classList.add('on');
+      const t = tip();
+      t.hidden = false;
+      t.innerHTML = `<b>${esc(fmt(b.value))}</b><span>${esc(b.key)}</span>`;
+      const rect = box.getBoundingClientRect();
+      const left = Math.min(rect.width - 120, Math.max(0, e.clientX - rect.left + 12));
+      t.style.left = `${left}px`;
+      t.style.top = `${Math.max(0, e.clientY - rect.top - 44)}px`;
+    };
+    box.onmouseleave = () => { tip().hidden = true; box.querySelectorAll('.col.on').forEach(x => x.classList.remove('on')); };
+  }
+
+  // 탭 전환 · 표 보기 · 창 크기 변경
+  $('mainTabs').addEventListener('click', e => {
+    const b = e.target.closest('[data-tab]');
+    if (!b) return;
+    mainTab = b.dataset.tab;
+    $('mainTabs').querySelectorAll('[data-tab]').forEach(x => { const on = x === b; x.classList.toggle('active', on); x.setAttribute('aria-selected', String(on)); });
+    renderMain(mainDays);
+  });
+  let resizeTimer = null;
+  window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => renderMain(mainDays), 150); });
+  const statRow = (label, value, sub, d, href, prevText) => `
+    <a class="stat-row" href="${href}">
+      <span class="stat-label">${esc(label)}</span>
+      <span class="stat-main"><b>${value}</b><small>${sub}</small></span>
+      <span class="stat-delta">${d}<small>${esc(prevText)} 대비</small></span>
+    </a>`;
+
+  // ===== 하단 오른쪽: 클레임 현황 (문의 · 취소/환불 · 교환/반품) =====
+  // 문의 = 회원 문의 (문의일 기준, 답변대기 건수 함께). 취소/환불 = 취소된 상품이 있는 주문 (주문일 기준, 취소금액 합계)
+  // 교환/반품 = '교환/반품' 유형 문의 (샘플에 교환·반품 접수 데이터가 없어 문의로 대신함). TODO: 실서비스에서는 클레임 접수 데이터
+  // 이용후기 샘플: 배송완료 주문의 약 35%가 배송완료 1~3일 뒤 후기를 남김 (별점 1~5, 4~5점이 대부분). 주문번호로 정해 다른 샘플에 영향 없음
+  // TODO: 실서비스에서는 후기 데이터(GET /api/admin/reviews). 후기 관리 화면은 아직 없음
+  const REVIEWS = ORDERS.filter(o => o.status === '배송완료' && o.delivery.doneAt).flatMap(o => {
+    let s = [...`${o.orderNo}#review`].reduce((h, c) => (h * 71 + c.charCodeAt(0)) % 233280, 41);
+    const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    if (r() >= 0.35) return [];
+    const done = new Date(o.delivery.doneAt.replace(' ', 'T'));
+    const at = new Date(Math.min(TODAY.getTime() + 86399000, done.getTime() + (1 + Math.floor(r() * 3)) * 86400000));
+    const x = r();
+    const rating = x < 0.45 ? 5 : x < 0.8 ? 4 : x < 0.9 ? 3 : x < 0.96 ? 2 : 1;
+    return [{ orderNo: o.orderNo, at: fmtDate(at), rating }];
+  });
+
+  // 취소 요청 · 교환/반품 = 클레임 신청 데이터(claim-data.js, 신청일 기준)
+  function claimStats(p) {
+    const inq = inquiries.filter(x => inRange(x.q.at, p));
+    const rv = REVIEWS.filter(v => inRange(v.at, p));
+    const cancels = ClaimData.cancel.requests.filter(q => inRange(q.at, p));
+    const exch = ClaimData.exchange.requests.filter(q => inRange(q.at, p));
+    // 서류발급 = 기간 안 자동 발급 이력(사업자등록증·통장사본·견적서·거래명세서·현금영수증·세금계산서) + 별도 발급 신청 (document-data.js, 발급일·신청일 기준)
+    const docIssues = DocData.issues.filter(x => inRange(x.at, p));
+    const docReqs = DocData.requests.filter(q => inRange(q.at, p));
+    return {
+      inq: inq.length, inqWait: inq.filter(x => x.q.status === '답변대기').length,
+      docs: docIssues.length + docReqs.length, docsAuto: docIssues.length, docsReq: docReqs.length,
+      docsWait: DocData.requests.filter(q => q.status === '대기').length,   // 처리 대기는 기간과 상관없이 전체
+      cancel: cancels.length, cancelWait: cancels.filter(q => q.status === '대기').length, cancelAmount: cancels.filter(q => q.status === '승인').reduce((t, q) => t + q.refundAmount, 0),
+      exch: exch.length, exchWait: exch.filter(q => q.status === '대기').length, exchChange: exch.filter(q => q.type === '교환').length, exchReturn: exch.filter(q => q.type === '반품').length,
+      reviews: rv.length, reviewAvg: rv.length ? rv.reduce((t, v) => t + v.rating, 0) / rv.length : 0, reviewLow: rv.filter(v => v.rating <= 2).length
+    };
+  }
+  function renderClaims(days) {
+    const cur = claimStats(periodOf(days)), prev = claimStats(prevOf(days));
+    $('claimStats').innerHTML = [
+      ['1:1 문의', `${num(cur.inq)}건`, cur.inqWait ? `답변대기 <b class="warn">${num(cur.inqWait)}건</b>` : '답변대기 없음', delta(cur.inq, prev.inq, '건'), 'board-inquiry.html'],
+      ['서류발급', `${num(cur.docs)}건`, `자동 발급 ${num(cur.docsAuto)} · 별도 신청 ${num(cur.docsReq)}${cur.docsWait ? ` · 처리대기 <b class="warn">${num(cur.docsWait)}건</b>` : ''}`, delta(cur.docs, prev.docs, '건'), 'claim-documents.html'],
+      ['취소 요청', `${num(cur.cancel)}건`, `${cur.cancelWait ? `승인대기 <b class="warn">${num(cur.cancelWait)}건</b> · ` : ''}환불 ${won(cur.cancelAmount)}`, delta(cur.cancel, prev.cancel, '건'), 'claim-cancel.html'],
+      ['교환/반품', `${num(cur.exch)}건`, `교환 ${num(cur.exchChange)} · 반품 ${num(cur.exchReturn)}${cur.exchWait ? ` · 승인대기 <b class="warn">${num(cur.exchWait)}건</b>` : ''}`, delta(cur.exch, prev.exch, '건'), 'claim-exchange.html'],
+      // 이용후기: 건수 + 평균 별점, 2점 이하 낮은 평점은 확인이 필요해 강조 (후기 관리 화면이 없어 배송 완료 목록으로 연결)
+      ['이용후기', `${num(cur.reviews)}건`, cur.reviews ? `평균 ★ ${cur.reviewAvg.toFixed(1)}${cur.reviewLow ? ` · 낮은 평점(2점 이하) <b class="warn">${num(cur.reviewLow)}건</b>` : ' · 낮은 평점 없음'}` : '등록된 후기 없음', delta(cur.reviews, prev.reviews, '건'), 'board-review.html']
+    ].map(([label, value, sub, d, href]) => statRow(label, value, sub, d, href, prevLabel(days))).join('');
+  }
+
+  // ===== 기간 선택 (상단 카드 패널에서 한 번 고르면 아래 주요 현황·클레임 현황도 같은 기간으로) =====
+  function renderAll(days) {
+    renderCards(days);
+    renderMain(days);
+    renderClaims(days);
+    document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = periodLabel(days); });
+  }
+  $('periodRange').addEventListener('click', e => {
+    const b = e.target.closest('[data-days]');
+    if (!b) return;
+    $('periodRange').querySelectorAll('[data-days]').forEach(x => x.classList.toggle('btn-adjust', x === b));
+    renderAll(Number(b.dataset.days));
+  });
+  renderAll(7);
+  renderIssues();
+  initSidebar();
+})();
+</script>
+</body>
+</html>

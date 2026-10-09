@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>스탑북 관리자 - 취소 환불 관리</title>
+<title>스탑북 관리자 - 취소 요청 관리</title>
 <link rel="stylesheet" href="admin.css?v=20261179">
 </head>
 <body>
 <div class="layout">
   <aside class="sidebar">
-    <div class="logo">STOPBOOK Admin</div>
+    <a class="logo" href="dashboard.html" title="대시보드">STOPBOOK Admin</a>
     <ul>
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">회원관리<span class="chev">▼</span></a>
@@ -18,6 +18,15 @@
           <li><a href="group-applications.html">단체 회원 신청 관리</a></li>
           <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
           <li><a href="member-types.html">회원 유형 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">메시지전송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="message-send.html">메시지 전송</a></li>
+          <li><a href="message-sms.html">SMS 발송 관리</a></li>
+          <li><a href="message-alimtalk.html">알림톡 발송 관리</a></li>
+          <li><a href="message-email.html">이메일 발송 관리</a></li>
         </ul>
       </li>
       <li class="has-sub">
@@ -45,8 +54,25 @@
       <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">클레임관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="claim-cancel.html" class="active" aria-current="page">취소 환불 관리</a></li>
+          <li><a href="claim-cancel.html" class="active" aria-current="page">취소 요청 관리</a></li>
           <li><a href="claim-exchange.html">교환 반품 관리</a></li>
+          <li><a href="claim-documents.html">서류 발급 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-all.html">게시판 통합 관리</a></li>
+          <li><a href="board-notice.html">공지사항 관리</a></li>
+          <li><a href="board-faq.html">FAQ 관리</a></li>
+          <li><a href="board-admin-notice.html">관리자 공지</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
+          <li><a href="board-review.html">이용후기 관리</a></li>
         </ul>
       </li>
     </ul>
@@ -54,28 +80,507 @@
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 클레임관리 &gt; <b>취소 환불 관리</b></div>
+      <div class="breadcrumb">홈 &gt; 클레임관리 &gt; <b>취소 요청 관리</b></div>
       <div><span class="proto-ver" data-proto-version>프로토타입 v2.26 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
-        <main class="content">
-      <h1>취소 환불 관리 <span class="page-desc">결제 전 취소와 결제 취소(환불) 내역을 확인하고 처리합니다.</span></h1>
+    <main class="content">
+      <h1>취소 요청 관리 <span class="page-desc">고객의 주문 취소 요청을 확인하고 승인·반려합니다. 취소 신청은 공정이 리핑완료까지인 상품만 가능하며, 승인하면 해당 상품이 취소 처리되고 환불이 진행됩니다.</span></h1>
 
-      <!-- 빈 페이지: 화면 구성 예정 -->
+      <!-- 상태 탭 (건수는 검색 결과 기준) -->
+      <div class="tabs" role="tablist" id="statusTabs"></div>
+
+      <!-- 검색 조건 (통합 주문 관리와 같은 구성): 검색어 + 기간이 기본, 상세검색은 접어 둠. 위 상태 탭과 함께 적용 -->
+      <form class="panel" id="searchForm" novalidate>
+        <div class="search-row">
+          <div class="search-grid order-search">
+            <div class="field f-keyword">
+              <label for="sType">검색어</label>
+              <select id="sType" style="flex:0 0 110px">
+                <option value="all">전체</option>
+                <option value="orderNo">주문번호</option>
+                <option value="name">주문자명</option>
+                <option value="recipient">수취인명</option>
+                <option value="userId">아이디</option>
+                <option value="email">이메일</option>
+                <option value="phone">휴대폰</option>
+                <option value="product">상품명</option>
+              </select>
+              <input type="text" id="sKeyword" placeholder="검색어 입력">
+            </div>
+            <div class="field f-period">
+              <label for="sDateType">기간</label>
+              <select id="sDateType" style="flex:0 0 100px">
+                <option value="at">신청일</option>
+                <option value="orderedAt">주문일</option>
+                <option value="processedAt">처리일</option>
+              </select>
+              <div class="range">
+                <input type="date" id="sFrom" aria-label="기간 시작"> ~ <input type="date" id="sTo" aria-label="기간 종료">
+              </div>
+              <div class="quick-range" role="group" aria-label="기간 빠른 선택">
+                <button type="button" class="btn btn-xs" data-days="0">오늘</button>
+                <button type="button" class="btn btn-xs" data-days="7">7일</button>
+                <button type="button" class="btn btn-xs" data-days="30">1개월</button>
+                <button type="button" class="btn btn-xs" data-days="90">3개월</button>
+                <button type="button" class="btn btn-xs" data-days="all">전체</button>
+              </div>
+            </div>
+          </div>
+          <div class="search-actions">
+            <button type="submit" class="btn btn-primary">검색</button>
+            <button type="button" class="btn" id="btnReset">초기화</button>
+          </div>
+        </div>
+
+        <button type="button" class="detail-toggle" id="btnDetail" aria-expanded="false" aria-controls="detailSearch">
+          상세검색 <span id="detailCount"></span><span class="chev">▼</span>
+        </button>
+        <!-- 상세검색: 드롭다운 안에서 여러 값을 체크 (아무것도 고르지 않으면 전체). 선택지는 스크립트에서 구성 -->
+        <div class="search-grid detail-search" id="detailSearch" hidden></div>
+      </form>
+
       <section class="panel">
-        <div class="empty-page">
-          <b>준비 중인 화면입니다.</b>
-          <p>취소 환불 관리 화면은 구성 예정입니다.</p>
+        <div class="list-head">
+          <div class="count" id="listGuide"></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr id="headRow"></tr></thead>
+            <tbody id="listBody"></tbody>
+          </table>
         </div>
       </section>
     </main>
   </div>
 </div>
 
+<!-- 신청 상세 / 처리 모달 -->
+<div class="modal-bg" id="modal">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-header">
+      <h2 id="modalTitle"></h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="status-banner" id="statusBanner"></div>
+
+      <div class="section-title">주문 정보 <a class="btn btn-xs" id="dOrderLink" href="#" target="_blank" style="margin-left:8px">주문 상세 열기</a></div>
+      <table class="form-table multi-col">
+        <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
+        <tr><th>주문번호</th><td class="mono" id="dOrderNo"></td><th>주문일시</th><td id="dOrderedAt"></td></tr>
+        <tr><th>주문자</th><td id="dBuyer"></td><th>결제</th><td id="dPay"></td></tr>
+        <tr><th>결제일</th><td id="dPaidAt"></td><th>총 결제금액</th><td id="dTotal"></td></tr>
+      </table>
+
+      <div class="section-title">신청 정보 <span class="section-note">고객 입력</span></div>
+      <table class="form-table multi-col">
+        <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
+        <tr><th>신청번호</th><td class="mono" id="dReqNo"></td><th>신청일시</th><td id="dAt"></td></tr>
+        <tr><th>유형</th><td id="dType"></td><th>사유</th><td id="dReason"></td></tr>
+        <tr><th>상세 내용</th><td colspan="3" id="dDetail"></td></tr>
+        <tr><th>환불 수단</th><td colspan="3" id="dRefund"></td></tr>
+      </table>
+
+      <div class="section-title">신청 상품 <span class="section-note" id="dItemNote"></span></div>
+      <!-- 승인 대기 상태에서는 상품마다 체크: 일부만 체크하면 그 상품만 취소(부분 승인), 나머지는 그대로 진행 -->
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="c-chk" id="thChk"><input type="checkbox" id="chkAllItems" checked aria-label="신청 상품 전체 선택"></th><th>상품카테고리</th><th>상품명</th><th style="text-align:right">수량</th><th style="text-align:right">결제금액</th><th>결제상태</th><th>진행상태</th><th>현재 공정</th></tr></thead>
+          <tbody id="dItems"></tbody>
+        </table>
+      </div>
+      <div class="cancel-sum" id="dItemSum"></div>
+
+      <!-- 대기 상태에서만: 환불 수단(관리자가 수정해 확정) · 환불 금액 · 관리자 메모(승인·반려 공통, 주문 상세의 관리자 메모·히스토리에 연동) -->
+      <div id="reviewBox">
+        <div class="section-title">처리</div>
+        <table class="form-table">
+          <tr><th>취소 사유 *</th><td>
+            <select id="rReason" class="w-auto" aria-label="취소 사유"></select>
+            <span class="readonly" id="rReasonHint" style="margin-left:8px"></span>
+          </td></tr>
+          <tr><th>환불 수단 *</th><td>
+            <div class="inline-row">
+              <select id="rRefund" class="w-auto" aria-label="환불 수단"></select>
+              <span class="inline-row" id="rAccountRow" hidden>
+                <input type="text" id="rBank" maxlength="20" placeholder="은행" style="width:110px">
+                <input type="text" id="rAccount" maxlength="30" placeholder="계좌번호" style="width:170px">
+                <input type="text" id="rHolder" maxlength="20" placeholder="예금주" style="width:100px">
+              </span>
+              <span class="readonly" id="rRefundHint"></span>
+            </div>
+          </td></tr>
+          <tr><th>환불 금액 *</th><td>
+            <div class="inline-row"><input type="text" id="rAmount" inputmode="numeric" class="w-num" style="width:140px"> 원 <span class="readonly" id="rAmountHint"></span></div>
+          </td></tr>
+          <tr><th>관리자 메모</th><td><input type="text" id="rMemo" maxlength="200" placeholder="처리 내용, 고객 안내 사항 등 (주문 상세의 관리자 메모·히스토리에 남음)"></td></tr>
+          <tr><th>반려 사유</th><td>
+            <textarea id="rReject" maxlength="300" placeholder="반려할 때만 입력합니다. 고객에게 안내되는 문구입니다."></textarea>
+            <div class="err" id="eReview"></div>
+          </td></tr>
+        </table>
+      </div>
+
+      <div class="section-title">처리 히스토리</div>
+      <div class="table-wrap history-wrap">
+        <table class="history-table change-table">
+          <thead><tr><th style="width:130px">일시</th><th>내용</th><th style="width:90px">담당자</th></tr></thead>
+          <tbody id="dHistory"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>닫기</button>
+      <button type="button" class="btn btn-danger" id="btnReject">반려</button>
+      <button type="button" class="btn btn-primary" id="btnApprove">승인 (취소 처리)</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="member-type-store.js?v=20261179"></script>
+<script src="member-data.js?v=20261179"></script>
+<script src="order-data.js?v=20261179"></script>
+<script src="claim-data.js?v=20261179"></script>
 <script src="feedback.js?v=20261179"></script>
-<script>AdminUtil.initSidebar();</script>
+<script>
+(function () {
+  'use strict';
+  // 취소 요청 관리: 출고 전 주문에 대한 고객 취소 요청 목록 → 확인 모달에서 주문·신청 상품을 보고 승인(주문 상품 취소 처리 + 환불) 또는 반려
+  //   승인하면 order-data.js의 취소 기록(saveCancel)에 들어가 주문 리스트·주문 상세·취소 주문 목록에 전체취소/부분취소로 표시됨
+  //   처리 후에는 화면을 다시 불러 주문 상태를 반영 (주소의 done 값으로 완료 안내). 수령 후 불량(교환·반품)은 claim-exchange.html
+  const { esc, toast, initSidebar, ADMIN_NAME } = AdminUtil;
+  const { STATUS_TEXT, orderOf, maxRefund } = ClaimData;
+  const { requests } = ClaimData.cancel;
+  const $ = id => document.getElementById(id);
+  const won = n => `${Number(n).toLocaleString()}원`;
+  const STATUSES = ['대기', '승인', '반려', '전체'];
+  const statusBadge = s => `<span class="badge st-${s}">${STATUS_TEXT[s] || s}</span>`;
+  // 유형: 취소요청(전체) = 주문 상품 전부 / 취소요청(부분) = 일부 상품만
+  const typeBadge = q => `<span class="badge ${q.scope === '부분' ? 'ps-부분취소' : 'ps-전체취소'}">취소요청(${q.scope || '전체'})</span>`;
+
+  let filter = '대기';
+  let current = null;
+  let search = null;
+  const pad = n => String(n).padStart(2, '0');
+  const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  // ===== 상세검색 항목 (다중 선택) — 통합 주문 관리와 같은 구성, 결제상태 자리에 유형(취소요청 전체/부분) =====
+  //   결제수단 · 유형 · 제작상태 · 회원구분 · 상담여부 · 배송방법
+  const CAT_TREE = MemberTypeStore.categoryTree();
+  const DETAIL_FIELDS = [
+    { key: 'payMethod', label: '결제수단', options: OrderData.PAY_METHODS.map(v => [v, v]) },
+    { key: 'scope', label: '유형', options: [['전체', '취소요청(전체)'], ['부분', '취소요청(부분)']] },
+    // 제작상태: 상품별 진행상태. 고른 상태의 상품이 하나라도 있는 주문을 찾음
+    { key: 'status', label: '제작상태', options: OrderData.ITEM_STATUS_ORDER.map(v => [v, v]) },
+    { key: 'category', label: '회원구분', options: CAT_TREE.map(c => [c.code, c.label + (c.hidden ? ' (숨김)' : '')]) },
+    // 상담여부: 관리자 메모 구분 (주문 상세 > 관리정보). 고른 구분의 메모가 있는 주문을 찾음
+    { key: 'inquiry', label: '상담여부', options: OrderData.MEMO_CATEGORIES.map(c => [c, c]) },
+    { key: 'shipMethod', label: '배송방법', options: ['택배', '방문수령', '퀵서비스'].map(v => [v, v]) }
+  ];
+  $('detailSearch').innerHTML = DETAIL_FIELDS.map(f => `
+    <div class="field">
+      <label id="lbl-${f.key}">${f.label}</label>
+      <div class="multi-select" data-key="${f.key}">
+        <button type="button" class="ms-btn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="lbl-${f.key} ms-text-${f.key}">
+          <span class="ms-text" id="ms-text-${f.key}">전체</span>
+        </button>
+        <div class="ms-panel" role="group" aria-labelledby="lbl-${f.key}" hidden>
+          <label class="ms-opt ms-all"><input type="checkbox" data-all="${f.key}" checked> 전체</label>${f.options.map(([v, t]) => `
+          <label class="ms-opt"><input type="checkbox" name="${f.key}" value="${esc(v)}"> ${esc(t)}</label>`).join('')}
+        </div>
+      </div>
+    </div>`).join('');
+  const checkedValues = key => [...document.querySelectorAll(`input[name=${key}]:checked`)].map(i => i.value);
+  const optionText = (key, v) => { const f = DETAIL_FIELDS.find(x => x.key === key); const o = f && f.options.find(x => x[0] === v); return o ? o[1] : v; };
+  function syncMulti(key) {
+    const vals = checkedValues(key);
+    document.querySelector(`[data-all=${key}]`).checked = !vals.length;
+    const text = !vals.length ? '전체' : vals.length === 1 ? optionText(key, vals[0]) : `${optionText(key, vals[0])} 외 ${vals.length - 1}`;
+    const el = $('ms-text-' + key);
+    el.textContent = text;
+    el.title = vals.map(v => optionText(key, v)).join(', ');
+    el.closest('.multi-select').classList.toggle('has-value', !!vals.length);
+  }
+  const syncAllMulti = () => DETAIL_FIELDS.forEach(f => syncMulti(f.key));
+  function closeMulti(except) {
+    document.querySelectorAll('.multi-select').forEach(ms => {
+      if (ms === except) return;
+      ms.querySelector('.ms-panel').hidden = true;
+      ms.querySelector('.ms-btn').setAttribute('aria-expanded', 'false');
+    });
+  }
+  $('detailSearch').addEventListener('click', e => {
+    const btn = e.target.closest('.ms-btn');
+    if (!btn) return;
+    const ms = btn.closest('.multi-select'), panel = ms.querySelector('.ms-panel');
+    closeMulti(ms);
+    panel.hidden = !panel.hidden;
+    btn.setAttribute('aria-expanded', String(!panel.hidden));
+    if (!panel.hidden) panel.querySelector('input').focus();
+  });
+  $('detailSearch').addEventListener('change', e => {
+    const all = e.target.dataset.all;
+    if (all) { document.querySelectorAll(`input[name=${all}]`).forEach(i => { i.checked = false; }); syncMulti(all); }
+    else if (e.target.name) syncMulti(e.target.name);
+    updateDetailCount();
+  });
+  document.addEventListener('click', e => { if (!e.target.closest('.multi-select')) closeMulti(); });
+  function updateDetailCount() {
+    const n = DETAIL_FIELDS.filter(f => checkedValues(f.key).length).length;
+    $('detailCount').textContent = n ? `(${n})` : '';
+  }
+  $('btnDetail').addEventListener('click', () => {
+    const open = $('detailSearch').hidden;
+    $('detailSearch').hidden = !open;
+    $('btnDetail').setAttribute('aria-expanded', String(open));
+  });
+
+  // ===== 기간 빠른 선택 (오늘 / 7일 / 1개월 / 3개월 / 전체) =====
+  $('searchForm').addEventListener('click', e => {
+    const b = e.target.closest('[data-days]');
+    if (!b) return;
+    const d = b.dataset.days;
+    if (d === 'all') { $('sFrom').value = ''; $('sTo').value = ''; }
+    else {
+      const today = AdminUtil.listToday();
+      $('sFrom').value = fmtDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - Number(d)));
+      $('sTo').value = fmtDate(today);
+    }
+    document.querySelectorAll('[data-days]').forEach(x => x.classList.toggle('btn-adjust', x === b));
+  });
+  ['sFrom', 'sTo'].forEach(id => $(id).addEventListener('input', () => document.querySelectorAll('[data-days]').forEach(x => x.classList.remove('btn-adjust'))));
+
+  // ===== 검색 조건 읽기 · 적용 =====
+  // 검색어는 신청·주문 정보에서, 기간은 신청일/주문일/처리일 중 고른 날짜로, 상세 조건은 항목 안에서는 '하나라도', 항목끼리는 '모두' 해당
+  function readSearch() {
+    const s = { type: $('sType').value, kw: $('sKeyword').value.trim().toLowerCase().replace(/-/g, ''), dateType: $('sDateType').value, from: $('sFrom').value, to: $('sTo').value };
+    if (s.from && s.to && s.from > s.to) { toast('기간 시작일이 종료일보다 늦습니다.'); $('sFrom').focus(); return null; }
+    DETAIL_FIELDS.forEach(f => { s[f.key] = checkedValues(f.key); });
+    return s;
+  }
+  function matches(q) {
+    if (!search) return true;
+    const o = orderOf(q);
+    if (!o) return false;
+    const fields = { reqNo: q.reqNo, orderNo: q.orderNo, name: o.name, recipient: o.recipient, userId: o.userId, email: o.email, phone: o.phone, product: o.productNames };
+    const targets = search.type === 'all' ? Object.values(fields) : [fields[search.type]];
+    const day = (search.dateType === 'orderedAt' ? o.orderDate : search.dateType === 'processedAt' ? q.processedAt : q.at).slice(0, 10);
+    const inSet = (list, v) => !list.length || list.includes(v);
+    return (!search.kw || targets.some(v => String(v || '').toLowerCase().replace(/-/g, '').includes(search.kw))) &&
+      (!(search.from || search.to) || (day && (!search.from || day >= search.from) && (!search.to || day <= search.to))) &&
+      inSet(search.payMethod, o.payMethod) && inSet(search.scope, q.scope || '전체') &&
+      (!search.status.length || o.statusCounts.some(([st]) => search.status.includes(st))) &&
+      inSet(search.category, o.categoryCode) &&
+      (!search.inquiry.length || OrderData.memoCategories(o.orderNo).some(c => search.inquiry.includes(c))) &&
+      inSet(search.shipMethod, o.shipMethod);
+  }
+
+  // ===== 목록 =====
+  const itemsText = q => { const o = orderOf(q); if (!o) return '-'; const names = q.items.map(i => o.items[i] && o.items[i].name).filter(Boolean); return names.length > 1 ? `${names[0]} 외 ${names.length - 1}종` : names[0] || '-'; };
+  function render() {
+    const base = requests.filter(matches);
+    const count = s => (s === '전체' ? base.length : base.filter(q => q.status === s).length);
+    $('statusTabs').innerHTML = STATUSES.map(s => `
+      <button type="button" role="tab" class="tab ${s === filter ? 'active' : ''}" aria-selected="${s === filter}" data-status="${s}">
+        ${s === '전체' ? '전체' : STATUS_TEXT[s]} <span class="tab-count">${count(s)}</span></button>`).join('');
+    const rows = base.filter(q => filter === '전체' || q.status === filter);
+    $('listGuide').innerHTML = (search ? `검색결과 <b>${rows.length}</b>건 · ` : '') + (filter === '대기'
+      ? '확인 버튼을 눌러 신청 내용과 주문 상품을 확인한 뒤 승인(취소 처리) 또는 반려합니다.' : `${STATUS_TEXT[filter] || filter} ${rows.length}건`);
+    // 열: 신청일시 · 주문번호 · 주문자명 · 이메일(도메인 생략) · 취소신청상품 · 취소예정금액 · 결제수단 · 취소사유 · 취소유형 · 관리
+    //   상태는 탭으로 나뉘어 있으므로 전체 탭에서만 상태 열을 보여줌. 환불 수단은 상세 모달에서 확인
+    const showStatus = filter === '전체';
+    const heads = ['신청일시', '주문번호', '주문자명', '이메일', '취소신청상품', '취소예정금액', '결제수단', '취소사유', '취소유형', ...(showStatus ? ['상태'] : []), '관리'];
+    $('headRow').innerHTML = heads.map(h => `<th${h === '관리' ? ' style="width:72px"' : h === '취소예정금액' ? ' style="text-align:right"' : ''}>${h}</th>`).join('');
+    $('listBody').innerHTML = rows.length ? rows.map(q => {
+      const o = orderOf(q);
+      return `<tr>
+        <td>${esc(q.at)}</td>
+        <td class="mono"><a class="name-link" href="order-detail.html?orderNo=${encodeURIComponent(q.orderNo)}" target="_blank">${esc(q.orderNo)}</a></td>
+        <td><b>${esc(o ? o.name : '-')}</b></td>
+        <td class="left ellip" title="${esc(o ? o.email : '')}">${esc(o ? String(o.email).split('@')[0] : '-')}</td>
+        <td class="left">${esc(itemsText(q))} <span class="muted">${q.items.length}건</span></td>
+        <td class="num">${won(q.status === '승인' ? q.refundAmount : maxRefund(q))}${q.partial ? ' <span class="muted">부분</span>' : ''}</td>
+        <td>${esc(o ? o.payMethod : '-')}</td>
+        <td class="left" title="${esc(q.detail || '')}">${esc(q.reason)}</td>
+        <td>${typeBadge(q)}</td>
+        ${showStatus ? `<td>${statusBadge(q.status)}</td>` : ''}
+        <td><button type="button" class="btn btn-sm ${q.status === '대기' ? 'btn-primary' : ''}" data-req="${esc(q.reqNo)}">확인</button></td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="${heads.length}" class="empty">해당 상태의 신청이 없습니다.</td></tr>`;
+  }
+
+  // ===== 상세 모달 =====
+  function openDetail(reqNo) {
+    const q = requests.find(x => x.reqNo === reqNo);
+    if (!q) return;
+    current = q;
+    const o = orderOf(q);
+    $('modalTitle').textContent = `취소 요청 상세 - ${q.reqNo}`;
+    $('dReqNo').textContent = q.reqNo;
+    $('dAt').textContent = q.at;
+    $('dType').innerHTML = `${typeBadge(q)} <span class="muted">${q.scope === '부분' ? '주문 상품 일부만 취소 요청' : '주문 상품 전부 취소 요청'}</span>`;
+    $('dReason').innerHTML = q.reasonRequested ? `<span class="muted">신청:</span> ${esc(q.reasonRequested)} <span class="muted">→ 확정:</span> ${esc(q.reason)}` : esc(q.reason);
+    $('dDetail').textContent = q.detail || '-';
+    // 처리 완료 후 관리자가 환불 수단을 바꿨으면 고객 신청 → 확정 순으로 표시
+    const refundText = r => `${esc(r.method)}${r.bank ? ` · ${esc(r.bank)} <span class="mono">${esc(r.account)}</span> (예금주 ${esc(r.holder)})` : ''}`;
+    $('dRefund').innerHTML = q.refundRequested
+      ? `<span class="muted">신청:</span> ${refundText(q.refundRequested)} <span class="muted">→ 확정:</span> ${refundText(q.refund)}`
+      : refundText(q.refund);
+    if (o) {
+      $('dOrderLink').href = `order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}`;
+      $('dOrderNo').textContent = o.orderNo;
+      $('dOrderedAt').textContent = o.orderedAt;
+      $('dBuyer').textContent = `${o.name} (${o.userId}) · ${o.phone}`;
+      $('dPay').innerHTML = `${esc(o.payMethod)} · <span class="badge ps-${esc(o.payStatus)}">${esc(o.payStatus)}</span>`;
+      $('dPaidAt').textContent = o.paidAt || '-';
+      $('dTotal').textContent = won(o.payment.total);
+      // 취소 사유: 고객이 고른 사유를 기본으로, 관리자가 바꿔 확정할 수 있음
+      const reasons = [...new Set([...ClaimData.CANCEL_REASONS, q.reason])];
+      $('rReason').innerHTML = reasons.map(r => `<option>${esc(r)}</option>`).join('');
+      $('rReason').value = q.reason;
+      $('rReasonHint').textContent = `고객 신청: ${q.reasonRequested || q.reason}`;
+      // 환불 수단: 고객이 신청한 수단을 기본으로, 관리자가 바꿔 확정할 수 있음
+      const methods = [`원결제수단 취소 (${o.payMethod})`, '계좌 환불', '마일리지 환불'];
+      $('rRefund').innerHTML = methods.map(m => `<option>${esc(m)}</option>`).join('');
+      $('rRefund').value = methods.includes(q.refund.method) ? q.refund.method : (q.refund.method === '계좌 환불' ? '계좌 환불' : methods[0]);
+      $('rBank').value = q.refund.bank || ''; $('rAccount').value = q.refund.account || ''; $('rHolder').value = q.refund.holder || o.name;
+      syncRefund();
+      const pending = q.status === '대기';
+      const approved = q.approvedItems || q.items;   // 처리 완료 건: 실제 취소된 상품 (부분 승인이면 일부)
+      $('dItemNote').textContent = `주문 상품 ${o.items.length}건 중 ${q.items.length}건 신청${q.partial ? ` · 그중 ${approved.length}건 부분 승인` : ''}${pending ? ' · 일부만 체크하면 그 상품만 취소됩니다' : ''}`;
+      $('thChk').hidden = !pending;
+      // 현재 공정: 취소 가능 단계(리핑완료 / 외주 의뢰완료)를 넘은 상품은 체크할 수 없고 사유를 표시
+      $('dItems').innerHTML = q.items.map(i => { const it = o.items[i]; if (!it) return ''; const ok = it.payStatus === '취소' ? false : ClaimData.canCancelItem(it) || it.cancelRequested && ClaimData.canCancelItem(Object.assign({}, it, { payStatus: '결제완료' })); return `<tr class="${(!pending && !approved.includes(i)) || (pending && !ok) ? 'off' : ''}">
+          <td class="c-chk"${pending ? '' : ' hidden'}><input type="checkbox" class="item-chk" value="${i}" ${ok ? 'checked' : 'disabled'} aria-label="${esc(it.name)} 선택"></td>
+          <td>${esc(it.category)}</td><td class="left"><b>${esc(it.name)}</b>${!pending && !approved.includes(i) ? ' <span class="muted">(승인 제외)</span>' : ''}</td><td class="num">${it.qty}부</td><td class="num">${won(it.paid || it.cancel)}</td>
+          <td><span class="badge ps-${esc(it.payStatus)}">${esc(it.payStatus)}</span></td>
+          <td>${it.status ? `<span class="badge ${MemberData.statusClass(it.status)}">${esc(it.status)}</span>` : '<span class="muted">-</span>'}</td>
+          <td>${esc(ClaimData.stepOf(it))}${pending && !ok ? ` <span class="warn" title="취소 신청은 ${esc(ClaimData.cancelLimitOf(it))}까지만 가능">취소 불가</span>` : ''}</td>
+        </tr>`; }).join('');
+      $('chkAllItems').checked = true;
+      syncItemSum();
+    }
+    renderStatus();
+    $('modal').classList.add('open');
+  }
+
+  // 환불 수단이 계좌 환불이면 은행·계좌·예금주 입력란 표시
+  const syncRefund = () => {
+    const v = $('rRefund').value;
+    $('rAccountRow').hidden = v !== '계좌 환불';
+    const q = current;
+    $('rRefundHint').textContent = `고객 신청: ${q ? q.refund.method : ''}${v === '마일리지 환불' ? ' · 승인 시 환불 금액만큼 회원 마일리지가 자동 지급됩니다' : ''}`;
+  };
+  $('rRefund').addEventListener('change', syncRefund);
+  const chosenRefund = () => ({ method: $('rRefund').value, bank: $('rRefund').value === '계좌 환불' ? $('rBank').value.trim() : '', account: $('rRefund').value === '계좌 환불' ? $('rAccount').value.trim() : '', holder: $('rRefund').value === '계좌 환불' ? $('rHolder').value.trim() : '' });
+
+  // 체크한 상품 index / 체크한 상품 결제금액 합계 → 환불 금액 기본값·최대값 갱신
+  const selectedIdx = () => [...document.querySelectorAll('#dItems .item-chk:checked')].map(c => Number(c.value));
+  function syncItemSum() {
+    const q = current, o = orderOf(q);
+    if (q.status !== '대기') {
+      $('dItemSum').innerHTML = q.status === '승인' ? `환불 금액 <b>${won(q.refundAmount)}</b> <span class="muted">(${q.partial ? '부분 승인' : '승인'} 시 확정)</span>` : `신청 상품 결제금액 합계 <b>${won(maxRefund(q))}</b>`;
+      return;
+    }
+    const idxs = selectedIdx();
+    const max = idxs.reduce((t, i) => t + (o.items[i] ? (o.items[i].paid || o.items[i].cancel) : 0), 0);
+    const partial = idxs.length && idxs.length < q.items.length;
+    $('dItemSum').innerHTML = `${partial ? `<span class="warn">부분 승인</span> · 신청 ${q.items.length}건 중 ${idxs.length}건 취소 · ` : idxs.length ? '' : '<span class="warn">취소할 상품을 하나 이상 체크하세요</span> · '}선택 상품 결제금액 합계 <b>${won(max)}</b>`;
+    $('rAmount').value = max.toLocaleString();
+    $('rAmount').dataset.max = max;
+    $('rAmountHint').textContent = `최대 ${won(max)} (비우면 전액). 이미 제작이 진행된 상품은 제작비를 뺀 금액으로 조정할 수 있습니다`;
+    $('btnApprove').textContent = partial ? `부분 승인 (${idxs.length}건 취소 처리)` : '승인 (취소 처리)';
+  }
+  $('dItems').addEventListener('change', e => { if (e.target.classList.contains('item-chk')) { $('chkAllItems').checked = selectedIdx().length === current.items.length; syncItemSum(); } });
+  $('chkAllItems').addEventListener('change', e => { document.querySelectorAll('#dItems .item-chk:not(:disabled)').forEach(c => { c.checked = e.target.checked; }); syncItemSum(); });
+
+  function renderStatus() {
+    const q = current, pending = q.status === '대기';
+    $('statusBanner').className = `status-banner st-${q.status}`;
+    $('statusBanner').innerHTML = pending
+      ? `<b>${STATUS_TEXT['대기']}</b> 신청 내용과 주문 상품을 확인한 뒤 승인하면 해당 상품이 취소 처리되고 환불이 진행됩니다.`
+      : q.status === '승인'
+        ? `<b>처리 완료${q.partial ? ' (부분 승인)' : ''}</b> ${esc(q.processedAt)} · ${esc(q.processedBy)}<div class="banner-sub">상품 ${(q.approvedItems || q.items).length}건 취소 처리${q.partial ? ` (신청 ${q.items.length}건 중)` : ''} · 환불 ${won(q.refundAmount)} (${esc(q.refund.method)})${q.memo ? ` · ${esc(q.memo)}` : ''}</div>`
+        : `<b>반려</b> ${esc(q.processedAt)} · ${esc(q.processedBy)}<div class="banner-sub">반려 사유: ${esc(q.rejectReason)}</div>`;
+    $('reviewBox').hidden = !pending;
+    $('btnApprove').hidden = !pending;
+    $('btnReject').hidden = !pending;
+    $('rMemo').value = '';
+    $('rReject').value = '';
+    $('eReview').classList.remove('show');
+    $('dHistory').innerHTML = q.history.slice().reverse().map(h => `<tr><td>${esc(h.at)}</td><td class="left">${esc(h.content)}</td><td>${esc(h.by)}</td></tr>`).join('');
+  }
+  const closeDetail = () => { $('modal').classList.remove('open'); current = null; };
+
+  // 처리 후 다시 불러 주문 상태 반영 (완료 안내는 주소의 done 값으로)
+  const reloadWith = (done, req) => location.replace(`claim-cancel.html?done=${done}&req=${encodeURIComponent(req)}&tab=${encodeURIComponent(filter)}`);
+
+  function approve() {
+    const q = current, max = Number($('rAmount').dataset.max), idxs = selectedIdx();
+    const raw = $('rAmount').value.replace(/[^\d]/g, '');
+    const amount = raw ? Number(raw) : max;
+    const refund = chosenRefund();
+    let msg = '';
+    if (!idxs.length) msg = '취소할 상품을 하나 이상 체크하세요.';
+    else if (refund.method === '계좌 환불' && (!refund.bank || !refund.account || !refund.holder)) msg = '계좌 환불은 은행·계좌번호·예금주를 모두 입력하세요.';
+    else if (!amount || amount <= 0) msg = '환불 금액은 1원 이상이어야 합니다.';
+    else if (amount > max) msg = `환불 금액은 선택 상품 결제금액 합계(${won(max)})를 넘을 수 없습니다.`;
+    $('eReview').textContent = msg;
+    $('eReview').classList.toggle('show', !!msg);
+    if (msg) return;
+    const o = orderOf(q);
+    const partial = idxs.length < q.items.length;
+    const refundText = refund.method === '계좌 환불' ? `계좌 환불 (${refund.bank} ${refund.account} ${refund.holder})` : refund.method;
+    if (!confirm(`${o.name}(${o.userId}) 회원의 취소 요청 ${q.reqNo}을(를) ${partial ? `부분 승인(신청 ${q.items.length}건 중 ${idxs.length}건)` : '승인'}하시겠습니까?\n주문 ${q.orderNo}의 상품 ${idxs.length}건이 취소 처리되고 환불 ${won(amount)}이 진행됩니다.\n환불 수단: ${refundText}${refund.method !== q.refund.method ? ` (고객 신청 '${q.refund.method}'에서 변경)` : ''}${partial ? '\n체크하지 않은 상품은 그대로 진행됩니다.' : ''}\n승인 후에는 되돌릴 수 없습니다. (주문 상세에서 취소원복은 가능)`)) return;
+    // TODO: 실서비스에서는 POST /api/admin/claims/cancel/{reqNo}/approve { items, amount, refund, memo } (PG 부분취소·환불 처리 포함)
+    const ok = ClaimData.cancel.approve(q, { items: idxs, amount, refund, reason: $('rReason').value, memo: $('rMemo').value.trim(), by: ADMIN_NAME });
+    if (!ok) { toast('저장소를 사용할 수 없어 처리하지 못했습니다.'); return; }
+    reloadWith('approved', q.reqNo);
+  }
+  function reject() {
+    const q = current, reason = $('rReject').value.trim();
+    $('eReview').textContent = reason ? '' : '반려 사유를 입력하세요. 고객에게 안내됩니다.';
+    $('eReview').classList.toggle('show', !reason);
+    if (!reason) { $('rReject').focus(); return; }
+    const o = orderOf(q);
+    if (!confirm(`${o.name}(${o.userId}) 회원의 ${q.type} 신청 ${q.reqNo}을(를) 반려하시겠습니까?\n주문은 그대로 유지됩니다.`)) return;
+    // TODO: 실서비스에서는 POST /api/admin/claims/cancel/{reqNo}/reject { reason }
+    if (!ClaimData.cancel.reject(q, reason, ADMIN_NAME)) { toast('저장소를 사용할 수 없어 처리하지 못했습니다.'); return; }
+    reloadWith('rejected', q.reqNo);
+  }
+
+  // ===== 이벤트 =====
+  $('searchForm').addEventListener('submit', e => { e.preventDefault(); closeMulti(); const s = readSearch(); if (s) { search = s; render(); } });
+  $('btnReset').addEventListener('click', () => {
+    $('searchForm').reset();
+    AdminUtil.setDefaultRange();   // 초기화하면 기간은 기본값(최근 1개월)
+    closeMulti(); syncAllMulti(); updateDetailCount();
+    search = readSearch(); render();
+  });
+  $('statusTabs').addEventListener('click', e => { const b = e.target.closest('[data-status]'); if (b) { filter = b.dataset.status; render(); } });
+  $('listBody').addEventListener('click', e => { const b = e.target.closest('[data-req]'); if (b) openDetail(b.dataset.req); });
+  $('btnApprove').addEventListener('click', approve);
+  $('btnReject').addEventListener('click', reject);
+  $('rAmount').addEventListener('input', e => { const n = e.target.value.replace(/[^\d]/g, ''); e.target.value = n ? Number(n).toLocaleString() : ''; });
+  document.querySelectorAll('#modal [data-close]').forEach(b => b.addEventListener('click', closeDetail));
+  $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeDetail(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && current) closeDetail(); });
+
+  // 처리 후 다시 불러온 경우: 그 탭으로 가고 안내
+  const qs = new URLSearchParams(location.search);
+  if (qs.get('done')) {
+    filter = qs.get('tab') && STATUSES.includes(qs.get('tab')) ? qs.get('tab') : '대기';
+    toast(qs.get('done') === 'approved' ? `${qs.get('req')} 승인 처리했습니다. 주문 상품이 취소되어 주문 리스트에 전체취소/부분취소로 표시됩니다.` : `${qs.get('req')} 반려 처리했습니다.`);
+    try { history.replaceState(null, '', 'claim-cancel.html'); } catch (err) { /* file:// 등 */ }
+  }
+  initSidebar();
+  AdminUtil.setDefaultRange();   // 처음 열면 최근 1개월 (통합 주문 관리와 같음)
+  search = readSearch();
+  render();
+})();
+</script>
 </body>
 </html>

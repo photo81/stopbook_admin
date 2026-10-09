@@ -9,7 +9,7 @@
 <body>
 <div class="layout">
   <aside class="sidebar">
-    <div class="logo">STOPBOOK Admin</div>
+    <a class="logo" href="dashboard.html" title="대시보드">STOPBOOK Admin</a>
     <ul>
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">회원관리<span class="chev">▼</span></a>
@@ -20,7 +20,15 @@
           <li><a href="member-types.html">회원 유형 관리</a></li>
         </ul>
       </li>
-      <li class="has-sub open">
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">메시지전송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="message-send.html">메시지 전송</a></li>
+          <li><a href="message-sms.html">SMS 발송 관리</a></li>
+          <li><a href="message-alimtalk.html">알림톡 발송 관리</a></li>
+          <li><a href="message-email.html">이메일 발송 관리</a></li>
+        </ul>
+      </li>      <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="orders.html" class="active" aria-current="page">통합 주문 관리</a></li>
@@ -45,11 +53,27 @@
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">클레임관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="claim-cancel.html">취소 환불 관리</a></li>
+          <li><a href="claim-cancel.html">취소 요청 관리</a></li>
           <li><a href="claim-exchange.html">교환 반품 관리</a></li>
+          <li><a href="claim-documents.html">서류 발급 관리</a></li>
         </ul>
       </li>
-    </ul>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-all.html">게시판 통합 관리</a></li>
+          <li><a href="board-notice.html">공지사항 관리</a></li>
+          <li><a href="board-faq.html">FAQ 관리</a></li>
+          <li><a href="board-admin-notice.html">관리자 공지</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
+          <li><a href="board-review.html">이용후기 관리</a></li>
+        </ul>
+      </li>    </ul>
   </aside>
 
   <div class="main">
@@ -498,6 +522,8 @@
 <script src="feedback.js?v=20261179"></script>
 <script src="member-data.js?v=20261179"></script>
 <script src="order-data.js?v=20261179"></script>
+<script src="claim-data.js?v=20261179"></script>
+<script src="document-data.js?v=20261179"></script>
 <script src="deposit-modal.js?v=20261179"></script>
 <script src="make-modal.js?v=20261179"></script>
 <script src="item-detail.js?v=20261179"></script>
@@ -672,6 +698,8 @@
       const sel = docTargets.map(i => o.items[i]);
       const paid = sel.reduce((t, it) => t + it.paid, 0);
       const saved = OrderData.addHistory(o.orderNo, '증빙', `증빙서류 발급: ${types.join(', ')} · 상품 ${sel.length}건 (${sel.map(it => it.name).join(', ')}) · 결제금액 ${won(paid)}`, AdminUtil.ADMIN_NAME);
+      // 서류 발급 관리 > 자동 발급 이력에도 관리자 발급으로 남김 (document-data.js)
+      if (window.DocData) types.forEach(t => DocData.addIssue({ docType: t, orderNo: o.orderNo, amount: paid, channel: '관리자 발급 (주문 상세)' }, AdminUtil.ADMIN_NAME));
       closeDoc();
       renderAdmin();   // 주문 히스토리 갱신
       AdminUtil.toast(`상품 ${sel.length}건에 대해 증빙서류 ${types.length}건을 발급했습니다: ${types.join(', ')}` + (saved ? '' : ' (저장소를 사용할 수 없어 이 화면에만 반영)'));
@@ -705,8 +733,9 @@
           </li>`
         : `<li data-id="${esc(mm.id)}"><span class="badge memo-badge mc-${esc(mm.category)}">${esc(mm.category)}</span><span class="memo-meta"><b>${esc(mm.by)}</b> ${esc(mm.at)}${mm.editedAt ? ` <span title="수정 ${esc(mm.editedAt)} ${esc(mm.editedBy)}">(수정됨)</span>` : ''}</span><span class="memo-text">${esc(mm.text)}</span><span class="memo-btns"><button type="button" class="btn btn-xs" data-memo-edit>수정</button><button type="button" class="btn btn-xs btn-danger" data-memo-del>삭제</button></span></li>`
       ).join('') || '<li class="memo-empty muted">등록된 메모가 없습니다.</li>';
-      // 주문 히스토리: 관리자 변경 이력 + 시스템 처리 이력을 최신순으로
-      const all = log.history.concat(OrderData.systemHistory(o)).sort((a, b) => b.at.localeCompare(a.at));
+      // 주문 히스토리: 관리자 변경 이력 + 시스템 처리 이력 + 취소 요청·교환·반품 신청/처리 이력(claim-data.js)을 최신순으로
+      const claimHist = window.ClaimData ? ClaimData.historyOf(o.orderNo) : [];
+      const all = log.history.concat(OrderData.systemHistory(o), claimHist).sort((a, b) => b.at.localeCompare(a.at));
       $('tabHistoryCount').textContent = all.length || '';
       $('historyBody').innerHTML = all.map(h => `<tr${h.by === '시스템' ? ' class="hist-system"' : ''}>
           <td>${esc(h.at)}</td><td><span class="badge hist-${esc(h.type)}">${esc(h.type)}</span></td>

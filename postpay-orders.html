@@ -9,7 +9,7 @@
 <body>
 <div class="layout">
   <aside class="sidebar">
-    <div class="logo">STOPBOOK Admin</div>
+    <a class="logo" href="dashboard.html" title="대시보드">STOPBOOK Admin</a>
     <ul>
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">회원관리<span class="chev">▼</span></a>
@@ -20,7 +20,15 @@
           <li><a href="member-types.html">회원 유형 관리</a></li>
         </ul>
       </li>
-      <li class="has-sub open">
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">메시지전송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="message-send.html">메시지 전송</a></li>
+          <li><a href="message-sms.html">SMS 발송 관리</a></li>
+          <li><a href="message-alimtalk.html">알림톡 발송 관리</a></li>
+          <li><a href="message-email.html">이메일 발송 관리</a></li>
+        </ul>
+      </li>      <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="orders.html">통합 주문 관리</a></li>
@@ -45,11 +53,27 @@
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">클레임관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="claim-cancel.html">취소 환불 관리</a></li>
+          <li><a href="claim-cancel.html">취소 요청 관리</a></li>
           <li><a href="claim-exchange.html">교환 반품 관리</a></li>
+          <li><a href="claim-documents.html">서류 발급 관리</a></li>
         </ul>
       </li>
-    </ul>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-all.html">게시판 통합 관리</a></li>
+          <li><a href="board-notice.html">공지사항 관리</a></li>
+          <li><a href="board-faq.html">FAQ 관리</a></li>
+          <li><a href="board-admin-notice.html">관리자 공지</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
+          <li><a href="board-review.html">이용후기 관리</a></li>
+        </ul>
+      </li>    </ul>
   </aside>
 
   <div class="main">
@@ -173,6 +197,7 @@
 <script src="feedback.js?v=20261179"></script>
 <script src="member-data.js?v=20261179"></script>
 <script src="order-data.js?v=20261179"></script>
+<script src="claim-data.js?v=20261179"></script>
 <script src="deposit-modal.js?v=20261179"></script>
 <script src="item-detail.js?v=20261179"></script>
 <script src="order-list.js?v=20261179"></script>

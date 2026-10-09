@@ -9,7 +9,7 @@
 <body>
 <div class="layout">
   <aside class="sidebar">
-    <div class="logo">STOPBOOK Admin</div>
+    <a class="logo" href="dashboard.html" title="대시보드">STOPBOOK Admin</a>
     <ul>
       <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">회원관리<span class="chev">▼</span></a>
@@ -21,6 +21,14 @@
         </ul>
       </li>
       <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">메시지전송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="message-send.html">메시지 전송</a></li>
+          <li><a href="message-sms.html">SMS 발송 관리</a></li>
+          <li><a href="message-alimtalk.html">알림톡 발송 관리</a></li>
+          <li><a href="message-email.html">이메일 발송 관리</a></li>
+        </ul>
+      </li>      <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="orders.html">통합 주문 관리</a></li>
@@ -45,11 +53,27 @@
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">클레임관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="claim-cancel.html">취소 환불 관리</a></li>
+          <li><a href="claim-cancel.html">취소 요청 관리</a></li>
           <li><a href="claim-exchange.html">교환 반품 관리</a></li>
+          <li><a href="claim-documents.html">서류 발급 관리</a></li>
         </ul>
       </li>
-    </ul>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-all.html">게시판 통합 관리</a></li>
+          <li><a href="board-notice.html">공지사항 관리</a></li>
+          <li><a href="board-faq.html">FAQ 관리</a></li>
+          <li><a href="board-admin-notice.html">관리자 공지</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
+          <li><a href="board-review.html">이용후기 관리</a></li>
+        </ul>
+      </li>    </ul>
   </aside>
 
   <div class="main">
@@ -256,7 +280,7 @@
   // 승인 대기·반려: 고객이 신청한 구분 > 종류 / 승인·해제·만료: 관리자가 승인하며 지정한 구분 > 종류
   // 배지 색은 전체 회원 관리와 같게 (기본 구분·단체는 고정색, 그 외는 기본 점). 삭제된 구분은 저장된 이름에 '(삭제됨)'
   const ALL_CATS = MemberTypeStore.categoryTree();
-  const catClass = code => (code === 'normal' ? '일반' : code === 'group' ? '단체' : 'etc');
+  const catClass = code => (code === 'normal' ? '일반' : '단체');   // 기본 구분 외(기관·학교·유치원·어린이집·회사·단체)는 사업자 구분 색
   const shownCategory = a => (a.status === '대기' || a.status === '반려' || !a.assignCategoryCode)
     ? { code: a.reqCategoryCode, name: a.reqCategory, kind: a.groupType }
     : { code: a.assignCategoryCode, name: a.assignCategory, kind: a.assignKind };

@@ -9,7 +9,7 @@
 <body>
 <div class="layout">
   <aside class="sidebar">
-    <div class="logo">STOPBOOK Admin</div>
+    <a class="logo" href="dashboard.html" title="대시보드">STOPBOOK Admin</a>
     <ul>
       <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">회원관리<span class="chev">▼</span></a>
@@ -21,6 +21,14 @@
         </ul>
       </li>
       <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">메시지전송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="message-send.html">메시지 전송</a></li>
+          <li><a href="message-sms.html">SMS 발송 관리</a></li>
+          <li><a href="message-alimtalk.html">알림톡 발송 관리</a></li>
+          <li><a href="message-email.html">이메일 발송 관리</a></li>
+        </ul>
+      </li>      <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="orders.html">통합 주문 관리</a></li>
@@ -45,11 +53,27 @@
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">클레임관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="claim-cancel.html">취소 환불 관리</a></li>
+          <li><a href="claim-cancel.html">취소 요청 관리</a></li>
           <li><a href="claim-exchange.html">교환 반품 관리</a></li>
+          <li><a href="claim-documents.html">서류 발급 관리</a></li>
         </ul>
       </li>
-    </ul>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-all.html">게시판 통합 관리</a></li>
+          <li><a href="board-notice.html">공지사항 관리</a></li>
+          <li><a href="board-faq.html">FAQ 관리</a></li>
+          <li><a href="board-admin-notice.html">관리자 공지</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
+          <li><a href="board-review.html">이용후기 관리</a></li>
+        </ul>
+      </li>    </ul>
   </aside>
 
   <div class="main">
@@ -99,7 +123,7 @@
         <div class="search-grid detail-search" id="detailSearch" hidden>
           <div class="field">
             <label for="sCategory">회원구분</label>
-            <select id="sCategory"><option value="">전체</option><option>일반</option><option>단체</option></select>
+            <select id="sCategory"><option value="">전체</option><option>일반</option><option>기관</option><option>학교</option><option>유치원</option><option>어린이집</option><option>회사</option><option>단체</option></select>
           </div>
           <div class="field">
             <label for="sMemberType">가입유형</label>
@@ -297,7 +321,7 @@
   const pad = n => String(n).padStart(2, '0');
   const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const DAY = 86400000;
-  const base = new Date(2026, 9, 1).getTime();
+  const base = new Date(2026, 9, 8).getTime();   // 샘플 데이터 기준일 (member-data.js base와 동일)
   const addDays = (t, n) => fmtDate(new Date(t + n * DAY));
 
   // 이메일 마스킹: 아이디 앞 2자만 남기고 나머지는 *** (2자 이하면 첫 글자만), 도메인은 그대로
@@ -327,7 +351,9 @@
     return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
   }
 
-  const KINDS = ['기관', '회사', '학교', '유치원', '어린이집', '동호회', '기타'];
+  // 회원구분 샘플 (회원 유형 관리 기본값과 같게): 일반 약 82%, 나머지는 사업자 구분. 종류는 '단체' 구분에만
+  const CATEGORIES = ['기관', '학교', '유치원', '어린이집', '회사', '단체'];
+  const KINDS = ['동호회', '협회', '기타'];
   const PRODUCTS = ['포토북', '캘린더', '액자', '팬시·굿즈'];
   const INQ_TYPES = ['주문/결제', '배송', '상품', '교환/반품', '회원정보', '기타'];
   const ETC_COMMENTS = ['원하는 사이즈가 없어서 다른 곳을 이용합니다', '모바일 편집이 자주 멈춰요', '사진 업로드가 너무 느려요', '이벤트가 적어요', '한 번만 필요했어요'];
@@ -378,7 +404,7 @@
     const emailDomain = { '카카오회원': 'kakao.com', '네이버회원': 'naver.com', '구글회원': 'gmail.com' }[memberType]
       || ['naver.com', 'gmail.com', 'daum.net', 'hanmail.net', 'nate.com'][i % 5];
     const emailLocal = ['photo', 'jiyoung', 'minsu', 'happyday', 'travel', 'sunny', 'mylove', 'family', 'hjkim', 'yeonwoo'][(i * 7) % 10] + ((i * 37) % 999 + 1);
-    const category = rand() < 0.82 ? '일반' : '단체';
+    const category = rand() < 0.82 ? '일반' : CATEGORIES[i % CATEGORIES.length];
     const rejoined = reasonType === '자진탈퇴' && rand() < 0.09;
     const withdrawDate = fmtDate(new Date(withdrawT));
 

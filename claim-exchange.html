@@ -9,7 +9,7 @@
 <body>
 <div class="layout">
   <aside class="sidebar">
-    <div class="logo">STOPBOOK Admin</div>
+    <a class="logo" href="dashboard.html" title="대시보드">STOPBOOK Admin</a>
     <ul>
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">회원관리<span class="chev">▼</span></a>
@@ -18,6 +18,15 @@
           <li><a href="group-applications.html">단체 회원 신청 관리</a></li>
           <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
           <li><a href="member-types.html">회원 유형 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">메시지전송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="message-send.html">메시지 전송</a></li>
+          <li><a href="message-sms.html">SMS 발송 관리</a></li>
+          <li><a href="message-alimtalk.html">알림톡 발송 관리</a></li>
+          <li><a href="message-email.html">이메일 발송 관리</a></li>
         </ul>
       </li>
       <li class="has-sub">
@@ -45,8 +54,25 @@
       <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">클레임관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="claim-cancel.html">취소 환불 관리</a></li>
+          <li><a href="claim-cancel.html">취소 요청 관리</a></li>
           <li><a href="claim-exchange.html" class="active" aria-current="page">교환 반품 관리</a></li>
+          <li><a href="claim-documents.html">서류 발급 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-all.html">게시판 통합 관리</a></li>
+          <li><a href="board-notice.html">공지사항 관리</a></li>
+          <li><a href="board-faq.html">FAQ 관리</a></li>
+          <li><a href="board-admin-notice.html">관리자 공지</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
+          <li><a href="board-review.html">이용후기 관리</a></li>
         </ul>
       </li>
     </ul>
@@ -58,24 +84,416 @@
       <div><span class="proto-ver" data-proto-version>프로토타입 v2.26 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
-        <main class="content">
-      <h1>교환 반품 관리 <span class="page-desc">교환·반품 요청을 확인하고 처리합니다.</span></h1>
+    <main class="content">
+      <h1>교환 반품 관리 <span class="page-desc">상품 수령 후 불량에 대한 고객의 교환(같은 상품 재제작)·반품(반품 후 환불) 신청을 확인하고 승인·반려합니다.</span></h1>
 
-      <!-- 빈 페이지: 화면 구성 예정 -->
+      <!-- 상태 탭 (건수는 검색 결과 기준) -->
+      <div class="tabs" role="tablist" id="statusTabs"></div>
+
+      <!-- 검색 조건 (위 상태 탭과 함께 적용) -->
+      <form class="panel" id="searchForm" novalidate>
+        <div class="search-row">
+          <div class="search-grid">
+            <div class="field">
+              <label for="sType">검색어</label>
+              <select id="sType" style="flex:0 0 96px">
+                <option value="all">전체</option>
+                <option value="orderNo">주문번호</option>
+                <option value="name">주문자</option>
+                <option value="userId">아이디</option>
+              </select>
+              <input type="text" id="sKeyword" placeholder="검색어 입력">
+            </div>
+            <div class="field">
+              <label>신청일</label>
+              <div class="range">
+                <input type="date" id="sFrom" aria-label="신청일 시작"> ~ <input type="date" id="sTo" aria-label="신청일 종료">
+              </div>
+            </div>
+            <div class="field">
+              <label for="sKind">유형</label>
+              <select id="sKind"><option value="">전체</option><option>교환</option><option>반품</option></select>
+            </div>
+            <div class="field">
+              <label for="sDefect">불량 유형</label>
+              <select id="sDefect"><option value="">전체</option></select>
+            </div>
+          </div>
+          <div class="search-actions">
+            <button type="submit" class="btn btn-primary">검색</button>
+            <button type="button" class="btn" id="btnReset">초기화</button>
+          </div>
+        </div>
+      </form>
+
       <section class="panel">
-        <div class="empty-page">
-          <b>준비 중인 화면입니다.</b>
-          <p>교환 반품 관리 화면은 구성 예정입니다.</p>
+        <div class="list-head">
+          <div class="count" id="listGuide"></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr id="headRow"></tr></thead>
+            <tbody id="listBody"></tbody>
+          </table>
         </div>
       </section>
     </main>
   </div>
 </div>
 
+<!-- 신청 상세 / 처리 모달 -->
+<div class="modal-bg" id="modal">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-header">
+      <h2 id="modalTitle"></h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="status-banner" id="statusBanner"></div>
+
+      <div class="section-title">주문 정보 <a class="btn btn-xs" id="dOrderLink" href="#" target="_blank" style="margin-left:8px">주문 상세 열기</a></div>
+      <table class="form-table multi-col">
+        <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
+        <tr><th>주문번호</th><td class="mono" id="dOrderNo"></td><th>주문일시</th><td id="dOrderedAt"></td></tr>
+        <tr><th>주문자</th><td id="dBuyer"></td><th>결제</th><td id="dPay"></td></tr>
+        <tr><th>배송</th><td id="dStatus"></td><th>총 결제금액</th><td id="dTotal"></td></tr>
+      </table>
+
+      <div class="section-title">신청 정보 <span class="section-note">고객 입력</span></div>
+      <table class="form-table multi-col">
+        <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
+        <tr><th>신청번호</th><td class="mono" id="dReqNo"></td><th>신청일시</th><td id="dAt"></td></tr>
+        <tr><th>유형</th><td id="dType"></td><th>불량 유형</th><td id="dReason"></td></tr>
+        <tr><th>상세 내용</th><td colspan="3" id="dDetail"></td></tr>
+        <tr><th>첨부 사진</th><td id="dPhotos"></td><th>환불 수단</th><td id="dRefund"></td></tr>
+      </table>
+
+      <div class="section-title">신청 상품 <span class="section-note" id="dItemNote"></span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:160px">상품제작번호</th><th>상품카테고리</th><th>상품명</th><th>제작처</th><th style="text-align:right">수량</th><th style="width:170px">편집내용 확인</th></tr></thead>
+          <tbody id="dItems"></tbody>
+        </table>
+      </div>
+      <div class="cancel-sum" id="dItemSum"></div>
+
+      <!-- 처리 완료 건: 입력했던 처리 내용 확인 -->
+      <div id="doneBox" hidden>
+        <div class="section-title">처리 내용</div>
+        <table class="form-table multi-col">
+          <colgroup><col class="c-th"><col><col class="c-th"><col></colgroup>
+          <tr><th>주관부서</th><td id="doneDept"></td><th>사유</th><td id="doneCause"></td></tr>
+          <tr><th>상세사유</th><td colspan="3" id="doneCauseDetail"></td></tr>
+          <tr><th>조치사항</th><td colspan="3" id="doneAction"></td></tr>
+        </table>
+      </div>
+
+      <!-- 대기 상태에서만: 주관부서·사유·상세사유·조치사항 + (반품) 환불 금액 + 관리자 메모(승인·반려 공통) -->
+      <div id="reviewBox">
+        <div class="section-title">처리</div>
+        <table class="form-table">
+          <tr><th>주관부서 *</th><td>
+            <select id="rDept" class="w-auto" aria-label="주관부서"></select>
+            <span class="readonly" style="margin-left:8px">불량 책임 부서 (제작1반 · 제작2반 · 오프셋센터 · 출력팀 · 외주제작 · 고객귀책 · 기타)</span>
+          </td></tr>
+          <tr><th>사유 *</th><td>
+            <select id="rCause" class="w-auto" aria-label="사유"></select>
+            <span class="readonly" id="rCauseHint" style="margin-left:8px"></span>
+          </td></tr>
+          <tr><th>상세사유</th><td><input type="text" id="rCauseDetail" maxlength="200" placeholder="실물 확인 결과, 불량 위치·정도 등"></td></tr>
+          <tr><th>조치사항 *</th><td>
+            <input type="text" id="rAction" maxlength="200" list="actionList" placeholder="예) 동일 사양으로 재제작 후 재출고 (무상)">
+            <datalist id="actionList"></datalist>
+          </td></tr>
+          <tr id="rowAmount"><th>환불 금액 *</th><td>
+            <div class="inline-row"><input type="text" id="rAmount" inputmode="numeric" class="w-num" style="width:140px"> 원 <span class="readonly" id="rAmountHint"></span></div>
+          </td></tr>
+          <tr id="rowRemake"><th>재제작</th><td><span class="readonly" id="rRemakeNote"></span></td></tr>
+          <tr><th>관리자 메모</th><td><input type="text" id="rMemo" maxlength="200" placeholder="불량 확인 내용, 제작처 전달 사항, 회수 방법 등 (주문 히스토리에 남음)"></td></tr>
+          <tr><th>반려 사유</th><td>
+            <textarea id="rReject" maxlength="300" placeholder="반려할 때만 입력합니다. 고객에게 안내되는 문구입니다."></textarea>
+            <div class="err" id="eReview"></div>
+          </td></tr>
+        </table>
+      </div>
+
+      <div class="section-title">처리 히스토리</div>
+      <div class="table-wrap history-wrap">
+        <table class="history-table change-table">
+          <thead><tr><th style="width:130px">일시</th><th>내용</th><th style="width:90px">담당자</th></tr></thead>
+          <tbody id="dHistory"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>닫기</button>
+      <button type="button" class="btn btn-danger" id="btnReject">반려</button>
+      <button type="button" class="btn btn-primary" id="btnApprove">승인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 첨부 사진 크게 보기 -->
+<div class="modal-bg modal-top lightbox" id="lightbox">
+  <img id="lightboxImg" alt="첨부 사진 확대">
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="member-type-store.js?v=20261179"></script>
+<script src="member-data.js?v=20261179"></script>
+<script src="order-data.js?v=20261179"></script>
+<script src="claim-data.js?v=20261179"></script>
+<script src="item-detail.js?v=20261179"></script>
 <script src="feedback.js?v=20261179"></script>
-<script>AdminUtil.initSidebar();</script>
+<script>
+(function () {
+  'use strict';
+  // 교환 반품 관리: 상품 수령 후 불량 신청 목록 → 확인 모달에서 주문·신청 상품을 보고 승인 또는 반려
+  //   교환 승인 = 같은 상품 재제작 지시 (주문 상품은 그대로, 주문 히스토리에 '교환' 기록)
+  //   반품 승인 = 반품 회수 후 신청 상품 취소 + 환불 (order-data.js 취소 기록 → 주문 리스트·상세에 전체취소/부분취소, 히스토리 '반품')
+  //   처리 후에는 화면을 다시 불러 주문 상태를 반영 (주소의 done 값으로 완료 안내)
+  const { esc, toast, initSidebar, ADMIN_NAME } = AdminUtil;
+  const { STATUS_TEXT, orderOf, maxRefund } = ClaimData;
+  const { requests } = ClaimData.exchange;
+  const $ = id => document.getElementById(id);
+  const won = n => `${Number(n).toLocaleString()}원`;
+  const STATUSES = ['대기', '승인', '반려', '전체'];
+  const statusBadge = s => `<span class="badge st-${s}">${STATUS_TEXT[s] || s}</span>`;
+  const typeBadge = t => `<span class="badge ty-${t}">${t}</span>`;
+  const DEFECTS = [...new Set(requests.map(q => q.reason))];
+  $('sDefect').innerHTML += DEFECTS.map(d => `<option>${esc(d)}</option>`).join('');
+  // 첨부 사진 예시 (구글 드라이브 공유 파일). TODO: 실서비스에서는 고객이 올린 파일 URL
+  const PHOTO_ID = '1q4Dm32veT83XFbIlvMC7fAY3n1CjVBI-';
+  const PHOTO_LINK = `https://drive.google.com/file/d/${PHOTO_ID}/view`;
+  const PHOTO_THUMB = `https://drive.google.com/thumbnail?id=${PHOTO_ID}&sz=w400`;
+  const PHOTO_FULL = `https://drive.google.com/thumbnail?id=${PHOTO_ID}&sz=w1600`;
+
+  let filter = '대기';
+  let current = null;
+  let search = null;
+
+  function readSearch() {
+    const s = { type: $('sType').value, kw: $('sKeyword').value.trim().toLowerCase(), from: $('sFrom').value, to: $('sTo').value, kind: $('sKind').value, defect: $('sDefect').value };
+    if (s.from && s.to && s.from > s.to) { toast('신청일 시작일이 종료일보다 늦습니다.'); return null; }
+    return s;
+  }
+  function matches(q) {
+    if (!search) return true;
+    const o = orderOf(q);
+    const fields = { reqNo: q.reqNo, orderNo: q.orderNo, name: o ? o.name : '', userId: o ? o.userId : '' };
+    const targets = search.type === 'all' ? Object.values(fields) : [fields[search.type]];
+    const day = q.at.slice(0, 10);
+    return (!search.kw || targets.some(v => String(v).toLowerCase().includes(search.kw))) &&
+      (!search.from || day >= search.from) && (!search.to || day <= search.to) &&
+      (!search.kind || q.type === search.kind) && (!search.defect || q.reason === search.defect);
+  }
+
+  // ===== 목록 =====
+  const itemsText = q => { const o = orderOf(q); if (!o) return '-'; const names = q.items.map(i => o.items[i] && o.items[i].name).filter(Boolean); return names.length > 1 ? `${names[0]} 외 ${names.length - 1}종` : names[0] || '-'; };
+  // 처리 열: 교환은 재제작 진행 상태, 반품은 환불 금액
+  const resultText = q => (q.status === '승인' ? (q.type === '교환' ? q.result : `${q.result} · ${won(q.refundAmount)}`) : q.status === '반려' ? '-' : (q.type === '교환' ? '재제작 (무상)' : `환불 예정 ${won(maxRefund(q))}`));
+  function render() {
+    const base = requests.filter(matches);
+    const count = s => (s === '전체' ? base.length : base.filter(q => q.status === s).length);
+    $('statusTabs').innerHTML = STATUSES.map(s => `
+      <button type="button" role="tab" class="tab ${s === filter ? 'active' : ''}" aria-selected="${s === filter}" data-status="${s}">
+        ${s === '전체' ? '전체' : STATUS_TEXT[s]} <span class="tab-count">${count(s)}</span></button>`).join('');
+    const rows = base.filter(q => filter === '전체' || q.status === filter);
+    $('listGuide').innerHTML = (search ? `검색결과 <b>${rows.length}</b>건 · ` : '') + (filter === '대기'
+      ? '확인 버튼을 눌러 불량 내용과 신청 상품을 확인한 뒤 승인(교환: 재제작 / 반품: 회수 후 환불) 또는 반려합니다.' : `${STATUS_TEXT[filter] || filter} ${rows.length}건`);
+    // 열: 신청일 · 교환/반품구분 · 주문일시 · 주문자명 · 이메일(도메인 생략) · 주문번호 · 상품번호(상품 제작 번호) · 수량 · 처리비용 · 불량구분 · (상태: 전체 탭만) · 관리
+    //   처리비용: 교환 = 무상 재제작 비용(신청 상품 결제금액 기준), 반품 = 환불 금액 (승인 후 확정액)
+    const showStatus = filter === '전체';
+    const heads = ['신청일시', '교환/반품구분', '주문일시', '주문자명', '이메일', '주문번호', '상품제작번호', '수량', '처리비용', '불량구분', ...(showStatus ? ['상태'] : []), '관리'];
+    // 열 폭: 처리비용까지는 내용에 맞게 좁게 잡고, 남는 폭은 불량구분이 차지
+    const WIDTH = { '신청일시': 128, '교환/반품구분': 96, '주문일시': 124, '주문자명': 72, '이메일': 96, '주문번호': 120, '상품제작번호': 150, '수량': 56, '처리비용': 92, '상태': 90, '관리': 72 };
+    $('headRow').innerHTML = heads.map(h => `<th${WIDTH[h] ? ` style="width:${WIDTH[h]}px${['수량', '처리비용'].includes(h) ? ';text-align:right' : ''}"` : ''}>${h}</th>`).join('');
+    $('listBody').innerHTML = rows.length ? rows.map(q => {
+      const o = orderOf(q);
+      const sel = o ? q.items.map(i => o.items[i]).filter(Boolean) : [];
+      const makeNos = sel.map(it => it.spec.makeNo);
+      const qty = sel.reduce((t, it) => t + it.qty, 0);
+      const cost = q.status === '승인' && q.type === '반품' ? q.refundAmount : maxRefund(q);
+      return `<tr>
+        <td>${esc(q.at)}</td>
+        <td>${typeBadge(q.type)}</td>
+        <td>${esc(o ? o.orderedAt.slice(0, 16) : '-')}</td>
+        <td><b>${esc(o ? o.name : '-')}</b></td>
+        <td class="left ellip" title="${esc(o ? o.email : '')}">${esc(o ? String(o.email).split('@')[0] : '-')}</td>
+        <td class="mono"><a class="name-link" href="order-detail.html?orderNo=${encodeURIComponent(q.orderNo)}" target="_blank">${esc(q.orderNo)}</a></td>
+        <td class="mono" title="${esc(makeNos.join(', '))}">${esc(makeNos[0] || '-')}${makeNos.length > 1 ? ` <span class="muted">외 ${makeNos.length - 1}</span>` : ''}</td>
+        <td class="num">${qty}부</td>
+        <td class="num" title="${q.type === '교환' ? '무상 재제작 비용 (신청 상품 결제금액 기준)' : '환불 금액'}">${won(cost)}</td>
+        <td>${esc(q.reason)}</td>
+        ${showStatus ? `<td>${statusBadge(q.status)}</td>` : ''}
+        <td><button type="button" class="btn btn-sm ${q.status === '대기' ? 'btn-primary' : ''}" data-req="${esc(q.reqNo)}">확인</button></td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="${heads.length}" class="empty">해당 상태의 신청이 없습니다.</td></tr>`;
+  }
+
+  // ===== 상세 모달 =====
+  function openDetail(reqNo) {
+    const q = requests.find(x => x.reqNo === reqNo);
+    if (!q) return;
+    current = q;
+    const o = orderOf(q);
+    $('modalTitle').textContent = `${q.type} 신청 상세 - ${q.reqNo}`;
+    $('dReqNo').textContent = q.reqNo;
+    $('dAt').textContent = q.at;
+    $('dType').innerHTML = `${typeBadge(q.type)} <span class="muted">${q.type === '교환' ? '수령 후 불량 → 같은 상품 재제작' : '수령 후 불량 → 반품 후 환불'}</span>`;
+    $('dReason').textContent = q.reason;
+    $('dDetail').textContent = q.detail || '-';
+    // 첨부 사진: 샘플은 장수만 표시. TODO: 실서비스에서는 고객이 올린 사진 미리보기
+    // 첨부 사진: 고객이 올린 불량 사진. 샘플은 같은 예시 사진(구글 드라이브)을 장수만큼 보여줌. 누르면 크게 보기, 원본 링크는 새 창
+    $('dPhotos').innerHTML = q.photos
+      ? `<div class="photo-thumbs">${Array.from({ length: q.photos }, (_, k) => `
+          <button type="button" class="photo-thumb" data-photo="${k}" title="크게 보기"><img src="${PHOTO_THUMB}" alt="첨부 사진 ${k + 1}" loading="lazy"></button>`).join('')}
+          <a class="btn btn-xs" href="${PHOTO_LINK}" target="_blank" rel="noopener">원본 보기</a></div>`
+      : '<span class="muted">없음</span>';
+    $('dRefund').innerHTML = q.refund ? `${esc(q.refund.method)}${q.refund.bank ? ` · ${esc(q.refund.bank)} <span class="mono">${esc(q.refund.account)}</span> (예금주 ${esc(q.refund.holder)})` : ''}` : '<span class="muted">해당 없음 (교환)</span>';
+    if (o) {
+      $('dOrderLink').href = `order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}`;
+      $('dOrderNo').textContent = o.orderNo;
+      $('dOrderedAt').textContent = o.orderedAt;
+      $('dBuyer').textContent = `${o.name} (${o.userId}) · ${o.phone}`;
+      $('dPay').innerHTML = `${esc(o.payMethod)} · <span class="badge ps-${esc(o.payStatus)}">${esc(o.payStatus)}</span>${o.paidAt ? ` · 결제일 ${esc(o.paidAt)}` : ''}`;
+      $('dStatus').innerHTML = `<span class="badge ${MemberData.statusClass(o.status)}">${esc(o.status || '-')}</span> <span class="muted">${esc(o.delivery.method)}${o.delivery.doneAt ? ` · 배송완료 ${esc(o.delivery.doneAt)}` : ''}</span>`;
+      $('dTotal').textContent = won(o.payment.total);
+      const sel = q.items.map(i => o.items[i]).filter(Boolean);
+      $('dItemNote').textContent = `주문 상품 ${o.items.length}건 중 ${sel.length}건 신청`;
+      // 편집내용 확인: 편집기(샘플 편집기 모달, item-detail.js) · 미리보기(스탑북 뷰어 팝업) — 불량 신청 상품의 편집 내용을 바로 확인
+      $('dItems').innerHTML = sel.map((it, k) => `<tr>
+          <td class="mono">${esc(it.spec.makeNo)}</td><td>${esc(it.category)}</td><td class="left"><b>${esc(it.name)}</b></td><td>${esc(it.maker)}</td><td class="num">${it.qty}부</td>
+          <td><div class="spec-title spec-actions">
+            <button type="button" class="btn btn-xs" data-editor="${k}" data-name="${esc(it.name)}" data-make="${esc(it.spec.makeNo)}" data-size="${esc(it.spec.size || '')}" data-pages="${esc(it.spec.basePages ? `${it.spec.basePages}p${it.spec.addPages ? `(+${it.spec.addPages}p)` : ''}` : '')}" data-service="${esc(it.spec.editService)}">편집기</button>
+            <a class="btn btn-xs" href="${esc(it.spec.viewerUrl)}" target="_blank" rel="noopener" data-viewer>미리보기</a>
+          </div></td>
+        </tr>`).join('');
+      const max = maxRefund(q);
+      $('dItemSum').innerHTML = q.type === '교환'
+        ? `재제작 대상 ${sel.length}건 · <span class="muted">무상 재제작 (상품 결제금액 ${won(max)})</span>`
+        : q.status === '승인' ? `환불 금액 <b>${won(q.refundAmount)}</b> <span class="muted">(승인 시 확정)</span>` : `신청 상품 결제금액 합계 <b>${won(max)}</b>`;
+      $('rowAmount').hidden = q.type !== '반품';
+      $('rowRemake').hidden = q.type !== '교환';
+      $('rRemakeNote').textContent = `승인하면 신청 상품 ${sel.length}건을 같은 사양으로 무상 재제작합니다. 제작처: ${[...new Set(sel.map(it => it.maker))].join(', ')}`;
+      $('rAmount').value = max.toLocaleString();
+      $('rAmount').dataset.max = max;
+      $('rAmountHint').textContent = `최대 ${won(max)} (비우면 전액). 불량 반품은 보통 전액 환불, 회수 배송비는 회사 부담`;
+      $('btnApprove').textContent = q.type === '교환' ? '승인 (재제작 진행)' : '승인 (반품 환불)';
+      // 처리 입력 기본값: 주관부서는 제작처로 짐작(디지털센터 → 제작1반, 오프셋센터 → 오프셋센터, 그 외 → 외주제작), 사유는 고객 불량 유형에서
+      const makers = [...new Set(sel.map(it => it.maker))];
+      $('rDept').innerHTML = ClaimData.DEPARTMENTS.map(d => `<option>${esc(d)}</option>`).join('');
+      $('rDept').value = makers.includes('KSI 오프셋센터') ? '오프셋센터' : makers.includes('KSI 디지털센터') ? '제작1반' : '외주제작';
+      $('rCause').innerHTML = ClaimData.CAUSES.map(c => `<option>${esc(c)}</option>`).join('');
+      $('rCause').value = ClaimData.CAUSE_OF[q.reason] || '기타';
+      $('rCauseHint').textContent = `고객 불량 유형: ${q.reason}`;
+      $('rCauseDetail').value = '';
+      $('rAction').value = '';
+      $('actionList').innerHTML = ClaimData.ACTIONS.map(a => `<option value="${esc(a)}"></option>`).join('');
+    }
+    renderStatus();
+    $('modal').classList.add('open');
+  }
+
+  function renderStatus() {
+    const q = current, pending = q.status === '대기';
+    $('statusBanner').className = `status-banner st-${q.status}`;
+    $('statusBanner').innerHTML = pending
+      ? `<b>${STATUS_TEXT['대기']}</b> 불량 내용을 확인한 뒤 승인하면 ${q.type === '교환' ? '같은 상품을 무상으로 다시 제작해 보냅니다.' : '반품을 회수하고 신청 상품을 취소 처리해 환불합니다.'}`
+      : q.status === '승인'
+        ? `<b>처리 완료</b> ${esc(q.processedAt)} · ${esc(q.processedBy)}<div class="banner-sub">${esc(q.result)}${q.type === '반품' ? ` · 환불 ${won(q.refundAmount)} (${esc(q.refund.method)})` : ''}${q.memo ? ` · ${esc(q.memo)}` : ''}</div>`
+        : `<b>반려</b> ${esc(q.processedAt)} · ${esc(q.processedBy)}<div class="banner-sub">반려 사유: ${esc(q.rejectReason)}</div>`;
+    // 처리 완료 건: 입력한 처리 내용(주관부서·사유·상세사유·조치사항) 표시
+    const p = q.status === '승인' ? q.process : null;
+    $('doneBox').hidden = !p;
+    if (p) { $('doneDept').textContent = p.dept || '-'; $('doneCause').textContent = p.cause || '-'; $('doneCauseDetail').textContent = p.causeDetail || '-'; $('doneAction').textContent = p.action || '-'; }
+    $('reviewBox').hidden = !pending;
+    $('btnApprove').hidden = !pending;
+    $('btnReject').hidden = !pending;
+    $('rMemo').value = '';
+    $('rReject').value = '';
+    $('eReview').classList.remove('show');
+    $('dHistory').innerHTML = q.history.slice().reverse().map(h => `<tr><td>${esc(h.at)}</td><td class="left">${esc(h.content)}</td><td>${esc(h.by)}</td></tr>`).join('');
+  }
+  const closeDetail = () => { $('modal').classList.remove('open'); current = null; };
+  const reloadWith = (done, req) => location.replace(`claim-exchange.html?done=${done}&req=${encodeURIComponent(req)}&tab=${encodeURIComponent(filter)}`);
+
+  function approve() {
+    const q = current, o = orderOf(q);
+    const process = { dept: $('rDept').value, cause: $('rCause').value, causeDetail: $('rCauseDetail').value.trim(), action: $('rAction').value.trim() };
+    let amount = 0, msg = '';
+    if (!process.dept) msg = '주관부서를 선택하세요.';
+    else if (!process.cause) msg = '사유를 선택하세요.';
+    else if (!process.action) msg = '조치사항을 입력하세요.';
+    if (!msg && q.type === '반품') {
+      const max = Number($('rAmount').dataset.max), raw = $('rAmount').value.replace(/[^\d]/g, '');
+      amount = raw ? Number(raw) : max;
+      if (!amount || amount <= 0) msg = '환불 금액은 1원 이상이어야 합니다.';
+      else if (amount > max) msg = `환불 금액은 신청 상품 결제금액 합계(${won(max)})를 넘을 수 없습니다.`;
+    }
+    $('eReview').textContent = msg;
+    $('eReview').classList.toggle('show', !!msg);
+    if (msg) return;
+    const text = q.type === '교환'
+      ? `주문 ${q.orderNo}의 상품 ${q.items.length}건을 같은 사양으로 무상 재제작합니다.`
+      : `주문 ${q.orderNo}의 상품 ${q.items.length}건이 취소 처리되고 환불 ${won(amount)}이 진행됩니다. (${q.refund.method})`;
+    if (!confirm(`${o.name}(${o.userId}) 회원의 ${q.type} 신청 ${q.reqNo}을(를) 승인하시겠습니까?\n${text}\n${ClaimData.processText(process)}\n승인 후에는 되돌릴 수 없습니다.`)) return;
+    // TODO: 실서비스에서는 POST /api/admin/claims/exchange/{reqNo}/approve { amount, process, memo } (교환: 재제작 주문 생성 / 반품: 회수 접수 + 환불)
+    const ok = ClaimData.exchange.approve(q, { amount, process, memo: $('rMemo').value.trim(), by: ADMIN_NAME });
+    if (!ok) { toast('저장소를 사용할 수 없어 처리하지 못했습니다.'); return; }
+    reloadWith('approved', q.reqNo);
+  }
+  function reject() {
+    const q = current, reason = $('rReject').value.trim();
+    $('eReview').textContent = reason ? '' : '반려 사유를 입력하세요. 고객에게 안내됩니다.';
+    $('eReview').classList.toggle('show', !reason);
+    if (!reason) { $('rReject').focus(); return; }
+    const o = orderOf(q);
+    if (!confirm(`${o.name}(${o.userId}) 회원의 ${q.type} 신청 ${q.reqNo}을(를) 반려하시겠습니까?\n주문은 그대로 유지됩니다.`)) return;
+    // TODO: 실서비스에서는 POST /api/admin/claims/exchange/{reqNo}/reject { reason }
+    if (!ClaimData.exchange.reject(q, reason, ADMIN_NAME)) { toast('저장소를 사용할 수 없어 처리하지 못했습니다.'); return; }
+    reloadWith('rejected', q.reqNo);
+  }
+
+  // ===== 이벤트 =====
+  $('searchForm').addEventListener('submit', e => { e.preventDefault(); const s = readSearch(); if (s) { search = s; render(); } });
+  $('btnReset').addEventListener('click', () => { $('searchForm').reset(); search = null; render(); });
+  $('statusTabs').addEventListener('click', e => { const b = e.target.closest('[data-status]'); if (b) { filter = b.dataset.status; render(); } });
+  $('listBody').addEventListener('click', e => { const b = e.target.closest('[data-req]'); if (b) openDetail(b.dataset.req); });
+  $('dItems').addEventListener('click', e => { ItemDetail.openViewer(e); });   // 미리보기: 뷰어 팝업 (편집기 버튼은 item-detail.js가 문서 전체에서 처리)
+  // 첨부 사진 크게 보기 (라이트박스)
+  $('dPhotos').addEventListener('click', e => {
+    const b = e.target.closest('[data-photo]');
+    if (!b) return;
+    $('lightboxImg').src = PHOTO_FULL;
+    $('lightboxImg').alt = `첨부 사진 ${Number(b.dataset.photo) + 1}`;
+    $('lightbox').classList.add('open');
+  });
+  $('lightbox').addEventListener('click', () => $('lightbox').classList.remove('open'));
+  $('btnApprove').addEventListener('click', approve);
+  $('btnReject').addEventListener('click', reject);
+  $('rAmount').addEventListener('input', e => { const n = e.target.value.replace(/[^\d]/g, ''); e.target.value = n ? Number(n).toLocaleString() : ''; });
+  document.querySelectorAll('#modal [data-close]').forEach(b => b.addEventListener('click', closeDetail));
+  $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeDetail(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if ($('lightbox').classList.contains('open')) $('lightbox').classList.remove('open');
+    else if (current) closeDetail();
+  });
+
+  const qs = new URLSearchParams(location.search);
+  if (qs.get('done')) {
+    filter = qs.get('tab') && STATUSES.includes(qs.get('tab')) ? qs.get('tab') : '대기';
+    const q = requests.find(x => x.reqNo === qs.get('req'));
+    toast(qs.get('done') === 'approved'
+      ? (q && q.type === '교환' ? `${qs.get('req')} 승인 처리했습니다. 재제작이 진행됩니다.` : `${qs.get('req')} 승인 처리했습니다. 주문 상품이 취소되어 주문 리스트에 전체취소/부분취소로 표시됩니다.`)
+      : `${qs.get('req')} 반려 처리했습니다.`);
+    try { history.replaceState(null, '', 'claim-exchange.html'); } catch (err) { /* file:// 등 */ }
+  }
+  initSidebar();
+  render();
+})();
+</script>
 </body>
 </html>

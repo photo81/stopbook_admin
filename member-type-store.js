@@ -13,15 +13,24 @@
     memos: [], history: CREATED.slice()
   }, flags);
 
+  // 사업자(단체 구매) 구분: 단체 할인 10%, 무료배송, 마일리지·쿠폰·이벤트 중복 불가
+  const bizItem = (code, name, desc, subs) => item(code, name, 10, `${desc} 단체 할인율과 무료배송을 적용하는 대신 마일리지·쿠폰 혜택은 제외합니다.`,
+    { mileageEarn: false, mileageUse: false, couponUse: false, stackEvent: false, freeShipping: true, subs: subs || [] });
+
   // 탭 순서 = 배열 순서
   const DEFAULTS = [
     // 구분의 각 항목은 subs = 종류 목록을 가짐
     // (회원 정보 상세의 구분 > 종류 선택지, 단체회원 신청 승인 시 지정하는 종류 선택지로 사용)
+    // 기본 샘플 구분: 일반(개인) + 사업자 구분 6개(기관·학교·유치원·어린이집·회사·단체). 코드로 저장되므로 이름은 바꿔도 됨
+    //   사업자 구분은 단체 할인율·무료배송을 적용하는 대신 마일리지·쿠폰 혜택을 제외 (단체회원 신청 승인 시 지정)
     { key: 'category', label: '회원구분', items: [
       item('normal', '일반', 0, '개인 회원 기본 구분. 마일리지 적립·사용과 쿠폰 사용이 가능합니다.', { subs: [] }),
-      item('group', '단체', 10, '기관·회사·학교 등 단체 구매 회원. 단체 할인율과 무료배송을 적용하는 대신 마일리지·쿠폰 혜택은 제외합니다.',
-        { mileageEarn: false, mileageUse: false, couponUse: false, stackEvent: false, freeShipping: true,
-          subs: ['기관', '회사', '학교', '유치원', '어린이집', '동호회', '기타'] })
+      bizItem('institution', '기관', '공공기관·도서관·평생학습관 등 기관 구매 회원.'),
+      bizItem('school', '학교', '초·중·고등학교 및 대학교 구매 회원.'),
+      bizItem('kindergarten', '유치원', '유치원 구매 회원.'),
+      bizItem('daycare', '어린이집', '어린이집 구매 회원.'),
+      bizItem('company', '회사', '기업·법인 구매 회원.'),
+      bizItem('group', '단체', '동호회·협회 등 그 밖의 단체 구매 회원.', ['동호회', '협회', '기타'])
     ]},
     { key: 'memberType', label: '가입유형', items: [
       item('stopbook', '스탑북회원', 0, '스탑북 아이디/패스워드로 가입한 회원.'),
@@ -96,6 +105,9 @@
     const OLD_SAMPLE = '학교|유치원|도서관|기업|공공기관|학원|기타 단체';
     const cat = groups.find(g => g.key === 'category');
     const defCat = DEFAULTS.find(g => g.key === 'category');
+    // - 구분이 예전 샘플(일반·단체 두 개)뿐이면 새 샘플 구분(일반·기관·학교·유치원·어린이집·회사·단체)으로 교체
+    //   (관리자가 구분을 추가·삭제해 둔 저장소는 그대로 둠. 깃허브 등 새 환경에서는 저장소가 없어 기본값이 그대로 쓰임)
+    if (cat && cat.items.map(x => x.code).join('|') === 'normal|group') cat.items = clone(defCat.items);
     if (cat) cat.items.forEach(it => {
       const def = defCat.items.find(d => d.code === it.code);
       if (!Array.isArray(it.subs) || it.subs.join('|') === OLD_SAMPLE) it.subs = def ? def.subs.slice() : [];
@@ -730,7 +742,7 @@
   window.MemberTypeStore = { load, save, FLAGS, flagsFor, categoryTree, checkSub,
     categoryName, categoryByCode, codeByName, normalizeCategoryRefs, checkCategoryName, PROTECTED_CATEGORIES, GradeBenefit, GradePolicy, GradeCriteria, GradeEvaluator, WithdrawStore };
   // 리스트 검색 기간 기본값: 최근 1개월 (오늘로부터 30일 전 ~ 오늘). 화면을 열 때와 초기화할 때 채움, 관리자가 바꿔 검색할 수 있음
-  // 기준일 = 실제 오늘 날짜 (기간 빠른 선택 버튼도 같은 기준. 샘플 주문은 2026-10-01까지만 있음)
+  // 기준일 = 실제 오늘 날짜 (기간 빠른 선택 버튼도 같은 기준. 샘플 주문은 2026-10-08까지 있음 — member-data.js base)
   const listToday = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); };
   function setDefaultRange(fromId = 'sFrom', toId = 'sTo') {
     const today = listToday();
@@ -750,12 +762,13 @@
 
   // ===== 상단 대메뉴(GNB): 회원 / 주문·배송 =====
   // 상단바 왼쪽에 대메뉴를 넣고, 누르면 사이드 메뉴에 그 대메뉴의 카테고리만 보여줌
-  //   회원 → 회원관리 / 주문·배송 → 주문관리 · 제작/배송관리 · 클레임관리
+  //   회원 → 회원관리 / 주문·배송 → 주문관리 · 제작/배송관리 · 클레임관리 / 게시판 → 게시판관리
   // 처음 열면 현재 화면이 속한 대메뉴가 선택됨 (선택된 화면이 없으면 주문·배송). 사이드 메뉴 마크업은 각 화면에 그대로 두고 여기서 보이기만 조절
   // TODO: 실서비스에서는 메뉴 구성을 공통 레이아웃(서버 템플릿/컴포넌트)에서 그림
   const GNB = [
-    { key: 'member', label: '회원', cats: ['회원관리'] },
-    { key: 'order', label: '주문/배송', cats: ['주문관리', '제작/배송관리', '클레임관리'] }
+    { key: 'member', label: '회원', cats: ['회원관리', '메시지전송관리'] },
+    { key: 'order', label: '주문/배송', cats: ['주문관리', '제작/배송관리', '클레임관리'] },
+    { key: 'board', label: '게시판', cats: ['게시판관리', '게시글관리'] }   // 게시판관리(통합·공지사항·FAQ) / 게시글관리(1:1 문의·이용후기)
   ];
   function initGnb() {
     const sidebar = document.querySelector('.sidebar'), topbar = document.querySelector('.topbar');
@@ -764,24 +777,46 @@
     const catOf = li => (li.querySelector('.menu-parent').childNodes[0].textContent || '').trim();
     const sectionOf = li => (GNB.find(g => g.cats.includes(catOf(li))) || GNB[1]).key;
     // 카테고리 구분 표시용 (admin.css .sidebar li[data-cat]: 카테고리명 연한 회색 배경)
-    const CAT_KEYS = { '회원관리': 'member', '주문관리': 'order', '제작/배송관리': 'production', '클레임관리': 'claim' };
+    const CAT_KEYS = { '회원관리': 'member', '메시지전송관리': 'message', '주문관리': 'order', '제작/배송관리': 'production', '클레임관리': 'claim', '게시판관리': 'board', '게시글관리': 'post' };
     groups.forEach(li => { li.dataset.cat = CAT_KEYS[catOf(li)] || 'etc'; });
     const activeLi = groups.find(li => li.querySelector('.submenu a.active'));
     let current = activeLi ? sectionOf(activeLi) : 'order';
     const nav = document.createElement('nav');
     nav.className = 'gnb';
     nav.setAttribute('aria-label', '대메뉴');
-    nav.innerHTML = GNB.map(g => `<button type="button" class="gnb-item" data-gnb="${g.key}">${esc(g.label)}</button>`).join('');
+    // 맨 왼쪽 집 아이콘 = 대시보드(홈). 대시보드 화면에서는 선택 표시
+    const onDash = /dashboard\.html$/.test(location.pathname) || /\/$/.test(location.pathname);
+    nav.innerHTML = `<a class="gnb-home${onDash ? ' active' : ''}" href="dashboard.html" title="대시보드" aria-label="대시보드"${onDash ? ' aria-current="page"' : ''}>
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 10.5V20h13v-9.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 20v-5.5h4V20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+    </a>` + GNB.map(g => `<button type="button" class="gnb-item" data-gnb="${g.key}">${esc(g.label)}</button>`).join('');
     const left = document.createElement('div');
     left.className = 'topbar-left';
     topbar.insertBefore(left, topbar.firstElementChild);
+    // 사이드 메뉴 없는 화면(body.no-sidebar, 대시보드): 사이드의 로고를 상단 바 맨 왼쪽으로 옮김
+    if (document.body.classList.contains('no-sidebar')) {
+      const logo = sidebar.querySelector('.logo');
+      if (logo) left.appendChild(logo);
+    }
     left.appendChild(nav);
+    // 브레드크럼(홈 > 주문관리 > …)은 상단 바가 아니라 본문 제목 줄 오른쪽에 표시 (admin.css .page-head)
+    // 제목(h1)이 없는 화면은 상단 바 대메뉴 옆에 그대로 둠
     const bc = topbar.querySelector('.breadcrumb');
-    if (bc) left.appendChild(bc);
+    const h1 = document.querySelector('.content > h1');
+    if (bc && h1) {
+      const head = document.createElement('div');
+      head.className = 'page-head';
+      h1.parentNode.insertBefore(head, h1);
+      head.appendChild(h1);
+      head.appendChild(bc);
+    } else if (bc) left.appendChild(bc);
     // 대메뉴 전환: 해당 카테고리만 보이고, 다른 대메뉴에서 넘어오면 카테고리를 모두 펼쳐 바로 고를 수 있게
+    // 대시보드(홈) 상태: 집 아이콘만 선택 표시, 대메뉴는 어느 것도 선택되지 않음. 대메뉴를 누르면 홈 상태를 벗어남
+    let home = onDash;
     function show(key, expand) {
       current = key;
-      nav.querySelectorAll('.gnb-item').forEach(b => { const on = b.dataset.gnb === key; b.classList.toggle('active', on); b.setAttribute('aria-current', on ? 'true' : 'false'); });
+      const homeBtn = nav.querySelector('.gnb-home');
+      if (homeBtn) { homeBtn.classList.toggle('active', home); if (home) homeBtn.setAttribute('aria-current', 'page'); else homeBtn.removeAttribute('aria-current'); }
+      nav.querySelectorAll('.gnb-item').forEach(b => { const on = !home && b.dataset.gnb === key; b.classList.toggle('active', on); b.setAttribute('aria-current', on ? 'true' : 'false'); });
       groups.forEach(li => {
         const mine = sectionOf(li) === key;
         li.hidden = !mine;
@@ -790,7 +825,18 @@
     }
     nav.addEventListener('click', e => {
       const b = e.target.closest('[data-gnb]');
-      if (b && b.dataset.gnb !== current) show(b.dataset.gnb, true);
+      if (!b) return;
+      home = false;
+      // 사이드 메뉴 없는 화면(대시보드)에서 대메뉴를 누르면 사이드 메뉴를 펼쳐 보여줌 (로고는 사이드로 되돌림, 본문은 보통 폭으로)
+      if (document.body.classList.contains('no-sidebar')) {
+        document.body.classList.remove('no-sidebar');
+        const logo = left.querySelector('.logo');
+        if (logo) sidebar.insertBefore(logo, sidebar.firstChild);
+        show(b.dataset.gnb, true);
+        window.dispatchEvent(new Event('resize'));   // 본문 폭이 바뀌므로 그래프 등 다시 그리기
+        return;
+      }
+      show(b.dataset.gnb, b.dataset.gnb !== current);
     });
     show(current, !activeLi);
   }

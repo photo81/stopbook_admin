@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스탑북 관리자 - 관리자 공지</title>
+<link rel="stylesheet" href="admin.css?v=20261179">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="logo" href="dashboard.html" title="대시보드">STOPBOOK Admin</a>
+    <ul>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">회원관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="members.html">전체 회원 관리</a></li>
+          <li><a href="group-applications.html">단체 회원 신청 관리</a></li>
+          <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
+          <li><a href="member-types.html">회원 유형 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">메시지전송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="message-send.html">메시지 전송</a></li>
+          <li><a href="message-sms.html">SMS 발송 관리</a></li>
+          <li><a href="message-alimtalk.html">알림톡 발송 관리</a></li>
+          <li><a href="message-email.html">이메일 발송 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="orders.html">통합 주문 관리</a></li>
+          <li><a href="paid-orders.html">결제 완료 주문</a></li>
+          <li><a href="unpaid-orders.html">미입금 주문</a></li>
+          <li><a href="postpay-orders.html">후결제 주문</a></li>
+          <li><a href="prepaid-orders.html">선결제 주문</a></li>
+          <li><a href="canceled-orders.html">취소 주문</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">제작/배송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="production-orders.html">통합 제작 관리</a></li>
+          <li><a href="ordered-orders.html">주문 완료</a></li>
+          <li><a href="making-orders.html">제작 중</a></li>
+          <li><a href="shipping-orders.html">배송 중</a></li>
+          <li><a href="delivered-orders.html">배송 완료</a></li>
+          <li><a href="outsource-orders.html">외주 제작</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">클레임관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="claim-cancel.html">취소 요청 관리</a></li>
+          <li><a href="claim-exchange.html">교환 반품 관리</a></li>
+          <li><a href="claim-documents.html">서류 발급 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub open">
+        <a href="#" class="menu-parent" aria-expanded="true">게시판관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-all.html">게시판 통합 관리</a></li>
+          <li><a href="board-notice.html">공지사항 관리</a></li>
+          <li><a href="board-faq.html">FAQ 관리</a></li>
+          <li><a href="board-admin-notice.html" class="active" aria-current="page">관리자 공지</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
+          <li><a href="board-review.html">이용후기 관리</a></li>
+        </ul>
+      </li>
+    </ul>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">홈 &gt; 게시판관리 &gt; <b>관리자 공지</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.26 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
+    </header>
+
+    <main class="content">
+      <h1>관리자 공지 <span class="page-desc">관리자끼리 공유하는 공지를 등록·수정·삭제합니다. 게시 기한 안에 있는 공지가 대시보드 상단 관리자 공지에 한 줄로 표시됩니다.</span></h1>
+
+      <!-- 검색: 구분 · 카테고리 · 검색어 -->
+      <form class="panel" id="searchForm" novalidate>
+        <div class="search-row">
+          <div class="search-grid">
+            <div class="field">
+              <label for="sType">구분</label>
+              <select id="sType"><option value="">전체</option><option>중요</option><option>공지</option></select>
+            </div>
+            <div class="field">
+              <label for="sCategory">카테고리</label>
+              <select id="sCategory"><option value="">전체</option></select>
+            </div>
+            <div class="field">
+              <label for="sKeyword">검색어</label>
+              <input type="text" id="sKeyword" placeholder="제목 · 내용 · 작성자">
+            </div>
+          </div>
+          <div class="search-actions">
+            <button type="submit" class="btn btn-primary">검색</button>
+            <button type="button" class="btn" id="btnReset">초기화</button>
+          </div>
+        </div>
+      </form>
+
+      <section class="panel">
+        <div class="list-head">
+          <div class="count">공지 <b id="totalCount">0</b>건 <span class="muted" id="listGuide">· 중요 공지가 위, 그다음 최신순. 제목을 누르면 전체 내용을 볼 수 있습니다</span></div>
+          <div class="right">
+            <button type="button" class="btn btn-primary" id="btnAdd">+ 공지 입력</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:70px">구분</th><th style="width:100px">카테고리</th><th style="width:240px">제목</th><th>내용</th><th style="width:90px">작성자</th><th style="width:130px">작성일시</th><th style="width:200px">게시 기한</th><th style="width:110px">관리</th>
+            </tr></thead>
+            <tbody id="listBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- 공지 입력·수정 모달 -->
+<div class="modal-bg" id="formModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="formTitle" style="width:720px">
+    <div class="modal-header">
+      <h2 id="formTitle">공지 입력</h2>
+      <button type="button" class="close" data-fclose aria-label="닫기">&times;</button>
+    </div>
+    <form id="noticeForm" class="modal-body" novalidate>
+      <table class="form-table">
+        <tr><th>구분 *</th><td>
+          <label><input type="radio" name="fType" value="공지" checked> 공지</label>
+          <label style="margin-left:12px"><input type="radio" name="fType" value="중요"> 중요</label>
+          <span class="readonly" style="margin-left:10px">중요 공지는 대시보드에서 먼저 보이고 빨간 표시가 붙습니다</span>
+        </td></tr>
+        <tr><th>카테고리 *</th><td>
+          <div class="inline-row">
+            <select id="fCategory" class="w-auto" aria-label="카테고리"></select>
+            <input type="text" id="fCategoryNew" maxlength="20" placeholder="새 카테고리 이름" style="width:200px" hidden>
+          </div>
+          <div class="readonly at-note">기본: 상품 · 공정 · 마케팅 · 운영 · 고객관리 · 기타. '직접 입력'을 고르면 새 카테고리를 추가할 수 있습니다</div>
+        </td></tr>
+        <tr><th>게시 기한 *</th><td>
+          <div class="inline-row">
+            <input type="date" id="fFrom" aria-label="게시 시작일" style="width:150px"> ~ <input type="date" id="fTo" aria-label="게시 종료일" style="width:150px">
+            <button type="button" class="btn btn-xs" data-period="7">1주</button>
+            <button type="button" class="btn btn-xs" data-period="30">1개월</button>
+            <button type="button" class="btn btn-xs" data-period="90">3개월</button>
+          </div>
+          <div class="readonly at-note">이 기간에만 대시보드 상단 관리자 공지에 표시됩니다. 기본값은 오늘부터 1개월이며 수정할 수 있습니다. (관리자 공지 목록에는 기간과 상관없이 남음)</div>
+        </td></tr>
+        <tr><th>제목 *</th><td><input type="text" id="fTitle" maxlength="80" placeholder="예) 10/9 택배 집하 휴무"></td></tr>
+        <tr><th>내용 *</th><td>
+          <textarea id="fBody" maxlength="2000" placeholder="첫 줄이 대시보드에 한 줄로 표시되고, 더보기에서 전체 내용을 봅니다." style="min-height:160px"></textarea>
+          <div class="err" id="fErr"></div>
+        </td></tr>
+      </table>
+    </form>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-fclose>닫기</button>
+      <button type="submit" form="noticeForm" class="btn btn-primary" id="btnSave">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 공지 보기 모달 (제목 클릭) -->
+<div class="modal-bg" id="viewModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="viewTitle" style="width:680px">
+    <div class="modal-header">
+      <h2 id="viewTitle"></h2>
+      <button type="button" class="close" data-vclose aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="readonly" id="viewMeta" style="margin-top:10px"></div>
+      <div class="notice-view" id="viewBody"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-vclose>닫기</button>
+      <button type="button" class="btn btn-primary" id="btnViewEdit">수정</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="member-type-store.js?v=20261179"></script>
+<script src="notice-store.js?v=20261179"></script>
+<script src="feedback.js?v=20261179"></script>
+<script>
+(function () {
+  'use strict';
+  // 관리자 공지: 목록(구분·카테고리·제목·내용·작성자·작성일시) + 공지 입력·수정·삭제. 대시보드 상단 관리자 공지와 같은 저장소(notice-store.js)
+  const { esc, toast, initSidebar, ADMIN_NAME } = AdminUtil;
+  const S = NoticeStore;
+  const $ = id => document.getElementById(id);
+  const NEW = '__new__';
+  const typeBadge = t => (t === '중요' ? '<span class="badge nt-imp">중요</span>' : '<span class="badge">공지</span>');
+  // 게시 상태: 게시 중(대시보드에 보임) / 게시 예정 / 게시 종료
+  const periodBadge = n => { const s = S.periodState(n); return `<span class="badge ${s === '게시 중' ? 'ps-결제완료' : s === '게시 예정' ? 'ps-입금대기' : 'ps-전체취소'}">${s}</span>`; };
+  const pad = x => String(x).padStart(2, '0');
+  const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  let search = { type: '', category: '', kw: '' };
+  let editing = null;
+
+  function fillCategorySelects(keep) {
+    const cats = S.categories();
+    $('sCategory').innerHTML = '<option value="">전체</option>' + cats.map(c => `<option>${esc(c)}</option>`).join('');
+    $('fCategory').innerHTML = cats.map(c => `<option>${esc(c)}</option>`).join('') + `<option value="${NEW}">직접 입력…</option>`;
+    if (keep) $('sCategory').value = keep;
+  }
+
+  function render() {
+    const kw = search.kw.toLowerCase();
+    const list = S.list().filter(n => (!search.type || n.type === search.type) && (!search.category || n.category === search.category) &&
+      (!kw || [n.title, n.body, n.by].some(v => String(v).toLowerCase().includes(kw))));
+    $('totalCount').textContent = list.length.toLocaleString();
+    $('listBody').innerHTML = list.length ? list.map(n => `<tr class="${n.type === '중요' ? 'notice-imp-row' : ''}">
+        <td>${typeBadge(n.type)}</td>
+        <td>${esc(n.category)}</td>
+        <td class="left"><button type="button" class="link-btn" data-view="${esc(n.id)}"><b>${esc(n.title)}</b></button></td>
+        <td class="left notice-cell" title="${esc(n.body)}">${esc(S.firstLine(n.body))}${n.body.includes('\n') ? ' <span class="muted">…</span>' : ''}</td>
+        <td>${esc(n.by)}</td>
+        <td>${esc(n.at)}${n.updatedAt ? `<div class="muted" style="font-size:11px">수정 ${esc(n.updatedAt)}</div>` : ''}</td>
+        <td>${periodBadge(n)} <span class="muted">${esc(n.showFrom || '')} ~ ${esc(n.showTo || '')}</span></td>
+        <td class="keep"><button type="button" class="btn btn-sm" data-edit="${esc(n.id)}">수정</button> <button type="button" class="btn btn-sm btn-danger" data-del="${esc(n.id)}">삭제</button></td>
+      </tr>`).join('') : '<tr><td colspan="8" class="empty">등록된 공지가 없습니다. 오른쪽 위 공지 입력으로 등록하세요.</td></tr>';
+  }
+
+  // ===== 입력·수정 =====
+  function openForm(n) {
+    editing = n || null;
+    fillCategorySelects($('sCategory').value);
+    $('formTitle').textContent = n ? '공지 수정' : '공지 입력';
+    $('btnSave').textContent = n ? '저장' : '등록';
+    document.querySelector(`input[name=fType][value="${n ? n.type : '공지'}"]`).checked = true;
+    $('fCategory').value = n ? n.category : S.DEFAULT_CATEGORIES[0];
+    if (n && $('fCategory').value !== n.category) { $('fCategory').value = NEW; $('fCategoryNew').value = n.category; }
+    else $('fCategoryNew').value = '';
+    $('fCategoryNew').hidden = $('fCategory').value !== NEW;
+    const p = n && (n.showFrom || n.showTo) ? { showFrom: n.showFrom, showTo: n.showTo } : S.defaultPeriod();   // 기본값: 오늘부터 1개월
+    $('fFrom').value = p.showFrom || '';
+    $('fTo').value = p.showTo || '';
+    $('fTitle').value = n ? n.title : '';
+    $('fBody').value = n ? n.body : '';
+    $('fErr').classList.remove('show');
+    $('formModal').classList.add('open');
+    $('fTitle').focus();
+  }
+  // 게시 기한 빠른 선택: 시작일(비어 있으면 오늘)부터 n일
+  $('noticeForm').addEventListener('click', e => {
+    const b = e.target.closest('[data-period]');
+    if (!b) return;
+    const from = $('fFrom').value ? new Date($('fFrom').value) : new Date();
+    $('fFrom').value = fmtDate(from);
+    $('fTo').value = fmtDate(new Date(from.getFullYear(), from.getMonth(), from.getDate() + Number(b.dataset.period)));
+  });
+  const closeForm = () => { $('formModal').classList.remove('open'); editing = null; };
+  $('fCategory').addEventListener('change', () => { $('fCategoryNew').hidden = $('fCategory').value !== NEW; if ($('fCategory').value === NEW) $('fCategoryNew').focus(); });
+  $('noticeForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const type = document.querySelector('input[name=fType]:checked').value;
+    const category = $('fCategory').value === NEW ? $('fCategoryNew').value.trim() : $('fCategory').value;
+    const title = $('fTitle').value.trim(), body = $('fBody').value.trim();
+    const showFrom = $('fFrom').value, showTo = $('fTo').value;
+    let msg = '';
+    if (!category) msg = '카테고리를 고르거나 새 카테고리 이름을 입력하세요.';
+    else if (!showFrom || !showTo) msg = '게시 기한의 시작일과 종료일을 모두 입력하세요.';
+    else if (showFrom > showTo) msg = '게시 종료일이 시작일보다 빠릅니다.';
+    else if (!title) msg = '제목을 입력하세요.';
+    else if (!body) msg = '내용을 입력하세요.';
+    $('fErr').textContent = msg;
+    $('fErr').classList.toggle('show', !!msg);
+    if (msg) return;
+    const saved = S.save({ id: editing ? editing.id : '', type, category, title, body, showFrom, showTo, by: editing ? editing.by : ADMIN_NAME });
+    closeForm();
+    fillCategorySelects($('sCategory').value);
+    render();
+    toast(saved ? `공지를 ${editing ? '수정' : '등록'}했습니다. 대시보드 상단에 반영됩니다.` : '저장소를 사용할 수 없어 이 화면에만 반영되었습니다.');
+  });
+  $('btnAdd').addEventListener('click', () => openForm(null));
+  document.querySelectorAll('#formModal [data-fclose]').forEach(b => b.addEventListener('click', closeForm));
+  $('formModal').addEventListener('click', e => { if (e.target === $('formModal')) closeForm(); });
+
+  // ===== 보기 · 수정 · 삭제 =====
+  let viewing = null;
+  function openView(n) {
+    viewing = n;
+    $('viewTitle').innerHTML = `${typeBadge(n.type)} ${esc(n.title)}`;
+    $('viewMeta').innerHTML = `${esc(n.category)} · ${esc(n.by)} · ${esc(n.at)}${n.updatedAt ? ` (수정 ${esc(n.updatedAt)})` : ''} · 게시 기한 ${esc(n.showFrom || '')} ~ ${esc(n.showTo || '')} ${periodBadge(n)}`;
+    $('viewBody').textContent = n.body;
+    $('viewModal').classList.add('open');
+  }
+  const closeView = () => { $('viewModal').classList.remove('open'); viewing = null; };
+  $('btnViewEdit').addEventListener('click', () => { const n = viewing; closeView(); openForm(n); });
+  document.querySelectorAll('#viewModal [data-vclose]').forEach(b => b.addEventListener('click', closeView));
+  $('viewModal').addEventListener('click', e => { if (e.target === $('viewModal')) closeView(); });
+  $('listBody').addEventListener('click', e => {
+    const v = e.target.closest('[data-view]'), ed = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]');
+    if (v) openView(S.find(v.dataset.view));
+    if (ed) openForm(S.find(ed.dataset.edit));
+    if (del) {
+      const n = S.find(del.dataset.del);
+      if (n && confirm(`'${n.title}' 공지를 삭제하시겠습니까?`)) { S.remove(n.id); render(); toast('공지를 삭제했습니다.'); }
+    }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeForm(); closeView(); } });
+
+  // ===== 검색 =====
+  $('searchForm').addEventListener('submit', e => { e.preventDefault(); search = { type: $('sType').value, category: $('sCategory').value, kw: $('sKeyword').value.trim() }; render(); });
+  $('btnReset').addEventListener('click', () => { $('searchForm').reset(); search = { type: '', category: '', kw: '' }; render(); });
+
+  // 대시보드 더보기로 들어온 경우: 해당 공지를 바로 펼침 (?view=id)
+  fillCategorySelects();
+  render();
+  const viewId = new URLSearchParams(location.search).get('view');
+  if (viewId && S.find(viewId)) openView(S.find(viewId));
+  initSidebar();
+})();
+</script>
+</body>
+</html>

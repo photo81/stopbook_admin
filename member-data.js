@@ -16,10 +16,15 @@
   const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
   const members = [];
-  const base = new Date(2026, 9, 1).getTime();
-  for (let i = 1; i <= 137; i++) {
-    const join = new Date(base - Math.floor(rand() * 900) * 86400000);
-    const last = new Date(Math.min(base, join.getTime() + Math.floor(rand() * 400) * 86400000));
+  const base = new Date(2026, 9, 8).getTime();   // 샘플 데이터 기준일 (주문·가입·문의 등은 이 날짜까지 생성). order-data.js TODAY, members.html·withdrawn.html의 기준일과 같게 유지
+  // 1~137번: 최근 900일 안에 가입 / 138~149번: 최근 일주일(기준일 포함)에 가입한 신규 회원 (대시보드 '오늘·7일' 회원 집계용)
+  //   신규 회원은 기존 회원 뒤에 이어서 만들어 기존 샘플 값(난수 순서)이 바뀌지 않음. 가입일은 기준일부터 하루씩 거슬러 두 바퀴
+  const TOTAL = 149, RECENT_FROM = 138;
+  for (let i = 1; i <= TOTAL; i++) {
+    const recent = i >= RECENT_FROM;
+    const join = new Date(base - (recent ? (i - RECENT_FROM) % 7 : Math.floor(rand() * 900)) * 86400000);
+    const last = recent ? new Date(Math.min(base, join.getTime() + Math.floor(rand() * 3) * 86400000))
+      : new Date(Math.min(base, join.getTime() + Math.floor(rand() * 400) * 86400000));
     members.push({
       no: 1000 + i,
       category: rand() > 0.2 ? '일반' : '단체',
@@ -131,6 +136,26 @@
   }
   members.forEach(makeLedger);
 
+  // ===== 관리자 마일리지 지급·차감 기록 =====
+  // 취소 요청·반품을 마일리지로 환불하면 그 금액만큼 회원 마일리지가 자동 지급됨 (claim-data.js). 샘플 원장은 화면을 열 때마다 새로 만들므로 localStorage에 보관해 뒤에 덧붙임
+  // { [회원 no]: [{ at, type, item, reason, by, delta }] }
+  // TODO: 실서비스에서는 POST /api/admin/members/{no}/benefits/mileage
+  const MILEAGE_KEY = 'stopbook.mileageAdjust.v1';
+  let MILEAGE = {};
+  try { MILEAGE = JSON.parse(localStorage.getItem(MILEAGE_KEY)) || {}; } catch (e) { /* 저장소 사용 불가 시 기록 없음 */ }
+  const applyMileage = (m, e) => { pushEntry(m.ledger.mileage, e); m.mileage = m.ledger.mileage[m.ledger.mileage.length - 1].balance; };
+  members.forEach(m => (MILEAGE[m.no] || []).forEach(e => applyMileage(m, Object.assign({}, e))));
+  // 마일리지 지급(delta > 0)·차감(delta < 0). opts = { delta, reason, by, item? }. 회원 마일리지 내역·보유량·회원 히스토리에 반영. 반환: 저장 성공 여부
+  function addMileage(no, opts) {
+    const m = members.find(x => x.no === no);
+    if (!m || !opts.delta) return false;
+    const e = { at: fmtDateTime(new Date()), type: opts.delta > 0 ? '적립' : '사용', item: opts.item || '', reason: opts.reason || '', by: opts.by || '관리자', delta: opts.delta };
+    applyMileage(m, e);
+    m.history.push({ at: e.at, content: `마일리지 ${opts.delta > 0 ? '지급' : '차감'}: ${Math.abs(opts.delta).toLocaleString()}P (사유: ${e.reason})`, by: e.by });
+    (MILEAGE[no] || (MILEAGE[no] = [])).push(e);
+    try { localStorage.setItem(MILEAGE_KEY, JSON.stringify(MILEAGE)); return true; } catch (err) { return false; }
+  }
+
   // ===== 주문 실적 샘플 (등급 자동 산정용) =====
   // 주문 리스트 화면은 아직 없음. 등급 산정에 필요한 최소 정보(주문일·결제금액)만 회원별로 생성
   // TODO: 주문 리스트 구현 후 실제 주문 데이터(또는 GET /api/admin/members/{no}/order-stats)로 대체
@@ -138,11 +163,15 @@
     let s = (m.no * 104729) % 233280;
     const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
     const from = Math.max(new Date(m.joinDate).getTime(), base - 365 * 86400000);
-    const n = r() < 0.25 ? 0 : Math.floor(r() * 25);
+    // 최근 일주일 안에 가입한 신규 회원은 주문 0~2건 (가입 직후라 많을 수 없음)
+    const n0 = r() < 0.25 ? 0 : Math.floor(r() * 25);
+    const n = m.joinDate >= fmtDate(new Date(base - 7 * 86400000)) ? Math.min(n0, 2) : n0;
     m.orders = Array.from({ length: n }, () => ({
       at: fmtDate(new Date(from + r() * (base - from))),
       amount: (80 + Math.floor(r() * 520)) * 100   // 8,000 ~ 60,000원
     })).sort((a, b) => a.at.localeCompare(b.at));
+    // 기준일(오늘) 주문: 주문이 있는 회원 중 일부는 기준일에도 주문 (대시보드 '오늘' 집계용. 난수는 위 주문 다음에 써서 기존 값이 바뀌지 않게 함)
+    if (n && m.no % 9 === 0) m.orders.push({ at: fmtDate(new Date(base)), amount: (80 + Math.floor(r() * 520)) * 100 });
   }
   members.forEach(makeOrders);
 
@@ -291,9 +320,15 @@
   //   기본 구분(normal) 약 80%, 나머지 20%는 그 외 구분에 회원 번호 순으로 번갈아 배정. 종류가 있는 구분은 종류도 번갈아 지정
   //   저장소를 못 읽으면 기본값(일반/단체)으로 생성. 승인된 단체 신청 회원은 아래 applyApproval에서 관리자가 지정한 구분·종류로 덮어씀
   // 회원 구분 참조: categoryCode(기준, 회원 유형 관리의 구분 code) + category(표시명)
+  // 기본값은 member-type-store.js DEFAULTS와 같게 유지 (일반 + 기관·학교·유치원·어린이집·회사·단체)
   const DEFAULT_TREE = [
     { code: 'normal', name: '일반', subs: [] },
-    { code: 'group', name: '단체', subs: ['기관', '회사', '학교', '유치원', '어린이집', '동호회', '기타'] }
+    { code: 'institution', name: '기관', subs: [] },
+    { code: 'school', name: '학교', subs: [] },
+    { code: 'kindergarten', name: '유치원', subs: [] },
+    { code: 'daycare', name: '어린이집', subs: [] },
+    { code: 'company', name: '회사', subs: [] },
+    { code: 'group', name: '단체', subs: ['동호회', '협회', '기타'] }
   ];
   const liveTree = window.MemberTypeStore ? MemberTypeStore.categoryTree().filter(c => !c.hidden) : [];
   const catTree = liveTree.length ? liveTree : DEFAULT_TREE;
@@ -306,7 +341,7 @@
     const cat = m.category === '단체' && otherCats.length ? otherCats[m.no % otherCats.length] : mainCat;
     m.categoryCode = cat.code;
     m.category = cat.name;
-    m.subCategory = subOf(cat, m.no);
+    m.subCategory = subOf(cat, Math.floor(m.no / 7));   // 구분 배정(no % 구분 수)과 겹치지 않게 종류는 다른 간격으로 번갈아
   });
 
   // 후불 결제 샘플: 단체 회원(기본 구분 외 모든 구분) 일부에 올해 적용 (후불 결제는 단체 회원만 설정 가능 — 회원 상세에서 기본 구분이면 선택 불가)
@@ -341,14 +376,16 @@
   // 신청 건의 구분 참조
   //   reqCategoryCode / reqCategory / groupType: 고객이 신청한 회원구분(code·표시명)과 그 구분의 종류 (승인 대기·반려 목록에 표시)
   //   assignCategoryCode / assignCategory / assignKind: 관리자가 승인하며 지정한 회원구분·종류 (승인·해제·만료 목록에 표시)
-  // 종류별 샘플 사업자 정보. 아래에 없는 종류(또는 종류가 없는 구분)는 이름으로 사업자 정보를 만듦
+  // 구분(또는 종류) 이름별 샘플 사업자 정보. 아래에 없는 이름은 이름으로 사업자 정보를 만듦
   const GROUP_TYPES = {
     '기관':     { names: ['가람시 평생학습관', '나래구 청소년수련관', '책마루도서관'], bizType: '공공행정', bizItem: '평생교육' },
     '회사':     { names: ['(주)새벽북스', '(주)온누리교육', '누리소프트(주)'], bizType: '도소매업', bizItem: '서적' },
     '학교':     { names: ['한빛초등학교', '새솔중학교', '다온고등학교'], bizType: '교육 서비스업', bizItem: '초중등 교육' },
     '유치원':   { names: ['햇살유치원', '꿈나무유치원'], bizType: '교육 서비스업', bizItem: '유아 교육' },
     '어린이집': { names: ['푸른숲어린이집', '새싹어린이집'], bizType: '보건업 및 사회복지 서비스업', bizItem: '보육시설 운영' },
+    '단체':     { names: ['초록동아리협회', '한울 사진동호회'], bizType: '비영리', bizItem: '단체' },
     '동호회':   { names: ['책읽는엄마들 독서모임', '시냇가 북클럽'], bizType: '비영리', bizItem: '독서모임' },
+    '협회':     { names: ['한국포토북협회', '전국독서문화협회'], bizType: '비영리', bizItem: '협회' },
     '기타':     { names: ['지혜샘학원', '글빛논술학원'], bizType: '교육 서비스업', bizItem: '교습학원' }
   };
   const ADDRESSES = ['서울특별시 마포구 월드컵북로 12', '경기도 성남시 분당구 판교로 45', '부산광역시 해운대구 센텀로 8', '대전광역시 유성구 대학로 99', '인천광역시 연수구 송도과학로 31'];
@@ -499,7 +536,7 @@
   });
 
   window.MemberData = {
-    members, GRADE_ORDER, BENEFITS, COUPONS, PRODUCTS, PROJECT_NAMES, VIEWER_SAMPLE, viewerUrl, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, orderStats, validOrders, statusClass, ageOf,
+    members, GRADE_ORDER, BENEFITS, COUPONS, PRODUCTS, PROJECT_NAMES, VIEWER_SAMPLE, viewerUrl, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, orderStats, validOrders, statusClass, ageOf, addMileage,
     applications, saveApplication, applyApproval, revokeBusiness, GROUP_TYPES: groupKinds
   };
 })();

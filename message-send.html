@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스탑북 관리자 - 메시지 전송</title>
+<link rel="stylesheet" href="admin.css?v=20261179">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="logo" href="dashboard.html" title="대시보드">STOPBOOK Admin</a>
+    <ul>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">회원관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="members.html">전체 회원 관리</a></li>
+          <li><a href="group-applications.html">단체 회원 신청 관리</a></li>
+          <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
+          <li><a href="member-types.html">회원 유형 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub open">
+        <a href="#" class="menu-parent" aria-expanded="true">메시지전송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="message-send.html" class="active" aria-current="page">메시지 전송</a></li>
+          <li><a href="message-sms.html">SMS 발송 관리</a></li>
+          <li><a href="message-alimtalk.html">알림톡 발송 관리</a></li>
+          <li><a href="message-email.html">이메일 발송 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="orders.html">통합 주문 관리</a></li>
+          <li><a href="paid-orders.html">결제 완료 주문</a></li>
+          <li><a href="unpaid-orders.html">미입금 주문</a></li>
+          <li><a href="postpay-orders.html">후결제 주문</a></li>
+          <li><a href="prepaid-orders.html">선결제 주문</a></li>
+          <li><a href="canceled-orders.html">취소 주문</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">제작/배송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="production-orders.html">통합 제작 관리</a></li>
+          <li><a href="ordered-orders.html">주문 완료</a></li>
+          <li><a href="making-orders.html">제작 중</a></li>
+          <li><a href="shipping-orders.html">배송 중</a></li>
+          <li><a href="delivered-orders.html">배송 완료</a></li>
+          <li><a href="outsource-orders.html">외주 제작</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">클레임관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="claim-cancel.html">취소 요청 관리</a></li>
+          <li><a href="claim-exchange.html">교환 반품 관리</a></li>
+          <li><a href="claim-documents.html">서류 발급 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-all.html">게시판 통합 관리</a></li>
+          <li><a href="board-notice.html">공지사항 관리</a></li>
+          <li><a href="board-faq.html">FAQ 관리</a></li>
+          <li><a href="board-admin-notice.html">관리자 공지</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
+          <li><a href="board-review.html">이용후기 관리</a></li>
+        </ul>
+      </li>
+    </ul>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">홈 &gt; 메시지전송관리 &gt; <b>메시지 전송</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.26 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
+    </header>
+
+    <main class="content">
+      <h1>메시지 전송 <span class="page-desc">회원을 검색하거나 번호·이메일을 직접 입력해 수신자를 정하고 알림톡·SMS·이메일을 보냅니다. 발송양식은 각 발송 관리 메뉴에서 등록합니다.</span></h1>
+
+      <!-- 채널 탭: 알림톡 / SMS / 이메일. 탭을 바꾸면 양식 목록·수신 조건(휴대폰/이메일, 수신 동의)·미리보기가 그 채널로 바뀜 -->
+      <div class="tabs" role="tablist" id="channelTabs">
+        <button type="button" role="tab" class="tab active" aria-selected="true" data-channel="alimtalk">알림톡</button>
+        <button type="button" role="tab" class="tab" aria-selected="false" data-channel="sms">SMS</button>
+        <button type="button" role="tab" class="tab" aria-selected="false" data-channel="email">이메일</button>
+      </div>
+
+      <div class="msg-grid">
+        <!-- 왼쪽: 수신자. 회원이 10만 명 이상이라 전체 목록을 펼치지 않음
+             1) 번호·이메일 직접 입력(우선) → 2) 회원 검색으로 찾아 담기 → 3) 담긴 수신자 목록 -->
+        <section class="panel">
+          <div class="flow-head"><b>수신자</b> <span class="muted" id="recipHint"></span></div>
+
+          <!-- 대상 선택: 회원 검색 / 필터 검색 / 전체 회원 / 직접 입력 / 엑셀 업로드. 고른 방식의 입력란만 보이고, 담은 사람은 아래 수신자 목록에 모임 -->
+          <div class="recip-mode" role="radiogroup" aria-label="대상 선택">
+            <label><input type="radio" name="rMode" value="search" checked> 회원 검색</label>
+            <label><input type="radio" name="rMode" value="filter"> 필터 검색</label>
+            <label><input type="radio" name="rMode" value="all"> 전체 회원</label>
+            <label><input type="radio" name="rMode" value="direct"> 직접 입력</label>
+            <label><input type="radio" name="rMode" value="excel"> 엑셀 업로드</label>
+            <label class="check-chip" id="rConsentWrap" title="광고성 메시지는 항상 수신 동의 회원에게만 보냅니다"><input type="checkbox" id="rConsent"> 수신 동의 회원만</label>
+          </div>
+
+          <form class="recip-search" id="searchForm" novalidate>
+            <!-- 회원 검색: 이름·아이디·휴대폰·이메일로 찾기 -->
+            <div class="recip-pane" data-mode="search">
+              <div class="recip-filters">
+                <div class="field" style="flex:1 1 260px"><label for="rKw">검색어</label><input type="text" id="rKw" placeholder="이름 · 아이디 · 휴대폰 · 이메일"></div>
+                <button type="submit" class="btn btn-primary btn-sm">검색</button>
+              </div>
+            </div>
+            <!-- 필터 검색: 회원구분·회원유형·회원등급 조건으로 찾기 (조건은 하나 이상) -->
+            <div class="recip-pane" data-mode="filter" hidden>
+              <div class="recip-filters">
+                <div class="field"><label for="rCategory">회원구분</label><select id="rCategory"><option value="">전체</option></select></div>
+                <div class="field"><label for="rMemberType">회원유형</label><select id="rMemberType"><option value="">전체</option></select></div>
+                <div class="field"><label for="rGrade">회원등급</label><select id="rGrade"><option value="">전체</option></select></div>
+                <button type="submit" class="btn btn-primary btn-sm">검색</button>
+              </div>
+            </div>
+            <!-- 전체 회원: 보낼 수 있는 회원 전부를 담음 (수신 정보가 있고, 광고성이면 수신 동의한 회원) -->
+            <div class="recip-pane" data-mode="all" hidden>
+              <div class="recip-foot" style="margin:0">
+                <span>전체 회원 <b id="allCount">0</b>명 · 보낼 수 있는 회원 <b id="allSendable">0</b>명 <span class="muted" id="allNote"></span></span>
+                <button type="button" class="btn btn-primary btn-sm" id="btnAddAllMembers">전체 회원 담기</button>
+              </div>
+            </div>
+            <!-- 직접 입력: 회원이 아니어도 번호·이메일로 담음 (줄바꿈·쉼표로 여러 개). 회원이면 회원 정보로 변수 치환 -->
+            <div class="recip-pane" data-mode="direct" hidden>
+              <div class="readonly at-note" style="margin:0 0 6px"><span id="directTitle">휴대폰번호</span>를 입력하고 담기 (여러 건은 쉼표로 구분, Enter로도 담김). 회원이면 회원 정보로 치환, 아니면 '고객'으로</div>
+              <div class="inline-row direct-input">
+                <input type="text" id="directText" placeholder="010-1234-5678, 010-2345-6789" autocomplete="off">
+                <button type="button" class="btn btn-sm btn-primary" id="btnDirectAdd">담기</button>
+              </div>
+              <div class="err" id="directErr"></div>
+            </div>
+            <!-- 엑셀 업로드: 양식(이름·휴대폰·이메일) 파일로 한 번에 담기 (모달) -->
+            <div class="recip-pane" data-mode="excel" hidden>
+              <div class="recip-foot" style="margin:0">
+                <span>이름 · 휴대폰 · 이메일 열로 된 .xlsx / .csv 파일을 올려 한 번에 담습니다. 양식은 창 안에서 내려받을 수 있습니다.</span>
+                <button type="button" class="btn btn-primary btn-sm" id="btnExcel">엑셀 파일 올리기</button>
+              </div>
+            </div>
+            <div class="search-result" id="searchResult" hidden>
+              <div class="recip-foot" style="margin:0 0 6px">
+                <span>검색결과 <b id="resultCount">0</b>명 <span class="muted" id="resultNote"></span></span>
+                <button type="button" class="btn btn-xs btn-primary" id="btnAddAll">검색결과 전체 담기</button>
+                <button type="button" class="btn btn-xs" id="btnResultClose">결과 닫기</button>
+              </div>
+              <div class="table-wrap recip-list recip-result">
+                <table>
+                  <thead><tr><th>이름</th><th>아이디</th><th id="thTarget">휴대폰</th><th>회원구분</th><th>등급</th><th>수신 동의</th><th style="width:56px"></th></tr></thead>
+                  <tbody id="resultBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </form>
+
+          <!-- 3) 수신자 목록: 담긴 사람들. 여기 있는 사람에게 보냄 -->
+          <div class="flow-head" style="margin:14px 0 6px"><b>수신자 목록</b> <span class="sel-count" id="selCount">0명</span>
+            <button type="button" class="btn btn-xs" id="btnClear" style="margin-left:auto">전체 비우기</button></div>
+          <div class="table-wrap recip-list">
+            <table>
+              <thead><tr><th>이름</th><th>아이디</th><th id="thTarget2">휴대폰</th><th>회원구분</th><th>등급</th><th style="width:56px"></th></tr></thead>
+              <tbody id="recipBody"></tbody>
+            </table>
+          </div>
+          <div class="recip-foot"><span id="recipNote" class="muted"></span></div>
+        </section>
+
+        <!-- 오른쪽: 메시지 작성 (채널마다 입력 항목이 조금 다름) -->
+        <section class="panel msg-form">
+          <div class="flow-head"><b id="formTitle">알림톡 작성</b> <a class="btn btn-xs" id="manageLink" href="message-alimtalk.html">발송양식 관리</a></div>
+          <form id="sendForm" novalidate>
+            <table class="form-table">
+              <tr><th>발송양식 *</th><td>
+                <select id="tmplSel" aria-label="발송양식"></select>
+                <div class="readonly at-note" id="tmplNote"></div>
+              </td></tr>
+              <tr id="rowSubject" hidden><th>메일 제목 *</th><td><input type="text" id="fSubject" maxlength="100"></td></tr>
+              <tr><th>본문 *</th><td>
+                <textarea id="fBody"></textarea>
+                <div class="var-chips" id="varChips"></div>
+                <div class="readonly at-note" id="bodyInfo"></div>
+              </td></tr>
+              <tr id="rowVars" hidden><th>변수 입력</th><td>
+                <div class="var-inputs" id="varInputs"></div>
+                <div class="readonly at-note">회원 정보로 자동 채워지는 변수(이름·아이디·등급 등)는 입력하지 않습니다. 여기 값은 모든 수신자에게 같게 들어갑니다.</div>
+              </td></tr>
+              <tr id="rowAd"><th>광고성</th><td>
+                <label><input type="checkbox" id="fAd"> 광고성 메시지</label>
+                <span class="readonly" style="margin-left:8px">수신 동의 회원에게만 보내고 본문 앞에 (광고), 끝에 무료수신거부 안내가 붙습니다</span>
+              </td></tr>
+              <tr id="rowFallback"><th>대체 문자</th><td><label><input type="checkbox" id="fFallback" checked> 알림톡 실패 시 문자로 발송</label></td></tr>
+              <tr><th>발송 시점</th><td>
+                <div class="inline-row">
+                  <label><input type="radio" name="fWhen" value="now" checked> 즉시</label>
+                  <label><input type="radio" name="fWhen" value="reserve"> 예약</label>
+                  <input type="datetime-local" id="fReserveAt" hidden style="width:200px">
+                </div>
+              </td></tr>
+              <tr><th>미리보기</th><td>
+                <div class="readonly at-note" id="previewWho" style="margin:0 0 6px"></div>
+                <div id="preview"></div>
+              </td></tr>
+            </table>
+            <div class="err" id="sendErr"></div>
+            <div class="send-actions">
+              <span class="readonly" id="sendSummary"></span>
+              <button type="submit" class="btn btn-primary" id="btnSend">발송</button>
+            </div>
+            <div class="send-result" id="sendResult" hidden></div>
+          </form>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- 엑셀 일괄등록 모달: 양식(CSV) 내려받기 → 파일 선택(.xlsx / .csv) → 읽은 결과 요약 → 담기 -->
+<div class="modal-bg" id="excelModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="excelTitle" style="width:640px">
+    <div class="modal-header">
+      <h2 id="excelTitle">수신자 엑셀 일괄등록</h2>
+      <button type="button" class="close" data-xclose aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-title">양식</div>
+      <table class="form-table">
+        <tr><th>열 구성</th><td>
+          <b>이름</b> · <b>휴대폰</b> · <b>이메일</b> 세 열 (첫 줄은 제목). 이름이 비어 있으면 '고객', 회원 번호·이메일과 같으면 회원 정보로 치환됩니다.
+          <div class="readonly at-note">현재 채널(<span id="excelChannel"></span>)에 맞는 열만 씁니다. .xlsx · .xls · .csv 지원</div>
+          <div style="margin-top:8px"><button type="button" class="btn btn-sm" id="btnExcelTemplate">양식 내려받기 (CSV)</button></div>
+        </td></tr>
+        <tr><th>파일 선택</th><td>
+          <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
+          <div class="err" id="excelErr"></div>
+        </td></tr>
+      </table>
+      <div class="section-title">읽은 결과</div>
+      <div class="send-result" id="excelResult">파일을 선택하면 읽은 내용을 여기에 보여줍니다.</div>
+      <div class="table-wrap recip-list" id="excelPreviewWrap" hidden style="max-height:220px;margin-top:8px">
+        <table><thead><tr><th style="width:40px">행</th><th>이름</th><th id="excelThTarget">대상</th><th>처리</th></tr></thead><tbody id="excelPreview"></tbody></table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-xclose>닫기</button>
+      <button type="button" class="btn btn-primary" id="btnExcelApply" disabled>수신자에 담기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="member-type-store.js?v=20261179"></script>
+<script src="member-data.js?v=20261179"></script>
+<script src="alimtalk.js?v=20261179"></script>
+<script src="message-store.js?v=20261179"></script>
+<script src="feedback.js?v=20261179"></script>
+<script>
+(function () {
+  'use strict';
+  // 메시지 전송: 왼쪽에서 수신자를 담고(회원 검색 / 번호·이메일 직접 입력) 오른쪽에서 채널(알림톡 / SMS / 이메일)별 양식으로 작성해 발송
+  //   회원이 10만 명 이상이라 회원 목록을 펼쳐 놓지 않음. 검색은 조건을 넣고 검색 버튼을 눌렀을 때만 실행 (결과는 100명까지 표시, 전체 담기는 결과 전체)
+  //   알림톡: 비즈엠 승인 템플릿만, 본문 고정 + #{변수} 치환 (alimtalk.js). 실패 시 대체 문자 옵션
+  //   SMS: 양식을 불러와 수정 가능. 90byte 초과 시 LMS. 광고성이면 수신 동의 회원만 + (광고)/무료수신거부 문구
+  //   이메일: 제목 + 본문. 광고성 규칙은 SMS와 같음
+  // 발송은 시뮬레이션 (수신 정보가 있으면 성공). TODO: 실서비스에서는 검색 GET /api/admin/members?{조건}, 발송 POST /api/admin/messages { channel, templateId, recipients, values, reserveAt }
+  const { esc, toast, initSidebar, ADMIN_NAME } = AdminUtil;
+  const S = MessageStore;
+  const { members } = MemberData;
+  const $ = id => document.getElementById(id);
+  MemberTypeStore.normalizeCategoryRefs(MemberData);
+  const CAT_TREE = MemberTypeStore.categoryTree();
+  const GRADES = MemberData.GRADE_ORDER;
+  const AD_PREFIX = '(광고) ', AD_SUFFIX = '\n무료수신거부 080-000-0000';
+  const RESULT_MAX = 100;     // 검색 결과 표시 상한
+  const LIST_MAX = 200;       // 수신자 목록 표시 상한 (나머지는 '외 n명')
+  const pad = n => String(n).padStart(2, '0');
+  const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  let channel = 'alimtalk';
+  // 수신자: key → { key, member(회원이면), name, userId, target, direct(직접 입력 여부) }
+  const recipients = new Map();
+  let result = [];   // 마지막 검색 결과 (회원)
+
+  $('rCategory').innerHTML += CAT_TREE.map(c => `<option value="${esc(c.code)}">${esc(c.label)}${c.hidden ? ' (숨김)' : ''}</option>`).join('');
+  $('rGrade').innerHTML += GRADES.map(g => `<option>${esc(g)}</option>`).join('');
+  // 회원유형: 회원 유형 관리 > 가입유형 항목 (스탑북회원 · 카카오회원 · 네이버회원 · 구글회원)
+  const MEMBER_TYPES = (MemberTypeStore.load().find(g => g.key === 'memberType') || { items: [] }).items.map(it => it.name);
+  $('rMemberType').innerHTML += MEMBER_TYPES.map(t => `<option>${esc(t)}</option>`).join('');
+
+  // ===== 채널별 수신 조건 =====
+  const ch = () => S.CHANNELS[channel];
+  const targetOf = m => ch().to(m) || '';
+  const consentOf = m => (ch().consent ? m[ch().consent] === 'Y' : true);
+  const isAd = () => !$('rowAd').hidden && $('fAd').checked;
+  const needConsent = () => isAd() || $('rConsent').checked;
+  // 보낼 수 있는 회원: 수신 정보가 있고, 광고성(또는 '수신 동의 회원만')이면 수신 동의한 회원
+  const canSend = m => !!targetOf(m) && (!needConsent() || consentOf(m));
+  const normPhone = s => String(s).replace(/\D/g, '');
+  const isPhone = s => /^01[016789]\d{7,8}$/.test(normPhone(s));
+  const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s).trim());
+  const fmtPhone = s => { const d = normPhone(s); return d.length === 11 ? `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}` : d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}` : s; };
+
+  // ===== 대상 선택 방식 (회원 검색 / 필터 검색 / 전체 회원 / 직접 입력 / 엑셀 업로드) =====
+  const mode = () => document.querySelector('input[name=rMode]:checked').value;
+  function syncMode() {
+    const m = mode();
+    document.querySelectorAll('.recip-pane').forEach(p => { p.hidden = p.dataset.mode !== m; });
+    $('searchResult').hidden = true;
+    if (m === 'all') renderAllPane();
+    if (m === 'search') $('rKw').focus();
+  }
+  document.querySelectorAll('input[name=rMode]').forEach(r => r.addEventListener('change', syncMode));
+
+  // ----- 회원 검색 / 필터 검색 (검색 버튼을 눌렀을 때만) -----
+  function runSearch() {
+    const byKw = mode() === 'search';
+    const kw = byKw ? $('rKw').value.trim().toLowerCase().replace(/-/g, '') : '';
+    const cat = byKw ? '' : $('rCategory').value, mtype = byKw ? '' : $('rMemberType').value, grade = byKw ? '' : $('rGrade').value;
+    if (byKw && !kw) { toast('검색어를 입력하세요.'); $('rKw').focus(); return; }
+    if (!byKw && !cat && !mtype && !grade) { toast('필터 조건을 하나 이상 고르세요. (전체 회원은 \'전체 회원\'에서 담습니다)'); return; }
+    result = members.filter(m =>
+      (!kw || [m.name, m.userId, m.phone, m.email].some(v => String(v).toLowerCase().replace(/-/g, '').includes(kw))) &&
+      (!cat || m.categoryCode === cat) && (!mtype || m.memberType === mtype) && (!grade || m.grade === grade) &&
+      (!needConsent() || consentOf(m)));
+    renderResult();
+  }
+  // ----- 전체 회원 -----
+  function renderAllPane() {
+    const sendable = members.filter(canSend).length;
+    $('allCount').textContent = members.length.toLocaleString();
+    $('allSendable').textContent = sendable.toLocaleString();
+    $('allNote').textContent = `(${ch().toLabel} 없음${needConsent() ? ' · 수신 동의 없음' : ''} 제외)`;
+    $('btnAddAllMembers').disabled = !sendable;
+  }
+  $('btnAddAllMembers').addEventListener('click', () => {
+    const list = members.filter(canSend);
+    if (!confirm(`보낼 수 있는 전체 회원 ${list.length.toLocaleString()}명을 수신자에 담으시겠습니까?${isAd() ? '\n(광고성: 수신 동의 회원만)' : ''}`)) return;
+    list.forEach(addMember);
+    renderRecipients();
+    toast(`전체 회원 ${list.length.toLocaleString()}명을 수신자에 담았습니다.`);
+  });
+  function renderResult() {
+    $('searchResult').hidden = false;
+    $('resultCount').textContent = result.length.toLocaleString();
+    const sendable = result.filter(canSend).length;
+    $('resultNote').textContent = result.length ? `· 보낼 수 있는 회원 ${sendable.toLocaleString()}명${result.length > RESULT_MAX ? ` · ${RESULT_MAX}명까지만 표시` : ''}` : '';
+    $('thTarget').textContent = ch().toLabel;
+    $('btnAddAll').disabled = !sendable;
+    $('resultBody').innerHTML = result.slice(0, RESULT_MAX).map(m => {
+      const ok = canSend(m), added = recipients.has('m' + m.no);
+      return `<tr class="${ok ? '' : 'off'}">
+        <td><b>${esc(m.name)}</b></td><td>${esc(m.userId)}</td><td>${esc(targetOf(m) || '-')}</td>
+        <td>${esc(m.category)}${m.subCategory ? ` <span class="muted">· ${esc(m.subCategory)}</span>` : ''}</td><td>${esc(m.grade)}</td>
+        <td><span class="${m.marketingSms === 'Y' ? 'yn-on' : 'yn-off'}">SMS</span> <span class="${m.marketingEmail === 'Y' ? 'yn-on' : 'yn-off'}">메일</span></td>
+        <td>${added ? '<span class="muted">담김</span>' : ok ? `<button type="button" class="btn btn-xs" data-add="${m.no}">담기</button>` : `<span class="muted" title="${needConsent() && !consentOf(m) ? '수신 동의 없음' : `${ch().toLabel} 없음`}">불가</span>`}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="7" class="empty">조건에 맞는 회원이 없습니다.</td></tr>';
+  }
+  const addMember = m => recipients.set('m' + m.no, { key: 'm' + m.no, member: m, name: m.name, userId: m.userId, target: targetOf(m), direct: false });
+  $('searchForm').addEventListener('submit', e => { e.preventDefault(); runSearch(); });
+  $('btnResultClose').addEventListener('click', () => { $('searchResult').hidden = true; });
+  $('resultBody').addEventListener('click', e => {
+    const b = e.target.closest('[data-add]');
+    if (!b) return;
+    const m = members.find(x => x.no === Number(b.dataset.add));
+    if (m) { addMember(m); renderResult(); renderRecipients(); toast(`${m.name} 님을 수신자에 담았습니다.`); }
+  });
+  $('btnAddAll').addEventListener('click', () => {
+    const list = result.filter(canSend);
+    if (list.length > 1000 && !confirm(`${list.length.toLocaleString()}명을 모두 담으시겠습니까?`)) return;
+    list.forEach(addMember);
+    renderResult(); renderRecipients();
+    toast(`${list.length.toLocaleString()}명을 수신자에 담았습니다.`);
+  });
+
+  // ===== 2) 직접 입력 (휴대폰번호 / 이메일) — Enter로도 담김 =====
+  $('directText').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('btnDirectAdd').click(); } });
+  $('btnDirectAdd').addEventListener('click', () => {
+    const raw = $('directText').value.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+    const bad = [], dup = [];
+    let added = 0;
+    raw.forEach(v => {
+      const ok = channel === 'email' ? isEmail(v) : isPhone(v);
+      if (!ok) { bad.push(v); return; }
+      const norm = channel === 'email' ? v.toLowerCase() : normPhone(v);
+      // 회원이면 회원으로 담아 변수 치환이 되게, 아니면 '고객'
+      const m = members.find(x => (channel === 'email' ? String(x.email).toLowerCase() === norm : normPhone(x.phone) === norm));
+      const key = m ? 'm' + m.no : 'd' + norm;
+      if (recipients.has(key)) { dup.push(v); return; }
+      if (m) addMember(m);
+      else recipients.set(key, { key, member: null, name: '고객', userId: '', target: channel === 'email' ? v.trim() : fmtPhone(v), direct: true });
+      added++;
+    });
+    let msg = '';
+    if (bad.length) msg = `${channel === 'email' ? '이메일' : '휴대폰번호'} 형식이 아닙니다: ${bad.slice(0, 5).join(', ')}${bad.length > 5 ? ` 외 ${bad.length - 5}` : ''}`;
+    $('directErr').textContent = msg;
+    $('directErr').classList.toggle('show', !!msg);
+    if (!raw.length) { $('directErr').textContent = '번호나 이메일을 입력하세요.'; $('directErr').classList.add('show'); return; }
+    $('directText').value = bad.join('\n');
+    renderRecipients();
+    if (added || dup.length) toast(`${added}건을 담았습니다.${dup.length ? ` (이미 담긴 ${dup.length}건 제외)` : ''}`);
+  });
+
+  // ===== 엑셀 일괄등록 (.xlsx / .xls / .csv) =====
+  // 열: 이름 · 휴대폰 · 이메일 (첫 줄 제목. 제목이 없으면 그 순서로 봄). 현재 채널에 맞는 열(휴대폰 또는 이메일)만 씀
+  // .xlsx/.xls는 SheetJS(cdnjs)를 처음 쓸 때 불러옴. TODO: 실서비스에서는 파일을 서버에 올려 서버에서 읽음 (POST /api/admin/messages/recipients/import)
+  const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  let excelRows = [];   // 읽어서 검증한 행: { line, name, target, state: 'ok'|'member'|'dup'|'bad', m }
+  const loadXlsx = () => (window.XLSX ? Promise.resolve() : new Promise((ok, ng) => { const s = document.createElement('script'); s.src = XLSX_URL; s.onload = ok; s.onerror = () => ng(new Error('엑셀 읽기 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하거나 CSV로 올려 주세요.')); document.head.appendChild(s); }));
+  const parseCsv = text => text.replace(/^﻿/, '').split(/\r?\n/).filter(l => l.trim()).map(l => {
+    const out = []; let cur = '', q = false;
+    for (const c of l) { if (c === '"') q = !q; else if (c === ',' && !q) { out.push(cur); cur = ''; } else cur += c; }
+    out.push(cur); return out.map(v => v.trim());
+  });
+  const openExcel = () => { excelRows = []; $('excelFile').value = ''; $('excelErr').classList.remove('show'); $('excelResult').textContent = '파일을 선택하면 읽은 내용을 여기에 보여줍니다.'; $('excelPreviewWrap').hidden = true; $('btnExcelApply').disabled = true; $('excelChannel').textContent = `${ch().label} → ${ch().toLabel}`; $('excelThTarget').textContent = ch().toLabel; $('excelModal').classList.add('open'); };
+  const closeExcel = () => $('excelModal').classList.remove('open');
+  $('btnExcel').addEventListener('click', openExcel);
+  document.querySelectorAll('#excelModal [data-xclose]').forEach(b => b.addEventListener('click', closeExcel));
+  $('excelModal').addEventListener('click', e => { if (e.target === $('excelModal')) closeExcel(); });
+  // 양식 내려받기: 제목 줄 + 예시 2줄 (CSV, 엑셀에서 바로 열림)
+  $('btnExcelTemplate').addEventListener('click', () => {
+    const lines = [['이름', '휴대폰', '이메일'], ['홍길동', '010-1234-5678', 'hong@example.com'], ['', '010-2345-6789', '']];
+    const blob = new Blob(['﻿' + lines.map(r => r.map(v => `"${v}"`).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '수신자_일괄등록_양식.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+  });
+  $('excelFile').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    $('excelErr').classList.remove('show');
+    try {
+      let rows;
+      if (/\.csv$/i.test(file.name)) rows = parseCsv(await file.text());
+      else { await loadXlsx(); const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' }); rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' }).map(r => r.map(v => String(v).trim())); }
+      readExcelRows(rows);
+    } catch (err) {
+      $('excelErr').textContent = err.message || '파일을 읽지 못했습니다.';
+      $('excelErr').classList.add('show');
+    }
+  });
+  function readExcelRows(rows) {
+    rows = rows.filter(r => r.some(v => v));
+    if (!rows.length) throw new Error('파일에 내용이 없습니다.');
+    // 제목 줄 찾기: 이름/휴대폰/이메일 비슷한 제목이 있으면 그 열 위치를 씀, 없으면 [이름, 휴대폰, 이메일] 순서
+    const head = rows[0].map(v => v.toLowerCase());
+    const find = words => head.findIndex(h => words.some(w => h.includes(w)));
+    let ci = { name: find(['이름', 'name', '성명']), phone: find(['휴대폰', '전화', 'phone', '연락처', 'mobile']), email: find(['이메일', 'email', '메일']) };
+    const hasHead = ci.name >= 0 || ci.phone >= 0 || ci.email >= 0;
+    if (!hasHead) ci = { name: 0, phone: 1, email: 2 };
+    const data = hasHead ? rows.slice(1) : rows;
+    const col = ci[channel === 'email' ? 'email' : 'phone'];
+    if (col < 0) throw new Error(`${ch().toLabel} 열을 찾지 못했습니다. 제목 줄에 '${ch().toLabel}'이(가) 있어야 합니다.`);
+    const seen = new Set();
+    excelRows = data.map((r, i) => {
+      const name = ci.name >= 0 ? (r[ci.name] || '') : '', raw = r[col] || '';
+      const line = i + (hasHead ? 2 : 1);
+      if (!raw) return { line, name, target: '', state: 'bad', why: `${ch().toLabel} 없음` };
+      const ok = channel === 'email' ? isEmail(raw) : isPhone(raw);
+      if (!ok) return { line, name, target: raw, state: 'bad', why: '형식 오류' };
+      const norm = channel === 'email' ? raw.toLowerCase() : normPhone(raw);
+      const m = members.find(x => (channel === 'email' ? String(x.email).toLowerCase() === norm : normPhone(x.phone) === norm));
+      const key = m ? 'm' + m.no : 'd' + norm;
+      if (seen.has(key) || recipients.has(key)) return { line, name, target: raw, state: 'dup', why: seen.has(key) ? '파일 안 중복' : '이미 담김' };
+      seen.add(key);
+      if (m && !canSend(m)) return { line, name, target: raw, state: 'bad', why: needConsent() && !consentOf(m) ? '회원 · 수신 동의 없음' : `회원 · ${ch().toLabel} 없음` };
+      return { line, name: m ? m.name : (name || '고객'), target: channel === 'email' ? raw : fmtPhone(raw), state: m ? 'member' : 'ok', m, why: m ? `회원 (${m.userId})` : '직접 입력' };
+    });
+    const n = s => excelRows.filter(r => r.state === s).length;
+    const okN = n('ok') + n('member');
+    $('excelResult').innerHTML = `읽은 행 <b>${excelRows.length.toLocaleString()}</b> · <b class="ok">담을 수 있음 ${okN.toLocaleString()}</b> (회원 ${n('member')} · 직접 입력 ${n('ok')})${n('dup') ? ` · 중복 ${n('dup')}` : ''}${n('bad') ? ` · <b class="ng">제외 ${n('bad')}</b>` : ''}`;
+    $('excelPreviewWrap').hidden = false;
+    $('excelPreview').innerHTML = excelRows.slice(0, 200).map(r => `<tr class="${r.state === 'bad' ? 'off' : ''}"><td>${r.line}</td><td>${esc(r.name || '-')}</td><td>${esc(r.target || '-')}</td><td>${r.state === 'bad' ? `<span class="warn">${esc(r.why)}</span>` : r.state === 'dup' ? `<span class="muted">${esc(r.why)}</span>` : esc(r.why)}</td></tr>`).join('')
+      + (excelRows.length > 200 ? '<tr><td colspan="4" class="empty">200행까지만 표시합니다.</td></tr>' : '');
+    $('btnExcelApply').disabled = !okN;
+    $('btnExcelApply').textContent = okN ? `${okN.toLocaleString()}명 수신자에 담기` : '수신자에 담기';
+  }
+  $('btnExcelApply').addEventListener('click', () => {
+    let added = 0;
+    excelRows.forEach(r => {
+      if (r.state === 'member') { addMember(r.m); added++; }
+      else if (r.state === 'ok') { const key = 'd' + (channel === 'email' ? r.target.toLowerCase() : normPhone(r.target)); recipients.set(key, { key, member: null, name: r.name, userId: '', target: r.target, direct: true }); added++; }
+    });
+    closeExcel();
+    renderRecipients();
+    if (!$('searchResult').hidden) renderResult();
+    toast(`엑셀에서 ${added.toLocaleString()}명을 수신자에 담았습니다.`);
+  });
+
+  // ===== 3) 수신자 목록 =====
+  function renderRecipients() {
+    // 채널을 바꾸면 그 채널로 보낼 수 없는 사람은 뺌 (직접 입력은 채널에 맞는 형식만 담기므로 형식이 다르면 뺌)
+    [...recipients.values()].forEach(r => {
+      if (r.member) { if (!canSend(r.member)) recipients.delete(r.key); else r.target = targetOf(r.member); }
+      else if (channel === 'email' ? !isEmail(r.target) : !isPhone(r.target)) recipients.delete(r.key);
+    });
+    const list = [...recipients.values()];
+    $('selCount').textContent = `${list.length.toLocaleString()}명`;
+    $('thTarget2').textContent = ch().toLabel;
+    $('recipBody').innerHTML = list.slice(0, LIST_MAX).map(r => `<tr>
+        <td><b>${esc(r.name)}</b>${r.direct ? ' <span class="muted">직접 입력</span>' : ''}</td><td>${esc(r.userId || '-')}</td><td>${esc(r.target)}</td>
+        <td>${r.member ? esc(r.member.category) : '-'}</td><td>${r.member ? esc(r.member.grade) : '-'}</td>
+        <td><button type="button" class="btn btn-xs" data-del="${esc(r.key)}">빼기</button></td>
+      </tr>`).join('') || '<tr><td colspan="6" class="empty">담긴 수신자가 없습니다. 위에서 회원을 검색해 담거나 번호·이메일을 직접 입력하세요.</td></tr>';
+    $('recipNote').textContent = list.length > LIST_MAX ? `${LIST_MAX}명까지만 표시 · 외 ${(list.length - LIST_MAX).toLocaleString()}명` : '';
+    $('sendSummary').textContent = list.length ? `${ch().label} · ${list.length.toLocaleString()}명에게 발송` : '수신자를 담으세요';
+    $('recipHint').textContent = channel === 'alimtalk' ? '휴대폰번호로 발송 (정보성 메시지만). 수신 동의는 SMS 동의 기준' : `${ch().toLabel}로 발송. 광고성은 ${ch().label} 수신 동의 회원만`;
+    renderPreview();
+  }
+  $('recipBody').addEventListener('click', e => {
+    const b = e.target.closest('[data-del]');
+    if (!b) return;
+    recipients.delete(b.dataset.del);
+    renderRecipients();
+    if (!$('searchResult').hidden) renderResult();
+  });
+  $('btnClear').addEventListener('click', () => { if (!recipients.size || confirm('수신자 목록을 모두 비우시겠습니까?')) { recipients.clear(); renderRecipients(); if (!$('searchResult').hidden) renderResult(); } });
+  $('rConsent').addEventListener('change', () => { renderRecipients(); if (!$('searchResult').hidden) runSearch(); if (mode() === 'all') renderAllPane(); });
+
+  // ===== 채널 탭 =====
+  $('channelTabs').addEventListener('click', e => {
+    const b = e.target.closest('[data-channel]');
+    if (!b || b.dataset.channel === channel) return;
+    channel = b.dataset.channel;
+    $('channelTabs').querySelectorAll('[data-channel]').forEach(x => { const on = x === b; x.classList.toggle('active', on); x.setAttribute('aria-selected', String(on)); });
+    setupChannel();
+  });
+
+  function setupChannel() {
+    const c = ch();
+    $('formTitle').textContent = `${c.label} 작성`;
+    $('manageLink').href = c.page;
+    $('rowSubject').hidden = channel !== 'email';
+    $('rowFallback').hidden = channel !== 'alimtalk';
+    $('rowAd').hidden = channel === 'alimtalk';   // 알림톡은 정보성 전용 (광고는 브랜드메시지로 별도). 수신 동의 필터는 SMS 동의를 알림톡 동의로 간주해 모든 채널에서 제공
+    $('fBody').readOnly = channel === 'alimtalk';
+    $('varChips').hidden = channel === 'alimtalk';
+    $('sendResult').hidden = true;
+    $('directTitle').textContent = channel === 'email' ? '이메일' : '휴대폰번호';
+    $('directText').placeholder = channel === 'email' ? 'user@example.com, hello@stopbook.co.kr' : '010-1234-5678, 010-2345-6789';
+    $('directErr').classList.remove('show');
+    // 양식 목록
+    const list = S.templates(channel);
+    $('tmplSel').innerHTML = (channel === 'alimtalk' ? '' : '<option value="">직접 입력</option>')
+      + list.map(t => `<option value="${esc(t.id)}">${esc(t.name)}${t.ad ? ' (광고)' : ''}</option>`).join('');
+    $('tmplNote').textContent = channel === 'alimtalk' ? '비즈엠에 승인된 템플릿만 보낼 수 있고 본문은 고칠 수 없습니다. 템플릿 등록·수정은 알림톡 발송 관리를 참고하세요.'
+      : '양식을 고르면 본문에 채워지고, 보내기 전에 고칠 수 있습니다.';
+    if (channel !== 'alimtalk') $('varChips').innerHTML = S.AUTO_VARS.map(v => `<button type="button" class="btn btn-xs" data-var="${esc(v.key)}" title="${esc(v.desc)}">#{${esc(v.key)}}</button>`).join('');
+    $('tmplSel').value = list.length ? list[0].id : '';
+    applyTemplate();
+    renderRecipients();
+    if (!$('searchResult').hidden) renderResult();
+    if (mode() === 'all') renderAllPane();
+  }
+
+  // ===== 양식 → 본문 =====
+  const currentTmpl = () => S.templates(channel).find(t => t.id === $('tmplSel').value) || null;
+  function applyTemplate() {
+    const t = currentTmpl();
+    if (channel === 'alimtalk') $('fBody').value = t ? t.body : '';
+    else if (t) { $('fBody').value = t.body; $('fAd').checked = !!t.ad; if (channel === 'email') $('fSubject').value = t.subject || ''; }
+    syncBody();
+  }
+  $('tmplSel').addEventListener('change', () => { applyTemplate(); renderRecipients(); if (!$('searchResult').hidden) renderResult(); });
+  $('fAd').addEventListener('change', () => { renderRecipients(); if (!$('searchResult').hidden) renderResult(); if (mode() === 'all') renderAllPane(); syncBody(); });
+  $('fBody').addEventListener('input', syncBody);
+  $('fSubject').addEventListener('input', renderPreview);
+  $('varChips').addEventListener('click', e => {
+    const b = e.target.closest('[data-var]');
+    if (!b) return;
+    const ta = $('fBody'), s = ta.selectionStart, v = `#{${b.dataset.var}}`;
+    ta.value = ta.value.slice(0, s) + v + ta.value.slice(ta.selectionEnd);
+    ta.focus(); ta.selectionStart = ta.selectionEnd = s + v.length;
+    syncBody();
+  });
+
+  // 직접 입력 수신자용 가상 회원 (이름 '고객', 그 밖의 자동 변수는 빈 값 → 변수가 그대로 남지 않도록 공백 처리)
+  const pseudo = r => ({ name: r.name, userId: '', grade: '', category: '', mileage: 0, phone: channel === 'email' ? '' : r.target, email: channel === 'email' ? r.target : '' });
+  const memberOf = r => r.member || pseudo(r);
+
+  // 직접 입력해야 하는 변수 (알림톡: 템플릿 vars 중 auto 없는 것 / SMS·이메일: 자동 변수가 아닌 #{변수})
+  function manualVars() {
+    if (channel === 'alimtalk') { const t = currentTmpl(); return t ? t.vars.filter(v => !v.auto).map(v => ({ key: v.key, placeholder: v.placeholder || '' })) : []; }
+    const body = $('fBody').value + (channel === 'email' ? ' ' + $('fSubject').value : '');
+    return S.manualKeys(body).map(k => ({ key: k, placeholder: '' }));
+  }
+  const manualValues = () => Object.fromEntries([...document.querySelectorAll('#varInputs input')].map(i => [i.dataset.key, i.value.trim()]));
+  function syncBody() {
+    const body = $('fBody').value;
+    $('bodyInfo').textContent = channel === 'sms' ? `${S.smsBytes(adWrap(body)).toLocaleString()} / ${S.SMS_MAX.toLocaleString()}byte · ${S.smsKind(adWrap(body))}${isAd() ? ' · (광고)·무료수신거부 문구 포함' : ''}`
+      : channel === 'alimtalk' ? `${body.length.toLocaleString()} / ${Alimtalk.MSG_MAX.toLocaleString()}자` : `${body.length.toLocaleString()}자`;
+    const prev = manualValues();
+    const vars = manualVars();
+    $('rowVars').hidden = !vars.length;
+    $('varInputs').innerHTML = vars.map(v => `<label>#{${esc(v.key)}} <input type="text" data-key="${esc(v.key)}" value="${esc(prev[v.key] || '')}" placeholder="${esc(v.placeholder)}" maxlength="100"></label>`).join('');
+    renderPreview();
+  }
+  $('varInputs').addEventListener('input', renderPreview);
+  const adWrap = body => (isAd() ? AD_PREFIX + body + AD_SUFFIX : body);
+
+  // 수신자 한 명 기준 본문 (알림톡은 템플릿 vars의 auto + 입력값, 그 외는 자동 변수 + 입력값)
+  function textFor(r, values) {
+    const m = memberOf(r);
+    if (channel === 'alimtalk') {
+      const t = currentTmpl();
+      if (!t) return '';
+      const all = Object.assign({}, values);
+      t.vars.forEach(v => { if (v.auto) { const x = v.auto(m); if (x !== '' && x !== undefined) all[v.key] = x; } });
+      return Alimtalk.fill(t.body, all);
+    }
+    return adWrap(S.fill($('fBody').value, m, values));
+  }
+  const subjectFor = (r, values) => (isAd() ? AD_PREFIX : '') + S.fill($('fSubject').value, memberOf(r), values);
+  const highlight = s => esc(s).replace(/#\{([^}]+)\}/g, '<span class="at-var">#{$1}</span>');
+
+  function renderPreview() {
+    const r = recipients.values().next().value;
+    const values = manualValues();
+    if (!r) { $('previewWho').textContent = '수신자를 담으면 첫 수신자 기준으로 미리보기가 표시됩니다.'; $('preview').innerHTML = ''; return; }
+    $('previewWho').textContent = `첫 수신자 ${r.name}${r.userId ? ` (${r.userId})` : ` (${r.target})`} 기준 · 빨간 변수는 값이 비어 있음`;
+    if (channel === 'email') {
+      $('preview').innerHTML = `<div class="email-preview"><div class="ep-subject">${highlight(subjectFor(r, values)) || '<span class="muted">(제목 없음)</span>'}</div><div class="ep-body">${highlight(textFor(r, values))}</div></div>`;
+    } else if (channel === 'alimtalk') {
+      const t = currentTmpl();
+      $('preview').innerHTML = `<div class="at-bubble"><div class="at-bubble-head">스탑북 알림톡</div><div class="at-bubble-body">${highlight(textFor(r, values))}</div>${t && t.button ? `<div class="at-bubble-btn">${esc(t.button.name)}</div>` : ''}</div>`;
+    } else {
+      $('preview').innerHTML = `<div class="msg-preview">${highlight(textFor(r, values))}</div>`;
+    }
+  }
+
+  // ===== 발송 시점 =====
+  document.querySelectorAll('input[name=fWhen]').forEach(x => x.addEventListener('change', () => {
+    const reserve = document.querySelector('input[name=fWhen]:checked').value === 'reserve';
+    $('fReserveAt').hidden = !reserve;
+    if (reserve && !$('fReserveAt').value) {
+      const d = new Date(Date.now() + 60 * 60000);
+      $('fReserveAt').value = `${fmtDate(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+  }));
+
+  // ===== 발송 =====
+  $('sendForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const list = [...recipients.values()];
+    const t = currentTmpl();
+    const values = manualValues();
+    const reserve = document.querySelector('input[name=fWhen]:checked').value === 'reserve';
+    const reserveAt = reserve ? new Date($('fReserveAt').value) : null;
+    let msg = '';
+    if (!list.length) msg = '수신자를 담으세요.';
+    else if (channel === 'alimtalk' && !t) msg = '발송양식(템플릿)을 선택하세요.';
+    else if (channel === 'email' && !$('fSubject').value.trim()) msg = '메일 제목을 입력하세요.';
+    else if (!$('fBody').value.trim()) msg = '본문을 입력하세요.';
+    else if (manualVars().some(v => !values[v.key])) msg = `변수를 입력하세요: ${manualVars().filter(v => !values[v.key]).map(v => `#{${v.key}}`).join(', ')}`;
+    else if (channel === 'sms' && S.smsBytes(adWrap($('fBody').value)) > S.SMS_MAX) msg = `본문은 ${S.SMS_MAX.toLocaleString()}byte 이내여야 합니다.`;
+    else if (reserve && (!$('fReserveAt').value || reserveAt.getTime() < Date.now() + 10 * 60000)) msg = '예약 시간은 현재부터 10분 이후로 지정하세요.';
+    $('sendErr').textContent = msg;
+    $('sendErr').classList.toggle('show', !!msg);
+    if (msg) return;
+
+    const name = t ? t.name : '직접 입력';
+    const direct = list.filter(r => r.direct).length;
+    if (!confirm(`${ch().label} ${list.length.toLocaleString()}명${direct ? ` (직접 입력 ${direct}명 포함)` : ''}에게 ${reserve ? `${$('fReserveAt').value.replace('T', ' ')}에 예약 ` : '지금 '}발송하시겠습니까?\n양식: ${name}${isAd() ? ' (광고성 · 수신 동의 회원만)' : ''}`)) return;
+
+    // TODO: 실서비스에서는 서버가 발송하고 결과를 돌려줌. 여기서는 수신 정보가 있으면 성공으로 시뮬레이션
+    let success = 0, fail = 0;
+    const fails = [];
+    list.forEach(r => {
+      let ok;
+      if (channel === 'alimtalk') {
+        const m = memberOf(r), all = Object.assign({}, values);
+        t.vars.forEach(v => { if (v.auto) { const x = v.auto(m); if (x !== '' && x !== undefined) all[v.key] = x; } });
+        const p = Alimtalk.buildPayload(m, { tmpl: t.raw, values: all, fallback: $('fFallback').checked, reserveAt });
+        ok = !p.error && Alimtalk.simulateSend(p.payload)[0].code === 'success';
+      } else ok = /\S/.test(String(r.target));
+      if (ok) success++; else { fail++; fails.push(r.name === '고객' ? r.target : r.name); }
+    });
+    const first = list[0];
+    const saved = S.addLog({ channel, templateId: t ? t.id : '', templateName: name, ad: isAd(), count: list.length, success, fail,
+      reserveAt: reserve ? $('fReserveAt').value.replace('T', ' ') : '', by: ADMIN_NAME,
+      sample: (channel === 'email' ? `[${subjectFor(first, values)}] ` : '') + textFor(first, values) });
+    $('sendResult').hidden = false;
+    $('sendResult').innerHTML = `${reserve ? '예약 등록' : '발송'} 완료 · <b class="ok">성공 ${success.toLocaleString()}명</b>${fail ? ` · <b class="ng">실패 ${fail.toLocaleString()}명</b> (${esc(fails.slice(0, 5).join(', '))}${fails.length > 5 ? ' 외' : ''})` : ''}
+      · ${esc(ch().label)} 발송 관리의 발송 내역에 기록${saved ? '' : ' (저장소를 사용할 수 없어 이 화면에만 표시)'}`;
+    toast(`${ch().label} ${success.toLocaleString()}명 ${reserve ? '예약' : '발송'} 완료${fail ? `, ${fail}명 실패` : ''}`);
+  });
+
+  setupChannel();
+  initSidebar();
+})();
+</script>
+</body>
+</html>
