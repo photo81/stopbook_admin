@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 교환 반품 관리</title>
-<link rel="stylesheet" href="admin.css?v=20261179">
+<link rel="stylesheet" href="admin.css?v=20261186">
 </head>
 <body>
 <div class="layout">
@@ -81,7 +81,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 클레임관리 &gt; <b>교환 반품 관리</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.26 (2026-10-08)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.31 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -240,12 +240,13 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261179"></script>
-<script src="member-data.js?v=20261179"></script>
-<script src="order-data.js?v=20261179"></script>
-<script src="claim-data.js?v=20261179"></script>
-<script src="item-detail.js?v=20261179"></script>
-<script src="feedback.js?v=20261179"></script>
+<script src="member-type-store.js?v=20261186"></script>
+<script src="member-data.js?v=20261186"></script>
+<script src="order-data.js?v=20261186"></script>
+<script src="claim-data.js?v=20261186"></script>
+<script src="item-detail.js?v=20261186"></script>
+<script src="list-tools.js?v=20261186"></script>
+<script src="feedback.js?v=20261186"></script>
 <script>
 (function () {
   'use strict';
@@ -289,6 +290,28 @@
       (!search.kind || q.type === search.kind) && (!search.defect || q.reason === search.defect);
   }
 
+  // ===== 목록 도구: N개씩 · 엑셀 다운로드 · 페이지 번호 (list-tools.js) =====
+  //   엑셀은 현재 탭·검색 결과 전체 (목록 열 + 상세 모달의 주문·신청·처리 내용)
+  let lastRows = [], lastKey = '';
+  const reqCols = (q, o) => [q.reqNo, q.at, q.type, q.orderNo, o ? o.orderedAt : '', o ? o.name : '', o ? o.userId : '', o ? o.email : '', o ? '\t' + o.phone : '',
+    o ? o.payMethod : '', q.reason, q.detail || '', q.status === '승인' && q.type === '반품' ? q.refundAmount : maxRefund(q),
+    STATUS_TEXT[q.status] || q.status, q.status === '승인' ? (q.result || '') : '', q.processedAt || '', q.processedBy || '', q.memo || '', q.rejectReason || ''];
+  const REQ_HEAD = ['신청번호', '신청일시', '교환/반품구분', '주문번호', '주문일시', '주문자명', '아이디', '이메일', '휴대폰', '결제수단', '불량구분', '상세 내용',
+    '처리비용(원)', '상태', '처리 결과', '처리일시', '처리자', '관리자 메모', '반려 사유'];
+  const tools = ListTools.create({
+    section: $('listBody').closest('.panel'),
+    onChange: () => render(),
+    units: [
+      { label: '신청 단위', desc: '교환·반품 신청 1건 = 1행 (신청 상품은 한 칸에 나열)', file: '교환반품목록',
+        rows: () => [[...REQ_HEAD, '신청 상품 수', '총 수량(부)', '신청 상품 (상품명 · 수량 · 상품 제작번호)', '처리 히스토리'], ...lastRows.map(q => { const o = orderOf(q); const sel = o ? q.items.map(i => o.items[i]).filter(Boolean) : [];
+          return [...reqCols(q, o), sel.length, sel.reduce((t, it) => t + it.qty, 0), sel.map(it => `${it.name} · ${it.qty}부 · ${it.spec.makeNo}`).join('\n'),
+            (q.history || []).map(h => `[${h.at}] ${h.content} (${h.by})`).join('\n')]; })] },
+      { label: '상품 단위', desc: '신청 상품 1개 = 1행 (신청 정보는 상품마다 반복)', file: '교환반품상품목록',
+        rows: () => [[...REQ_HEAD, '상품 제작번호', '상품카테고리', '상품명', '수량(부)', '상품 결제금액(원)', '제작처'], ...lastRows.flatMap(q => { const o = orderOf(q); if (!o) return [];
+          return q.items.map(i => o.items[i]).filter(Boolean).map(it => [...reqCols(q, o), it.spec.makeNo, it.category, it.name, it.qty, it.paid || it.cancel, it.maker]); })] }
+    ]
+  });
+
   // ===== 목록 =====
   const itemsText = q => { const o = orderOf(q); if (!o) return '-'; const names = q.items.map(i => o.items[i] && o.items[i].name).filter(Boolean); return names.length > 1 ? `${names[0]} 외 ${names.length - 1}종` : names[0] || '-'; };
   // 처리 열: 교환은 재제작 진행 상태, 반품은 환불 금액
@@ -300,16 +323,21 @@
       <button type="button" role="tab" class="tab ${s === filter ? 'active' : ''}" aria-selected="${s === filter}" data-status="${s}">
         ${s === '전체' ? '전체' : STATUS_TEXT[s]} <span class="tab-count">${count(s)}</span></button>`).join('');
     const rows = base.filter(q => filter === '전체' || q.status === filter);
+    lastRows = rows;
+    const key = filter + '|' + JSON.stringify(search);   // 탭·검색이 바뀌면 1페이지로
+    if (key !== lastKey) { tools.first(); lastKey = key; }
+    if (!rows.length) tools.page(rows);   // 빈 목록도 페이지 번호를 1로
     $('listGuide').innerHTML = (search ? `검색결과 <b>${rows.length}</b>건 · ` : '') + (filter === '대기'
       ? '확인 버튼을 눌러 불량 내용과 신청 상품을 확인한 뒤 승인(교환: 재제작 / 반품: 회수 후 환불) 또는 반려합니다.' : `${STATUS_TEXT[filter] || filter} ${rows.length}건`);
     // 열: 신청일 · 교환/반품구분 · 주문일시 · 주문자명 · 이메일(도메인 생략) · 주문번호 · 상품번호(상품 제작 번호) · 수량 · 처리비용 · 불량구분 · (상태: 전체 탭만) · 관리
     //   처리비용: 교환 = 무상 재제작 비용(신청 상품 결제금액 기준), 반품 = 환불 금액 (승인 후 확정액)
     const showStatus = filter === '전체';
-    const heads = ['신청일시', '교환/반품구분', '주문일시', '주문자명', '이메일', '주문번호', '상품제작번호', '수량', '처리비용', '불량구분', ...(showStatus ? ['상태'] : []), '관리'];
+    const showDone = filter === '승인';   // 처리 완료 탭: 관리 앞에 처리일
+    const heads = ['신청일시', '교환/반품구분', '주문일시', '주문자명', '이메일', '주문번호', '상품제작번호', '수량', '처리비용', '불량구분', ...(showStatus ? ['상태'] : []), ...(showDone ? ['처리일'] : []), '관리'];
     // 열 폭: 처리비용까지는 내용에 맞게 좁게 잡고, 남는 폭은 불량구분이 차지
-    const WIDTH = { '신청일시': 128, '교환/반품구분': 96, '주문일시': 124, '주문자명': 72, '이메일': 96, '주문번호': 120, '상품제작번호': 150, '수량': 56, '처리비용': 92, '상태': 90, '관리': 72 };
+    const WIDTH = { '신청일시': 128, '교환/반품구분': 96, '주문일시': 124, '주문자명': 72, '이메일': 96, '주문번호': 120, '상품제작번호': 150, '수량': 56, '처리비용': 92, '상태': 90, '처리일': 128, '관리': 72 };
     $('headRow').innerHTML = heads.map(h => `<th${WIDTH[h] ? ` style="width:${WIDTH[h]}px${['수량', '처리비용'].includes(h) ? ';text-align:right' : ''}"` : ''}>${h}</th>`).join('');
-    $('listBody').innerHTML = rows.length ? rows.map(q => {
+    $('listBody').innerHTML = rows.length ? tools.page(rows).map(q => {
       const o = orderOf(q);
       const sel = o ? q.items.map(i => o.items[i]).filter(Boolean) : [];
       const makeNos = sel.map(it => it.spec.makeNo);
@@ -327,6 +355,7 @@
         <td class="num" title="${q.type === '교환' ? '무상 재제작 비용 (신청 상품 결제금액 기준)' : '환불 금액'}">${won(cost)}</td>
         <td>${esc(q.reason)}</td>
         ${showStatus ? `<td>${statusBadge(q.status)}</td>` : ''}
+        ${showDone ? `<td>${esc(q.processedAt || '-')}</td>` : ''}
         <td><button type="button" class="btn btn-sm ${q.status === '대기' ? 'btn-primary' : ''}" data-req="${esc(q.reqNo)}">확인</button></td>
       </tr>`;
     }).join('') : `<tr><td colspan="${heads.length}" class="empty">해당 상태의 신청이 없습니다.</td></tr>`;

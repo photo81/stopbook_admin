@@ -546,7 +546,7 @@ tr.hist-system td { color: var(--text-2); }
 /* 서류 발급 관리: 서류 종류 배지(회사 서류 = 하늘, 주문 서류 = 보라/파랑, 증빙 = 초록, 기타 = 회색) · 이력 더 보기 · 긴 글 줄임 */
 .badge.dc-사업자등록증, .badge.dc-통장사본 { --dot: #0ea5e9; }
 .badge.dc-견적서 { --dot: #a855f7; }
-.badge.dc-거래명세서, .badge.dc-납품확인서, .badge.dc-거래사실확인서 { --dot: #2563eb; }
+.badge.dc-거래내역서, .badge.dc-납품서, .badge.dc-거래명세서, .badge.dc-납품확인서, .badge.dc-거래사실확인서 { --dot: #2563eb; }
 .badge.dc-현금영수증, .badge.dc-세금계산서 { --dot: #16a34a; }
 .badge.dc-세금계산서\ 수정발행 { --dot: #f59e0b; }
 .badge.dc-기타 { --dot: #a1a1aa; }
@@ -994,3 +994,7 @@ td.cat-desc { max-width: 360px; overflow: hidden; text-overflow: ellipsis; color
 .fb-meta { margin-top: 4px; text-align: right; font-size: 11px; }
 .fb-note { margin: 10px 0 0; font-size: 12px; }
 @media print { .fb-float { display: none; } }
+/* 탭 + 오른쪽 버튼 한 줄 (예: 서류 발급 관리 > 처리 대기 탭 오른쪽 '서류 발급 등록') */
+.tabs-row { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+.tabs-row > .tabs { flex: 1; min-width: 0; margin-bottom: 0; border-bottom: 0; }
+.tabs-row > .btn { flex: none; margin-bottom: 6px; }

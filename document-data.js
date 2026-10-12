@@ -1,9 +1,10 @@
 // 서류 발급 데이터 (클레임관리 > 서류 발급 관리)
 // member-type-store.js, member-data.js, order-data.js 다음에 로드
 //   자동 발급 이력: 고객이 쇼핑몰(주문서·마이페이지·주문 상세)에서 요청하면 시스템이 바로 만들어 내려주는 서류의 발급 기록
-//     사업자등록증·통장사본 = 회사(스탑북) 서류 (고객사 결제·거래처 등록용), 견적서·거래명세서 = 주문 기준으로 자동 생성
+//     사업자등록증·통장사본 = 회사(스탑북) 서류 (고객사 결제·거래처 등록용), 견적서·거래내역서 = 주문 기준으로 자동 생성
 //     현금영수증·세금계산서 = 결제 시 요청(order-data.js payment.docType) → 결제 확인 후 자동 발급
-//   별도 발급 신청: 자동 발급으로는 안 되는 서류(기관 양식·직인 날인·수신처 변경·납품확인서·세금계산서 수정발행 등)를 고객이 따로 신청한 건.
+//   별도 발급 신청: 자동 발급으로는 안 되는 서류(기관 양식·직인 날인·수신처 변경·납품서·세금계산서 수정 등)를 고객이 따로 신청한 건.
+//     주문 전 견적서 요청처럼 주문과 연결되지 않은 신청도 있음 (orderNo 없음 → customer = { name, phone, email, company })
 //     관리자가 서류를 만들어 전달(발급 완료)하거나 반려. 처리한 신청은 localStorage에 통째로 보관해 다시 열 때 그대로 복원
 // TODO: 실서비스에서는 GET /api/admin/documents/issues, GET /api/admin/documents/requests, POST /api/admin/documents/requests/{reqNo}/complete|reject
 (function () {
@@ -24,16 +25,16 @@
 
   const STATUS_TEXT = { '대기': '처리 대기', '완료': '발급 완료', '반려': '반려' };
   // 자동 발급 서류 종류 (발급 경로)
-  const AUTO_TYPES = ['사업자등록증', '통장사본', '견적서', '거래명세서', '현금영수증', '세금계산서'];
-  const CHANNEL_OF = { '사업자등록증': '마이페이지', '통장사본': '마이페이지', '견적서': '주문서', '거래명세서': '주문 상세', '현금영수증': '결제 확인', '세금계산서': '결제 확인' };
+  const AUTO_TYPES = ['사업자등록증', '통장사본', '견적서', '거래내역서', '현금영수증', '세금계산서'];
+  const CHANNEL_OF = { '사업자등록증': '마이페이지', '통장사본': '마이페이지', '견적서': '주문서', '거래내역서': '주문 상세', '현금영수증': '결제 확인', '세금계산서': '결제 확인' };
   // 별도 발급 신청 서류 종류 + 신청 샘플의 요청 사항
-  const REQUEST_TYPES = ['견적서', '거래명세서', '납품확인서', '거래사실확인서', '세금계산서 수정발행', '사업자등록증', '통장사본', '기타'];
+  const REQUEST_TYPES = ['사업자등록증', '통장사본', '견적서', '거래내역서', '납품서', '세금계산서', '현금영수증', '기타'];
   const REQUIREMENTS = {
     '견적서': ['기관 제출용 견적서 (공급가액·부가세 분리 표기, 담당자 직인 날인 필요)', '견적 유효기간 30일로 표기하고 수신처를 "○○초등학교 행정실"로 넣어 주세요.', '품목을 "포토북 제작" 한 줄로 합산 표기한 견적서가 필요합니다.'],
-    '거래명세서': ['학교 행정실 제출용 (첨부한 기관 양식에 맞춰 작성, 직인 날인)', '수신처를 사업자명이 아닌 "○○유치원"으로 변경해서 발급해 주세요.', '상품별 단가·수량이 모두 표기된 거래명세서 (품의 첨부용)'],
-    '납품확인서': ['납품일·납품 수량 확인 서명이 들어간 납품확인서 (기관 양식 첨부)', '지출 증빙용 납품확인서, 담당자 날인 필요'],
-    '거래사실확인서': ['회계 감사용 거래사실확인서 (최근 1년 거래 내역 포함)', '지원금 정산용 거래사실확인서'],
-    '세금계산서 수정발행': ['사업자등록번호를 잘못 넣었습니다. 올바른 번호로 수정발행 요청드립니다.', '공급받는자 상호가 바뀌어 수정발행이 필요합니다.'],
+    '거래내역서': ['학교 행정실 제출용 (첨부한 기관 양식에 맞춰 작성, 직인 날인)', '수신처를 사업자명이 아닌 "○○유치원"으로 변경해서 발급해 주세요.', '회계 감사용 거래내역서 (최근 1년 거래 내역 포함)', '지원금 정산용 거래내역서'],
+    '납품서': ['납품일·납품 수량 확인 서명이 들어간 납품서 (기관 양식 첨부)', '지출 증빙용 납품서, 담당자 날인 필요'],
+    '세금계산서': ['사업자등록번호를 잘못 넣었습니다. 올바른 번호로 수정발행 요청드립니다.', '공급받는자 상호가 바뀌어 수정발행이 필요합니다.', '결제 시 요청하지 못했습니다. 세금계산서 발행 부탁드립니다.'],
+    '현금영수증': ['지출증빙용 현금영수증 발행 요청 (사업자번호 기재)', '결제 후 소득공제용 현금영수증 발급 요청'],
     '사업자등록증': ['원본대조필 직인 날인본이 필요합니다. (우편 수령)', '거래처 등록용, 스캔본 외 날인본으로 이메일 송부 요청'],
     '통장사본': ['원본대조필 직인 날인본 (기관 회계 제출용)'],
     '기타': ['입금확인서 (입금일·입금액 기재) 발급 요청', '계약서(공급 계약) 양식 송부 요청']
@@ -49,6 +50,14 @@
   const saveIssues = () => { try { localStorage.setItem(KEYS.issues, JSON.stringify(adminIssues)); return true; } catch (e) { return false; } };
 
   const orderOf = x => (x.orderNo ? OrderData.find(x.orderNo) : null);
+  // 신청 서류 종류: 한 신청에 여러 서류를 함께 신청할 수 있음 (docTypes). 예전 저장 데이터는 docType 하나
+  const typesOf = req => (req.docTypes && req.docTypes.length ? req.docTypes : [req.docType]);
+  // 목록 표기: 하나면 그 이름, 여럿이면 '견적서 외 2종'
+  // 신청자 정보 (목록·상세·엑셀 공통): 주문이 있으면 주문자, 주문 전 요청이면 신청 때 받은 customer
+  const applicantOf = req => { const o = orderOf(req); if (o) return { name: o.name, userId: o.userId, phone: o.phone, email: o.email, category: o.member.category, company: o.member.business ? o.member.business.companyName : '', order: o };
+    const c = req.customer || {}; const m = c.userId ? MemberData.members.find(x => x.userId === c.userId) : null;   // 회원이면 회원구분, 직접 입력한 신청자는 비회원
+    return { name: c.name || '', userId: c.userId || '', phone: c.phone || '', email: c.email || '', category: m ? m.category : '비회원', company: c.company || '', order: null }; };
+  const typeLabel = req => { const t = typesOf(req); return t.length > 1 ? `${t[0]} 외 ${t.length - 1}종` : t[0]; };
   const fileOf = (type, o) => `${type.replace(/ /g, '_')}_${o ? o.orderNo : 'STOPBOOK'}.pdf`;
 
   // ===== 자동 발급 이력 샘플 =====
@@ -74,9 +83,9 @@
       issueAt(o, both || r() < 0.5 ? '사업자등록증' : '통장사본', t0 + (10 + Math.floor(r() * 180)) * 60000);
       if (both) issueAt(o, '통장사본', t0 + (12 + Math.floor(r() * 180)) * 60000);
     }
-    // 거래명세서: 결제 확인 뒤 주문 상세에서 내려받음 (전체취소 주문은 제외)
+    // 거래내역서: 결제 확인 뒤 주문 상세에서 내려받음 (전체취소 주문은 제외)
     const paidAt = o.payment.paidDateTime;
-    if (paidAt && o.payment.total && r() < (biz ? 0.7 : 0.2)) issueAt(o, '거래명세서', toTime(paidAt.slice(0, 16)) + (1 + Math.floor(r() * 72)) * HOUR, { amount: o.payment.total });
+    if (paidAt && o.payment.total && r() < (biz ? 0.7 : 0.2)) issueAt(o, '거래내역서', toTime(paidAt.slice(0, 16)) + (1 + Math.floor(r() * 72)) * HOUR, { amount: o.payment.total });
     // 현금영수증·세금계산서: 결제 시 요청 → 결제 확인 후 자동 발급 (order-data.js)
     if (o.payment.docType && o.payment.docAt) pushIssue(o, o.payment.docType, o.payment.docAt, { amount: o.payment.total || o.amount, purpose: o.payment.docPurpose || '' });
   });
@@ -94,7 +103,7 @@
     const biz = !!o.member.business;
     if (h >= (biz ? 22 : 5)) return;
     const r = rng(o.orderNo, 79);
-    const docType = biz ? pick(REQUEST_TYPES, r) : pick(['견적서', '거래명세서', '사업자등록증', '기타'], r);
+    const docType = biz ? pick(REQUEST_TYPES, r) : pick(['견적서', '거래내역서', '사업자등록증', '기타'], r);
     let t = toTime(o.orderedAt) + (2 + Math.floor(r() * 120)) * HOUR;
     if (t > NOW_END) t = toTime(o.orderedAt) + (1 + Math.floor(r() * 3)) * HOUR;   // 최근 주문은 주문 직후 신청으로
     if (t > NOW_END) return;
@@ -104,25 +113,69 @@
     const status = recent ? (x < 0.65 ? '대기' : x < 0.9 ? '완료' : '반려') : (x < 0.8 ? '완료' : '반려');
     const receiveBy = docType === '사업자등록증' && r() < 0.5 ? '우편' : r() < 0.75 ? '이메일' : pick(['팩스', '우편'], r);
     const receiveTo = receiveBy === '이메일' ? o.email : receiveBy === '팩스' ? pick(FAXES, r) : (o.delivery.address || '') ;
-    const req = { reqNo: no, orderNo: o.orderNo, at: fmtDt(at), docType, requirement: pick(REQUIREMENTS[docType], r),
-      attachment: r() < 0.35 ? `${docType === '세금계산서 수정발행' ? '사업자등록증' : '기관양식'}_${o.userId}.${r() < 0.5 ? 'pdf' : 'jpg'}` : '',
+    // 함께 신청한 서류: 사업자 회원 약 35%, 그 외 약 10%가 1~2종을 더 신청 (별도 난수라 다른 샘플 값은 그대로)
+    const r2 = rng(o.orderNo, 83);
+    const docTypes = [docType];
+    if (r2() < (biz ? 0.35 : 0.1)) {
+      const pool = REQUEST_TYPES.filter(t => t !== docType && t !== '기타' && t !== '세금계산서' && t !== '현금영수증');
+      const n = r2() < 0.5 ? 1 : 2;
+      for (let k = 0; k < n; k++) docTypes.push(pool.splice(Math.floor(r2() * pool.length), 1)[0]);
+    }
+    const req = { reqNo: no, orderNo: o.orderNo, at: fmtDt(at), docType, docTypes, requirement: pick(REQUIREMENTS[docType], r) + (docTypes.length > 1 ? ` (함께 신청: ${docTypes.slice(1).join(', ')})` : ''),
+      attachment: r() < 0.35 ? `${docType === '세금계산서' ? '사업자등록증' : '기관양식'}_${o.userId}.${r() < 0.5 ? 'pdf' : 'jpg'}` : '',
       receiveBy, receiveTo, wantBy: r() < 0.6 ? fmtDate(new Date(at.getTime() + (2 + Math.floor(r() * 7)) * DAY)) : '',
       status, processedAt: '', processedBy: '', file: '', sentBy: '', sentTo: '', memo: '', rejectReason: '',
-      history: [{ at: fmtDt(at), content: `고객 ${docType} 별도 발급 신청 (${receiveBy} 수령)`, by: '고객' }] };
+      history: [{ at: fmtDt(at), content: `고객 ${docTypes.join(', ')} 별도 발급 신청 (${receiveBy} 수령)`, by: '고객' }] };
     if (status !== '대기') {
       req.processedAt = fmtDt(clampNow(at.getTime() + (2 + Math.floor(r() * 30)) * HOUR)); req.processedBy = '관리자';   // 처리 시각은 기준일을 넘지 않게
       if (status === '반려') {
-        req.rejectReason = docType === '세금계산서 수정발행' ? '수정발행은 공급받는자 정보 변경 사유서와 사업자등록증 사본이 필요합니다. 서류를 첨부해 다시 신청해 주세요.' : '요청하신 양식 파일이 첨부되지 않았습니다. 기관 양식을 첨부해 다시 신청해 주세요.';
+        req.rejectReason = docType === '세금계산서' ? '수정발행은 공급받는자 정보 변경 사유서와 사업자등록증 사본이 필요합니다. 서류를 첨부해 다시 신청해 주세요.' : '요청하신 양식 파일이 첨부되지 않았습니다. 기관 양식을 첨부해 다시 신청해 주세요.';
         req.history.push({ at: req.processedAt, content: `반려 처리 (사유: ${req.rejectReason})`, by: '관리자' });
       } else {
-        req.file = fileOf(docType, o); req.sentBy = receiveBy; req.sentTo = receiveTo;
+        req.file = docTypes.length > 1 ? `서류${docTypes.length}종_${o.orderNo}.zip` : fileOf(docType, o); req.sentBy = receiveBy; req.sentTo = receiveTo;
         req.memo = r() < 0.4 ? '직인 날인 후 스캔본 송부' : '';
         req.history.push({ at: req.processedAt, content: `발급 완료 → ${receiveBy} 전달 (${req.file})`, by: '관리자' });
       }
     }
     requests.push(req);
   });
-
+  // 처리 대기 화면에서도 복수 서류 신청이 보이도록: 대기 중 복수 신청이 2건 미만이면 최근 대기 건에 서류를 더함 (저장된 처리 결과가 없는 샘플만)
+  (() => {
+    const pending = requests.filter(q => q.status === '대기' && !overlay[q.reqNo]).sort((a, b) => b.at.localeCompare(a.at));
+    const extra = [['거래내역서', '사업자등록증'], ['통장사본']];
+    pending.filter(q => q.docTypes.length === 1).slice(0, Math.max(0, 2 - pending.filter(q => q.docTypes.length > 1).length)).forEach((q, n) => {
+      extra[n].filter(t => !q.docTypes.includes(t)).forEach(t => q.docTypes.push(t));
+      q.requirement += ` (함께 신청: ${q.docTypes.slice(1).join(', ')})`;
+      q.history[0].content = `고객 ${q.docTypes.join(', ')} 별도 발급 신청 (${q.receiveBy} 수령)`;
+    });
+  })();
+  // 주문 전 요청 샘플: 주문과 연결되지 않은 견적서·사업자등록증 등 요청 (신청번호 DP…, customer에 신청자 정보)
+  //   사업자 회원 중 몇 명이 최근에 주문 없이 요청한 것으로. 처리 결과가 저장돼 있으면 그대로 복원
+  (() => {
+    const bizMembers = MemberData.members.filter(m => m.business).slice(0, 40);
+    const PRE = [[3, ['견적서'], '대기', '포토북 300부 제작 예정입니다. 사전 견적서 부탁드립니다 (부가세 포함 금액).'], [6, ['견적서', '사업자등록증'], '대기', '구매 품의용 견적서와 사업자등록증 사본이 필요합니다.'],
+      [11, ['견적서', '사업자등록증', '통장사본'], '완료', '신규 거래처 등록용 서류 일체 요청'], [18, ['견적서'], '반려', '단가표 전체를 견적서로 보내 주세요.']];
+    PRE.forEach(([ago, types, status, requirement], n) => {
+      const m = bizMembers[(n * 7 + 3) % bizMembers.length];
+      if (!m) return;
+      const at = new Date(TODAY.getTime() - ago * DAY + (10 + n) * HOUR);
+      const reqNo = `DP${fmtDate(at).replace(/-/g, '')}-${String(n + 1).padStart(3, '0')}`;
+      if (overlay[reqNo]) { requests.push(overlay[reqNo]); return; }
+      const company = m.business.companyName;
+      const req = { reqNo, orderNo: '', customer: { name: m.name, phone: m.phone, email: m.email, company, userId: m.userId }, at: fmtDt(at), docType: types[0], docTypes: types.slice(), requirement,
+        attachment: '', receiveBy: '이메일', receiveTo: m.email, wantBy: fmtDate(new Date(at.getTime() + 3 * DAY)),
+        status, processedAt: '', processedBy: '', file: '', sentBy: '', sentTo: '', memo: '', rejectReason: '',
+        history: [{ at: fmtDt(at), content: `고객 ${types.join(', ')} 별도 발급 신청 (주문 전 요청, 이메일 수령)`, by: '고객' }] };
+      if (status !== '대기') {
+        req.processedAt = fmtDt(clampNow(at.getTime() + 5 * HOUR)); req.processedBy = '관리자';
+        if (status === '반려') { req.rejectReason = '견적서는 제작 사양(상품·수량·옵션)을 알려 주셔야 발급할 수 있습니다. 사양을 적어 다시 신청해 주세요.'; req.history.push({ at: req.processedAt, content: `반려 처리 (사유: ${req.rejectReason})`, by: '관리자' }); }
+        else { req.file = `서류${types.length}종_${m.userId}.zip`; req.sentBy = '이메일'; req.sentTo = m.email; req.history.push({ at: req.processedAt, content: `발급 완료 → 이메일 전달 (${req.file})`, by: '관리자' }); }
+      }
+      requests.push(req);
+    });
+  })();
+  // 관리자가 직접 등록한 신청 (유선·이메일 등으로 받은 별도 발급 신청, 신청번호 DM…)
+  Object.values(overlay).filter(x => x.manual && !requests.some(r => r.reqNo === x.reqNo)).forEach(x => requests.push(x));
   // ===== 처리 =====
   // 발급 완료: 관리자가 만든 서류를 고객에게 전달. opts = { file, sentBy, sentTo, memo, by }. 주문 히스토리('서류발급')에 남김
   function complete(req, opts) {
@@ -130,7 +183,7 @@
     const at = nowText();
     Object.assign(req, { status: '완료', processedAt: at, processedBy: opts.by, file: opts.file || '', sentBy: opts.sentBy || req.receiveBy, sentTo: opts.sentTo || req.receiveTo, memo: opts.memo || '' });
     req.history.push({ at, content: `발급 완료 → ${req.sentBy} 전달${req.sentTo ? ` (${req.sentTo})` : ''}${req.file ? ` · ${req.file}` : ''}${req.memo ? ` · ${req.memo}` : ''}`, by: opts.by });
-    if (req.orderNo) OrderData.addHistory(req.orderNo, '서류발급', `${req.docType} 별도 발급 (${req.reqNo}) · ${req.sentBy} 전달${req.file ? ` · ${req.file}` : ''}${req.memo ? ` · ${req.memo}` : ''}`, opts.by);
+    if (req.orderNo) OrderData.addHistory(req.orderNo, '서류발급', `${typesOf(req).join(', ')} 별도 발급 (${req.reqNo}) · ${req.sentBy} 전달${req.file ? ` · ${req.file}` : ''}${req.memo ? ` · ${req.memo}` : ''}`, opts.by);
     return saveReq(req);
   }
   // 반려: 사유는 고객에게 안내
@@ -139,8 +192,23 @@
     const at = nowText();
     Object.assign(req, { status: '반려', processedAt: at, processedBy: by, rejectReason: reason });
     req.history.push({ at, content: `반려 처리 (사유: ${reason})`, by });
-    if (req.orderNo) OrderData.addHistory(req.orderNo, '서류발급', `${req.docType} 별도 발급 신청 반려 (${req.reqNo}) · 사유: ${reason}`, by);
+    if (req.orderNo) OrderData.addHistory(req.orderNo, '서류발급', `${typesOf(req).join(', ')} 별도 발급 신청 반려 (${req.reqNo}) · 사유: ${reason}`, by);
     return saveReq(req);
+  }
+  // 관리자 등록: 유선 등으로 받은 별도 발급 신청을 관리자가 직접 입력 → 처리 대기로 추가. 주문 히스토리('서류발급')에도 남김
+  //   input = { orderNo(선택), customer(주문번호가 없을 때: name, phone, email, company), docTypes[], requirement, receiveBy, receiveTo, wantBy, attachment, channel(접수 경로), memo }
+  function addRequest(input, by) {
+    const at = nowText();
+    const today = at.slice(0, 10).replace(/-/g, '');
+    const n = Object.values(overlay).filter(x => x.manual && x.reqNo.startsWith(`DM${today}`)).length + 1;
+    const req = { reqNo: `DM${today}-${String(n).padStart(3, '0')}`, manual: true, channel: input.channel, orderNo: input.orderNo || '', customer: input.orderNo ? null : input.customer, at,
+      docType: input.docTypes[0], docTypes: input.docTypes.slice(), requirement: input.requirement, attachment: input.attachment || '',
+      receiveBy: input.receiveBy, receiveTo: input.receiveTo, wantBy: input.wantBy || '',
+      status: '대기', processedAt: '', processedBy: '', file: '', sentBy: '', sentTo: '', memo: '', rejectReason: '',
+      history: [{ at, content: `관리자 등록 (${input.channel} 접수${input.orderNo ? '' : ', 주문 전 요청'}) · ${input.docTypes.join(', ')} · ${input.receiveBy} 수령${input.memo ? ` · 메모: ${input.memo}` : ''}`, by }] };
+    requests.unshift(req);
+    if (req.orderNo) OrderData.addHistory(req.orderNo, '서류발급', `${req.docTypes.join(', ')} 별도 발급 신청 등록 (${req.reqNo}, ${input.channel} 접수)`, by);
+    return saveReq(req) ? req : null;
   }
   // 관리자 발급(재발급·주문 상세의 증빙서류 발급): 발급 이력에 관리자 건으로 추가. src = { docType, orderNo, userId, name, email, category, company, amount, channel }
   function addIssue(src, by) {
@@ -162,8 +230,8 @@
 
   const byAt = (a, b) => b.at.localeCompare(a.at);
   window.DocData = {
-    STATUS_TEXT, AUTO_TYPES, REQUEST_TYPES, RECEIVE_METHODS, CHANNEL_OF, orderOf,
+    STATUS_TEXT, AUTO_TYPES, REQUEST_TYPES, RECEIVE_METHODS, CHANNEL_OF, RECEIPT_CHANNELS: ['유선', '이메일', '팩스', '방문', '기타'], orderOf, applicantOf, typesOf, typeLabel,
     issues: issues.sort(byAt), requests: requests.sort(byAt),
-    complete, reject, addIssue, reissue
+    complete, reject, addIssue, reissue, addRequest
   };
 })();
