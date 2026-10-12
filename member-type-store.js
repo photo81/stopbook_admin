@@ -754,10 +754,35 @@
     document.querySelectorAll('[data-days]').forEach(b => b.classList.toggle('btn-adjust', b.dataset.days === '30'));
   }
 
-  window.AdminUtil = { fmtDateTime, esc, toast, initSidebar, setDefaultRange, listToday, ADMIN_NAME: '관리자' };  // TODO: 로그인 관리자명
+  // ===== 처리 대기 샘플 = 오늘 접수분 =====
+  //   클레임(취소·교환반품·서류 발급)과 1:1 문의는 거의 당일 처리하므로, 처리 대기 샘플은 오늘 들어온 7~10건만 둠
+  //   list에서 isPending인 샘플 중 최근 것 N건(7~10, seed로 고정)을 남겨 접수 시각을 오늘(0시 이후 ~ 지금)로 바꾸고, 나머지 대기 샘플은 목록에서 뺌
+  //   처리 완료·반려된 샘플(지난 이력)은 그대로 둠. 반환: 남긴 대기 샘플 (최근 순)
+  // TODO: 실서비스에서는 실제 접수 데이터 사용 (샘플 전용)
+  function keepTodayPending(list, isPending, seed) {
+    const hashOf = s => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 9973, 7);
+    const n = 7 + hashOf(seed) % 4;   // 7~10건
+    const pending = list.filter(isPending).sort((a, b) => b.at.localeCompare(a.at));
+    const keep = pending.slice(0, n), drop = new Set(pending.slice(n));
+    for (let i = list.length - 1; i >= 0; i--) if (drop.has(list[i])) list.splice(i, 1);
+    // 오늘 시각: 10시 이후면 9시부터 지금까지, 그 전이면 0시부터 지금까지를 건수만큼 나눠 배치 (지금보다 늦지 않게)
+    const now = new Date(), start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() >= 10 ? 9 : 0, 1);
+    const span = Math.max(now.getTime() - start.getTime() - 60000, 0);
+    let x = hashOf(seed + 'time');
+    const r = () => (x = (x * 9301 + 49297) % 233280) / 233280;
+    const times = keep.map((_, k) => new Date(start.getTime() + span * (k + 0.15 + r() * 0.7) / keep.length)).sort((a, b) => b - a);
+    keep.forEach((q, k) => {
+      const before = q.at;
+      q.at = fmtDateTime(times[k]);
+      if (q.history && q.history[0] && q.history[0].at === before) q.history[0].at = q.at;
+    });
+    return keep;
+  }
+
+  window.AdminUtil = { fmtDateTime, esc, toast, initSidebar, setDefaultRange, listToday, keepTodayPending, ADMIN_NAME: '관리자' };  // TODO: 로그인 관리자명
 
   // 상단바 프로토타입 버전 표시. 버전을 올릴 때는 여기만 바꾸면 모든 화면에 반영됨 (HTML의 같은 문구는 스크립트 실패 시 대비용)
-  const PROTO_VERSION = '프로토타입 v2.50 (2026-10-12)';
+  const PROTO_VERSION = '프로토타입 v2.63 (2026-10-12)';
   document.querySelectorAll('[data-proto-version]').forEach(el => { el.textContent = PROTO_VERSION; });
 
   // ===== 상단 대메뉴(GNB): 회원 / 주문·배송 =====
@@ -768,7 +793,7 @@
   const GNB = [
     { key: 'member', label: '회원', cats: ['회원관리', '메시지전송관리', '관리자계정관리'] },
     { key: 'order', label: '주문/배송', cats: ['주문관리', '제작/배송관리', '클레임관리'] },
-    { key: 'board', label: '게시판', cats: ['게시판관리', '게시글관리'] }   // 게시판관리(통합·공지사항·FAQ) / 게시글관리(1:1 문의·이용후기)
+    { key: 'board', label: '게시판', cats: ['게시판관리', '게시글관리'] }   // 게시판관리(통합·관리자 공지·1:1 문의 설정) / 게시글관리(공지사항·1:1 문의·FAQ·이용후기)
   ];
   function initGnb() {
     const sidebar = document.querySelector('.sidebar'), topbar = document.querySelector('.topbar');
@@ -840,11 +865,34 @@
     });
     show(current, !activeLi);
   }
+  // ===== 게시글관리 메뉴에 게시판 추가 =====
+  //   게시판 통합 관리(board-store.js)에서 만든 게시판을 사이드 메뉴 게시글관리의 이용후기 아래에 차례로 붙임 (게시글 관리: board-posts.html?board=코드)
+  //   기본 게시판(공지사항·1:1 문의·FAQ·이용후기)은 각 화면 메뉴로 이미 있음. 쇼핑몰에 숨긴 게시판도 관리할 수 있게 표시 (흐리게)
+  //   대메뉴(initGnb)가 선택 화면을 찾기 전에 그려야 하므로 initGnb보다 먼저 실행
+  function injectBoardMenu() {
+    if (!window.BoardStore) return;
+    const anchor = document.querySelector('.sidebar .submenu a[href="board-review.html"]');
+    if (!anchor) return;
+    const ul = anchor.closest('.submenu');
+    ul.querySelectorAll('li[data-board]').forEach(li => li.remove());
+    const current = /board-posts\.html$/.test(location.pathname) ? new URLSearchParams(location.search).get('board') : null;
+    BoardStore.list().filter(b => !b.system).forEach(b => {
+      const li = document.createElement('li');
+      li.dataset.board = b.code;
+      const on = b.code === current;
+      const cls = [on ? 'active' : '', b.use ? '' : 'menu-off'].filter(Boolean).join(' ');
+      li.innerHTML = `<a href="board-posts.html?board=${encodeURIComponent(b.code)}"${cls ? ` class="${cls}"` : ''}${on ? ' aria-current="page"' : ''}${b.use ? '' : ' title="쇼핑몰에 숨긴 게시판"'}>${esc(b.name)}</a>`;
+      ul.appendChild(li);
+      if (on) { const group = ul.closest('li.has-sub'); group.classList.add('open'); group.querySelector('.menu-parent').setAttribute('aria-expanded', 'true'); }
+    });
+  }
+  window.AdminUtil.injectBoardMenu = injectBoardMenu;
+  injectBoardMenu();
   initGnb();
 
   // ===== 새 글·새 신청 알림: 대메뉴·사이드 메뉴에 빨간 점 =====
   //   아직 처리하지 않은 새 건이 있으면 그 메뉴에 표시하고, 처리해서 0건이 되면 사라짐
-  //     게시판 > 1:1 문의 관리: 담당자가 지정되지 않은 문의(대기)
+  //     게시판 > 1:1 문의: 담당자가 지정되지 않은 문의(대기)
   //     주문/배송 > 클레임관리: 취소 요청·교환 반품·서류 발급의 처리 대기 신청
   //   표시 위치: 대메뉴 버튼 오른쪽 위에 빨간 점 · 사이드 카테고리와 해당 메뉴 오른쪽에 대기 건수(작은 글씨)
   //   건수: 그 데이터(js)를 불러온 화면은 바로 계산하고 저장, 불러오지 않은 화면은 마지막으로 저장된 건수를 씀 (localStorage)

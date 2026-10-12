@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>스탑북 관리자 - 1:1 문의 관리</title>
-<link rel="stylesheet" href="admin.css?v=20261206">
+<title>스탑북 관리자 - 1:1 문의</title>
+<link rel="stylesheet" href="admin.css?v=20261219">
 </head>
 <body>
 <div class="layout">
@@ -68,29 +68,29 @@
         <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="board-all.html">게시판 통합 관리</a></li>
-          <li><a href="board-notice.html">공지사항 관리</a></li>
-          <li><a href="board-faq.html">FAQ 관리</a></li>
           <li><a href="board-admin-notice.html">관리자 공지</a></li>
-          <li><a href="board-inquiry-settings.html">1:1 문의하기 관리</a></li>
+          <li><a href="board-inquiry-settings.html">1:1 문의 설정</a></li>
         </ul>
       </li>
       <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">게시글관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="board-inquiry.html" class="active" aria-current="page">1:1 문의 관리</a></li>
-          <li><a href="board-review.html">이용후기 관리</a></li>
+          <li><a href="board-notice.html">공지사항</a></li>
+          <li><a href="board-inquiry.html" class="active" aria-current="page">1:1 문의</a></li>
+          <li><a href="board-faq.html">FAQ</a></li>
+          <li><a href="board-review.html">이용후기</a></li>
         </ul>
       </li>    </ul>
   </aside>
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 게시글관리 &gt; <b>1:1 문의 관리</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.50 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div class="breadcrumb">홈 &gt; 게시글관리 &gt; <b>1:1 문의</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.63 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>1:1 문의 관리 <span class="page-desc">접수된 문의를 확인하고 담당자를 지정해 답변합니다.</span></h1>
+      <h1>1:1 문의 <span class="page-desc">접수된 문의를 확인하고 담당자를 지정해 답변합니다.</span></h1>
 
       <!-- ===== 문의 목록 ===== -->
       <div id="listView">
@@ -201,7 +201,7 @@
             <section class="panel iq-card">
               <div class="iq-reply-head">
                 <h3>답변 내용</h3>
-                <button type="button" class="btn btn-sm iq-ai" id="btnAi" title="문의 내용·주문 정보·같은 유형의 답변 사례로 답변 초안을 만듭니다.">✦ AI 답변 생성</button>
+                <button type="button" class="btn btn-sm iq-ai" id="btnAi" title="답변 데이터·선택한 주문·문의 내용·첨부 파일을 바탕으로 답변 초안을 만듭니다.">✦ AI 답변 생성</button>
               </div>
               <div class="iq-editor-frame" id="editorFrame">
                 <div class="iq-toolbar" role="toolbar" aria-label="서식">
@@ -214,6 +214,8 @@
                 </div>
                 <div class="iq-editor" id="editor" contenteditable="true" data-placeholder="고객에게 전달할 답변을 작성해 주세요."></div>
               </div>
+              <!-- AI 초안이 참고한 자료 (답변 데이터·주문·문의 내용·첨부) -->
+              <div class="iq-ai-ref" id="aiRef" hidden></div>
               <div class="iq-reply-foot">
                 <span class="readonly" id="replyMeta"></span>
                 <div class="iq-actions" id="replyActions"></div>
@@ -287,17 +289,18 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261206"></script>
-<script src="member-data.js?v=20261206"></script>
-<script src="order-data.js?v=20261206"></script>
-<script src="inquiry-settings.js?v=20261206"></script>
-<script src="inquiry-data.js?v=20261206"></script>
-<script src="list-tools.js?v=20261206"></script>
-<script src="feedback.js?v=20261206"></script>
+<script src="board-store.js?v=20261219"></script>
+<script src="member-type-store.js?v=20261219"></script>
+<script src="member-data.js?v=20261219"></script>
+<script src="order-data.js?v=20261219"></script>
+<script src="inquiry-settings.js?v=20261219"></script>
+<script src="inquiry-data.js?v=20261219"></script>
+<script src="list-tools.js?v=20261219"></script>
+<script src="feedback.js?v=20261219"></script>
 <script>
 (function () {
   'use strict';
-  // 1:1 문의 관리
+  // 1:1 문의
   //   목록: 상태 탭(대기·확인중·완료·전체) · 검색(검색어, 접수일/답변일 기간, 문의유형, 담당자) · N개씩 · 엑셀 다운로드
   //   상세(주소 #no=문의번호): 문의 유형·태그 분류, 문의 내용(연결 주문·첨부), 답변 작성(서식·AI 초안·임시 저장·답변 완료·수정),
   //     처리 담당자 지정(대기 → 확인중), 고객 정보, 같은 회원의 문의 이력
@@ -310,7 +313,7 @@
   const textHtml = s => esc(s).replace(/\n/g, '<br>');
   initSidebar();
 
-  // 문의 유형·태그: 게시판관리 > 1:1 문의하기 관리(inquiry-settings.js). 유형마다 쓸 수 있는 태그가 다름
+  // 문의 유형·태그: 게시판관리 > 1:1 문의 설정(inquiry-settings.js). 유형마다 쓸 수 있는 태그가 다름
   const S = InquirySettings;
   const extraTypes = [...new Set(D.inquiries.map(q => q.type))].filter(t => !S.typeNames().includes(t));   // 지운 유형으로 분류된 예전 문의
   $('sType').innerHTML += S.typeNames().concat(extraTypes).map(t => `<option>${esc(t)}</option>`).join('');
@@ -436,7 +439,7 @@
     const no = hashNo(), q = no ? D.find(no) : null;
     if (no && !q) toast('문의를 찾을 수 없습니다. 목록에서 다시 선택해 주세요.');
     $('listView').hidden = !!q; $('detailView').hidden = !q;
-    if (q) showDetail(q); else { current = null; document.title = '스탑북 관리자 - 1:1 문의 관리'; renderList(); }
+    if (q) showDetail(q); else { current = null; document.title = '스탑북 관리자 - 1:1 문의'; renderList(); }
     window.scrollTo(0, 0);
   }
   window.addEventListener('hashchange', route);
@@ -444,7 +447,7 @@
 
   function showDetail(q) {
     current = q; editing = false;
-    document.title = `${q.subject} - 1:1 문의 관리`;
+    document.title = `${q.subject} - 1:1 문의`;
     $('dSubject').textContent = q.subject;
     $('dNumber').textContent = `${q.inquiryNo} · ${q.at} 접수`;
     renderTypeSelect(q);
@@ -460,6 +463,7 @@
     renderHistory(q);
     renderStatus(); renderTags();
     $('editor').innerHTML = q.status === '완료' ? q.replyHtml : (q.draft || '');
+    $('aiRef').hidden = true;
     renderReply();
   }
   const renderStatus = () => { $('dStatus').innerHTML = statusBadge(current.status); };
@@ -467,8 +471,8 @@
     // 선택한 문의 유형의 태그 + 이미 붙어 있지만 지금 목록에 없는 태그(삭제된 태그, 누르면 해제)
     const list = S.tagsOf(current.type), gone = current.tags.filter(t => !list.includes(t));
     $('dTags').innerHTML = list.map(t => `<button type="button" class="iq-tag${current.tags.includes(t) ? ' active' : ''}" data-tag="${esc(t)}" aria-pressed="${current.tags.includes(t)}">${esc(t)}</button>`).join('') +
-      gone.map(t => `<button type="button" class="iq-tag active gone" data-tag="${esc(t)}" aria-pressed="true" title="1:1 문의하기 관리에서 삭제된 태그입니다. 누르면 해제됩니다.">${esc(t)} ×</button>`).join('') +
-      (list.length || gone.length ? '' : '<span class="muted">이 유형에 등록된 태그가 없습니다. 게시판관리 &gt; 1:1 문의하기 관리에서 추가할 수 있습니다.</span>');
+      gone.map(t => `<button type="button" class="iq-tag active gone" data-tag="${esc(t)}" aria-pressed="true" title="1:1 문의 설정에서 삭제된 태그입니다. 누르면 해제됩니다.">${esc(t)} ×</button>`).join('') +
+      (list.length || gone.length ? '' : '<span class="muted">이 유형에 등록된 태그가 없습니다. 게시판관리 &gt; 1:1 문의 설정에서 추가할 수 있습니다.</span>');
   }
   function renderOrder(q) {
     const o = D.orderOf(q);
@@ -584,27 +588,47 @@
   });
 
   // ===== AI 답변 초안 =====
-  //   프로토타입: 문의 유형·연결 주문·첨부 여부로 초안을 만듦. 같은 유형의 답변 완료 문의 수를 '참고한 상담 데이터'로 안내
-  //   AI 모델·형식 프롬프트는 1:1 문의하기 관리 > 답변 프롬프트 (inquiry-settings.js)
-  // TODO: 실서비스에서는 POST /api/admin/inquiries/{no}/ai-reply (상담 데이터·첨부 이미지를 반영한 생성형 AI 초안)
+  //   근거 4가지로 초안을 만듦: ① 답변 데이터(1:1 문의 설정 > 답변 데이터, 유형·키워드가 맞는 것) ② 고객이 선택한 주문
+  //   ③ 문의 내용(제목·본문) ④ 첨부 파일. 말투·인사말·맺음말과 AI 모델은 1:1 문의 설정 > 답변 프롬프트
+  //   프로토타입은 이 근거를 문장으로 이어 붙여 초안을 만들고, 편집기 아래에 참고한 자료를 표시함
+  // TODO: 실서비스에서는 POST /api/admin/inquiries/{no}/ai-reply { model, prompt, knowledge[], order, content, attachments } → 생성형 AI 초안
   function draftFor(q) {
-    const o = D.orderOf(q);
-    const ord = o ? `주문번호 <b>${esc(o.orderNo)}</b>(${esc(o.orderedAt.slice(0, 10))} 주문, ${esc(o.title)})` : '';
-    const body = {
-      '주문/결제': o ? `문의하신 ${ord}의 결제 내역을 확인했습니다. 현재 결제 상태는 <b>${esc(o.payStatus)}</b>(${esc(o.payMethod)})입니다.<br>요청하신 내용은 확인 후 바로 처리해 드리고, 처리 결과는 마이페이지 &gt; 주문 내역에서 확인하실 수 있습니다.`
-        : '문의하신 결제 내역을 확인하고 있습니다. 주문번호를 알려 주시면 더 빠르게 확인해 드리겠습니다.',
-      '배송': o ? `${ord}은 현재 <b>${esc(o.status)}</b> 상태입니다.<br>${o.shippedAt ? `${esc(o.shippedAt)}에 출고되었으며, 배송 조회는 마이페이지 &gt; 주문 내역에서 하실 수 있습니다.` : '출고되면 알림톡으로 송장번호를 안내해 드리겠습니다.'}`
-        : '주문하신 상품의 제작·출고 일정을 확인하고 있습니다. 출고되면 알림톡으로 송장번호를 안내해 드리겠습니다.',
-      '상품': `문의하신 옵션은 편집기에서 바로 변경하실 수 있습니다.${o ? ` (${ord})` : ''}<br>제작이 시작되기 전이라면 추가 비용 없이 변경되며, 페이지 추가 등 옵션에 따라 금액이 달라질 수 있습니다.`,
-      '교환/반품': `${q.files.length ? '보내주신 사진으로 상품 상태를 확인했습니다. ' : ''}불편을 드려 죄송합니다.${o ? `<br>${ord}을 재제작으로 접수해 두었으며,` : '<br>재제작으로 접수해 두었으며,'} 제작이 끝나면 다시 배송해 드리겠습니다. 받으신 상품은 회수하지 않으셔도 됩니다.`,
-      '회원정보': '회원정보를 확인했습니다. 마이페이지 &gt; 회원정보 수정에서 변경하실 수 있으며, 본인 인증이 되지 않으면 고객센터로 연락 주시면 도와드리겠습니다.',
-      '기타': '문의하신 내용을 담당 부서에 전달했습니다. 담당자가 확인한 뒤 남겨주신 연락처로 상세 견적과 일정을 안내해 드리겠습니다.'
-    }[q.type] || '문의하신 내용을 확인하고 있습니다. 확인되는 대로 다시 안내드리겠습니다.';
-    // 인사말·맺음말: 1:1 문의하기 관리 > 답변 프롬프트의 '첫 줄', '마지막 줄' 문구 (값은 문의 정보로 채움)
-    const p = S.prompt(), vars = { '고객명': q.name, '문의유형': q.type, '문의제목': q.subject, '주문번호': o ? o.orderNo : '', '주문상태': o ? o.status : '', '담당자': q.assignee };
+    const o = D.orderOf(q), p = S.prompt();
+    const vars = { '고객명': q.name, '문의유형': q.type, '문의제목': q.subject, '주문번호': o ? o.orderNo : '', '주문상태': o ? o.status : '', '담당자': q.assignee };
+    const refs = S.matchKnowledge(q.type, `${q.subject} ${q.content}`, 2);
+    const lines = [];
+    // ③ 문의 내용 확인 + ④ 첨부 파일
+    lines.push(`문의하신 <b>${esc(q.subject)}</b> 내용을 확인했습니다.${q.files.length ? ` 보내주신 첨부 파일(${q.files.map(esc).join(', ')})도 함께 확인했습니다.` : ''}`);
+    // ② 선택한 주문: 주문번호·상품·진행 상태
+    if (o) {
+      const items = o.items.filter(it => it.payStatus !== '취소');
+      lines.push(`주문번호 <b>${esc(o.orderNo)}</b>(${esc(o.orderedAt.slice(0, 10))} 주문 · ${esc(items.map(it => `${it.name} ${it.qty}부`).join(', ') || o.title)})의 현재 상태는 <b>${esc(o.status)}</b>입니다.${o.shippedAt ? ` ${esc(o.shippedAt)}에 출고되었으며, 배송 조회는 마이페이지 &gt; 주문 내역에서 하실 수 있습니다.` : ''}`);
+    }
+    // ① 답변 데이터 (없으면 유형별 기본 안내)
+    if (refs.length) refs.forEach(r => lines.push(esc(S.fillVars(r.k.answer, vars))));
+    else lines.push({
+      '주문/결제': '요청하신 내용은 확인 후 바로 처리해 드리고, 처리 결과는 마이페이지 &gt; 주문 내역에서 확인하실 수 있습니다.',
+      '배송': '제작·출고 일정을 확인하고 있습니다. 출고되면 알림톡으로 송장번호를 안내해 드리겠습니다.',
+      '상품': '문의하신 옵션은 편집기에서 바꾸실 수 있으며, 제작이 시작되기 전이라면 추가 비용 없이 변경됩니다.',
+      '교환/반품': '불편을 드려 죄송합니다. 상품 상태를 확인해 재제작 또는 교환으로 처리해 드리겠습니다.',
+      '회원정보': '마이페이지 &gt; 회원정보 수정에서 변경하실 수 있으며, 어려우시면 고객센터로 연락 주세요.',
+      '기타': '문의하신 내용을 담당 부서에 전달했습니다. 확인한 뒤 남겨주신 연락처로 안내해 드리겠습니다.'
+    }[q.type] || '문의하신 내용을 확인하고 있습니다. 확인되는 대로 다시 안내드리겠습니다.');
+    // 인사말·맺음말: 답변 프롬프트의 '첫 줄', '마지막 줄' 문구
     const first = S.fillVars(S.promptLine(p.format, '첫 줄'), vars) || `안녕하세요, ${q.name} 고객님. 스탑북 고객센터입니다.`;
     const last = S.fillVars(S.promptLine(p.format, '마지막 줄'), vars) || '추가로 궁금하신 점은 1:1 문의 또는 고객센터(02-0000-0000)로 연락 주세요. 감사합니다.';
-    return `${esc(first)}<br><br>문의하신 <b>${esc(q.subject)}</b> 내용을 확인했습니다.<br>${body}<br><br>${esc(last)}`;
+    return { html: `${esc(first)}<br><br>${lines.join('<br>')}<br><br>${esc(last)}`, refs, order: o };
+  }
+  function renderAiRef(q, d) {
+    const parts = [
+      `<b>답변 데이터</b> ${d.refs.length ? d.refs.map(r => `<span class="iq-tag-chip" title="키워드: ${esc(r.hits.join(', ') || '제목 일치')}">${esc(r.k.title)}</span>`).join(' ') : '<span class="muted">맞는 데이터 없음 (유형별 기본 안내 사용)</span>'}`,
+      `<b>주문</b> ${d.order ? esc(d.order.orderNo) : '<span class="muted">선택한 주문 없음</span>'}`,
+      '<b>문의 내용</b> 제목·본문',
+      `<b>첨부</b> ${q.files.length ? `${q.files.length}개` : '<span class="muted">없음</span>'}`,
+      `<b>모델</b> ${esc(S.modelLabel(S.prompt().model))}`
+    ];
+    $('aiRef').innerHTML = `<span class="iq-ai-ref-title">✦ AI 초안 참고 자료</span>${parts.map(x => `<span>${x}</span>`).join('')}`;
+    $('aiRef').hidden = false;
   }
   $('btnAi').addEventListener('click', () => {
     if (!current) return;
@@ -612,10 +636,11 @@
     const b = $('btnAi'), before = b.textContent;
     b.disabled = true; b.textContent = 'AI 작성 중...';
     setTimeout(() => {
-      $('editor').innerHTML = draftFor(current);
+      const d = draftFor(current);
+      $('editor').innerHTML = d.html;
+      renderAiRef(current, d);
       b.disabled = false; b.textContent = before;
-      const ref = D.inquiries.filter(x => x.type === current.type && x.status === '완료' && x.no !== current.no).length;
-      toast(`${S.modelLabel(S.prompt().model)} · 형식 프롬프트와 같은 유형의 답변 사례 ${ref.toLocaleString()}건${current.files.length ? `, 첨부 이미지 ${current.files.length}장` : ''}을 참고해 초안을 만들었습니다. 내용을 확인한 뒤 답변해 주세요.`);
+      toast(`AI 초안을 만들었습니다. (참고: 답변 데이터 ${d.refs.length}건${d.order ? ', 주문 정보' : ''}, 문의 내용${current.files.length ? `, 첨부 ${current.files.length}개` : ''}) 내용을 확인한 뒤 답변해 주세요.`);
     }, 600);
   });
 

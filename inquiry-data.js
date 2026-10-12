@@ -1,4 +1,4 @@
-// 1:1 문의 데이터 (게시글관리 > 1:1 문의 관리)
+// 1:1 문의 데이터 (게시글관리 > 1:1 문의)
 // member-type-store.js, member-data.js, order-data.js, inquiry-settings.js 다음에 로드
 //   문의 원본 = 회원 상세 > 이용 정보 > 문의 이력과 같은 데이터 (member-data.js m.inquiries) → 회원 화면·대시보드·주문 리스트 상담여부와 건수가 맞음
 //   처리 상태: 대기(담당자 없음) → 확인중(담당자 지정) → 완료(답변 등록). 회원 화면에는 대기·확인중 = 답변대기, 완료 = 답변완료
@@ -16,7 +16,7 @@
   const textToHtml = s => escHtml(s).replace(/\n/g, '<br>');
 
   const STATUSES = ['대기', '확인중', '완료'];
-  // 문의 유형·태그 목록은 1:1 문의하기 관리(inquiry-settings.js)에서 관리. 유형 이름을 바꾸면 예전 이름의 문의도 새 이름으로 보여 줌
+  // 문의 유형·태그 목록은 1:1 문의 설정(inquiry-settings.js)에서 관리. 유형 이름을 바꾸면 예전 이름의 문의도 새 이름으로 보여 줌
   const S = window.InquirySettings;
   const canonicalType = name => (S ? S.canonicalType(name) : name);
   const AGENTS = ['김지영', '김태복', '창경훈', '최의담', '이고은'];   // 처리 담당자 (관리자 실명). TODO: 관리자 계정 관리의 상담 권한 계정
@@ -49,7 +49,6 @@
     .sort((a, b) => b.orderedAt.localeCompare(a.orderedAt))[0] || null;
 
   // ===== 문의 목록 =====
-  const BASE_END = OrderData.TODAY.getTime() + 86400000;   // 샘플 기준일 끝
   const inquiries = [];
   MemberData.members.forEach(m => (m.inquiries || []).forEach(cur => {
     const src = Object.assign({}, cur, cur.sample || {});   // 관리자 처리 전 샘플 값 기준 (처리 내용은 아래에서 덮어씀)
@@ -57,9 +56,14 @@
     const ov = edits[src.no] || {};
     const order = ORDER_TYPES.includes(src.type) ? orderBefore(m.userId, src.at) : null;
     const done = src.status === '답변완료';
-    // 샘플 담당자: 답변완료 = 답변자, 답변대기 중 접수 하루가 지난 건의 일부는 담당자 지정(확인중)
-    const age = (BASE_END - new Date(src.at.replace(' ', 'T')).getTime()) / 86400000;   // 샘플 기준일 기준 (날짜가 지나도 샘플이 바뀌지 않게)
-    const sampleAgent = done ? src.answeredBy : (age > 1 && r() < 0.55 ? AGENTS[Math.floor(r() * AGENTS.length)] : '');
+    // 샘플 담당자: 답변완료 = 답변자, 답변 대기(오늘 접수) 중 일부는 이미 담당자가 지정돼 확인중
+    const sampleAgent = done ? src.answeredBy : (r() < 0.3 ? AGENTS[Math.floor(r() * AGENTS.length)] : '');
+    // 확인중 샘플의 담당자 지정 시각: 접수 10~40분 뒤 (지금보다 늦지 않게)
+    const assignedAt = () => {
+      const at = new Date(src.at.replace(' ', 'T')).getTime();
+      const d = new Date(Math.max(at, Math.min(Date.now() - 60000, at + (10 + Math.floor(r() * 30)) * 60000)));
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
     // 문의유형·태그는 관리자가 답변하며 정하는 분류 → 샘플 태그는 답변 완료 건에만 (답변 전 문의는 관리자가 직접 설정)
     const tags = done ? (TAG_OF[src.title] || []) : [];
     const q = {
@@ -78,7 +82,7 @@
       answeredAt: src.answeredAt || '', answeredBy: src.answeredBy || '',
       draft: '',
       log: [{ at: src.at, text: '고객 문의 접수', by: m.name }]
-        .concat(sampleAgent ? [{ at: done ? addHours(src.at, 1) : addHours(src.at, 20), text: `처리 담당자 지정: ${sampleAgent}`, by: sampleAgent }] : [])
+        .concat(sampleAgent ? [{ at: done ? addHours(src.at, 1) : assignedAt(), text: `처리 담당자 지정: ${sampleAgent}`, by: sampleAgent }] : [])
         .concat(done ? [{ at: src.answeredAt, text: '답변 완료', by: src.answeredBy }] : [])
     };
     // 관리자 처리 내용 덮어쓰기 (member-data.js가 이미 반영한 type·답변도 여기서 다시 맞춤)
@@ -95,7 +99,7 @@
   const historyOf = q => inquiries.filter(x => x.userId === q.userId && x.no !== q.no);
 
   // 주문 히스토리용 문의 이력 (주문 상세 > 주문 히스토리, order-detail.html): 주문과 연결된 문의의 접수·담당자 지정·유형 변경·답변 완료·수정
-  //   문의 처리 이력(q.log)을 그대로 옮겨 보여 주므로 1:1 문의 관리에서 처리하면 주문 히스토리에도 바로 남음. 임시 저장은 내부 작업이라 제외
+  //   문의 처리 이력(q.log)을 그대로 옮겨 보여 주므로 1:1 문의에서 처리하면 주문 히스토리에도 바로 남음. 임시 저장은 내부 작업이라 제외
   const orderHistory = orderNo => inquiries.filter(q => q.orderNo === orderNo).flatMap(q => q.log
     .filter(l => l.text !== '답변 임시 저장')
     .map(l => ({ at: l.at, type: '문의', by: l.by,

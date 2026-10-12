@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>스탑북 관리자 - 공지사항 관리</title>
-<link rel="stylesheet" href="admin.css?v=20261206">
+<title>스탑북 관리자 - 공지사항</title>
+<link rel="stylesheet" href="admin.css?v=20261219">
 </head>
 <body>
 <div class="layout">
@@ -64,49 +64,322 @@
           <li><a href="claim-documents.html">서류 발급 관리</a></li>
         </ul>
       </li>
-      <li class="has-sub open">
-        <a href="#" class="menu-parent" aria-expanded="true">게시판관리<span class="chev">▼</span></a>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="board-all.html">게시판 통합 관리</a></li>
-          <li><a href="board-notice.html" class="active" aria-current="page">공지사항 관리</a></li>
-          <li><a href="board-faq.html">FAQ 관리</a></li>
           <li><a href="board-admin-notice.html">관리자 공지</a></li>
-          <li><a href="board-inquiry-settings.html">1:1 문의하기 관리</a></li>
+          <li><a href="board-inquiry-settings.html">1:1 문의 설정</a></li>
         </ul>
       </li>
-      <li class="has-sub">
-        <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
+      <li class="has-sub open">
+        <a href="#" class="menu-parent" aria-expanded="true">게시글관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
-          <li><a href="board-review.html">이용후기 관리</a></li>
+          <li><a href="board-notice.html" class="active" aria-current="page">공지사항</a></li>
+          <li><a href="board-inquiry.html">1:1 문의</a></li>
+          <li><a href="board-faq.html">FAQ</a></li>
+          <li><a href="board-review.html">이용후기</a></li>
         </ul>
       </li>    </ul>
   </aside>
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 게시판관리 &gt; <b>공지사항 관리</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.50 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div class="breadcrumb">홈 &gt; 게시글관리 &gt; <b>공지사항</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.63 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>공지사항 관리 <span class="page-desc">고객에게 보여줄 공지사항을 등록하고 관리합니다.</span></h1>
+      <h1>공지사항 <span class="page-desc">고객에게 보여줄 공지사항을 등록하고 관리합니다.</span></h1>
 
-      <!-- 빈 페이지: 화면 구성 예정 -->
-      <section class="panel">
-        <div class="empty-page">
-          <b>준비 중인 화면입니다.</b>
-          <p>공지사항 관리 화면은 구성 예정입니다.</p>
-        </div>
-      </section>
+      <!-- ===== 공지 목록 ===== -->
+      <div id="listView">
+        <div class="tabs" role="tablist" id="statusTabs"></div>
+        <form class="panel" id="searchForm" novalidate>
+          <div class="search-row">
+            <div class="search-grid order-search">
+              <div class="field f-keyword">
+                <label for="sKeyType">검색어</label>
+                <select id="sKeyType" style="flex:0 0 96px"><option value="all">전체</option><option value="title">제목</option><option value="content">내용</option><option value="author">작성자</option></select>
+                <input type="text" id="sKeyword" placeholder="검색어 입력">
+              </div>
+              <div class="field f-status">
+                <label for="sHead">말머리</label>
+                <select id="sHead"><option value="">전체</option></select>
+              </div>
+            </div>
+            <div class="search-actions">
+              <button type="submit" class="btn btn-primary">검색</button>
+              <button type="button" class="btn" id="btnReset">초기화</button>
+            </div>
+          </div>
+        </form>
+        <section class="panel">
+          <div class="list-head">
+            <div class="count" id="listGuide"></div>
+            <div class="right"><button type="button" class="btn btn-primary" id="btnNew">공지 등록</button></div>
+          </div>
+          <div class="table-wrap">
+            <table class="bp-table">
+              <colgroup><col style="width:88px"><col style="width:96px"><col><col style="width:84px"><col style="width:136px"><col style="width:290px"><col style="width:72px"><col style="width:100px"></colgroup>
+              <thead><tr><th>번호</th><th>말머리</th><th>제목</th><th>작성자</th><th>등록일</th><th>게시 기간</th><th class="num">조회</th><th>상태</th></tr></thead>
+              <tbody id="listBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===== 공지 등록·수정 ===== -->
+      <div id="formView" hidden>
+        <button type="button" class="iq-back" id="btnBack">← 공지 목록으로</button>
+        <form class="panel nt-form" id="ntForm" novalidate>
+          <div class="nt-form-head"><h2 id="fTitleH">공지 등록</h2><span class="readonly" id="fMeta"></span></div>
+          <table class="form-table">
+            <tr><th>말머리</th><td><select id="fHead" class="w-auto" aria-label="말머리"></select></td></tr>
+            <tr><th>제목 *</th><td><input type="text" id="fTitle" maxlength="100" placeholder="고객에게 보이는 공지 제목">
+              <div class="readonly" style="margin-top:4px"><span id="fTitleLen">0</span> / 100자</div></td></tr>
+            <tr><th>상단 고정</th><td><label class="check-chip"><input type="checkbox" id="fPinned"> 목록 맨 위에 고정</label>
+              <span class="readonly" id="fPinnedNote" style="margin-left:8px"></span></td></tr>
+            <tr><th>노출</th><td>
+              <div class="inline-row">
+                <label class="check-chip"><input type="radio" name="fUse" value="Y" checked> 노출</label>
+                <label class="check-chip"><input type="radio" name="fUse" value="N"> 숨김</label>
+              </div>
+            </td></tr>
+            <tr><th>게시 기간</th><td>
+              <div class="inline-row">
+                <label class="check-chip"><input type="radio" name="fPeriod" value="always" checked> 상시</label>
+                <label class="check-chip"><input type="radio" name="fPeriod" value="range"> 기간 지정</label>
+                <span id="fRange" class="inline-row" hidden><input type="datetime-local" id="fStart" aria-label="게시 시작"> ~ <input type="datetime-local" id="fEnd" aria-label="게시 종료"></span>
+              </div>
+              <div class="readonly" style="margin-top:4px">기간을 지정하면 시작 전에는 '예약', 끝난 뒤에는 '종료'로 바뀌고 쇼핑몰에서 내려갑니다.</div>
+            </td></tr>
+            <tr><th>내용 *</th><td>
+              <div class="iq-editor-frame">
+                <div class="iq-toolbar" role="toolbar" aria-label="서식">
+                  <button type="button" data-cmd="bold" title="굵게"><b>B</b></button>
+                  <button type="button" data-cmd="italic" title="기울임"><i>I</i></button>
+                  <button type="button" data-cmd="underline" title="밑줄"><u>U</u></button>
+                  <button type="button" data-cmd="insertUnorderedList" title="글머리 기호">•</button>
+                  <button type="button" data-cmd="insertOrderedList" title="번호 목록">1.</button>
+                  <button type="button" id="btnLink" title="링크">🔗</button>
+                </div>
+                <div class="iq-editor nt-editor" id="editor" contenteditable="true" data-placeholder="공지 내용을 입력해 주세요."></div>
+              </div>
+            </td></tr>
+            <tr><th>첨부 파일</th><td>
+              <div class="nt-files" id="fFiles"></div>
+              <label class="btn btn-sm" for="fFilePick">파일 선택</label><input type="file" id="fFilePick" multiple hidden>
+              <span class="readonly">최대 5개 · 파일당 10MB 이하</span>
+            </td></tr>
+          </table>
+          <div class="err" id="fErr"></div>
+          <div class="page-actions">
+            <button type="button" class="btn btn-danger" id="btnDelete" style="margin-right:auto">삭제</button>
+            <button type="button" class="btn" id="btnCancel">취소</button>
+            <button type="button" class="btn" id="btnPreview">미리보기</button>
+            <button type="submit" class="btn btn-primary" id="btnSave">등록</button>
+          </div>
+        </form>
+      </div>
     </main>
+  </div>
+</div>
+
+<!-- 미리보기: 쇼핑몰 공지 상세처럼 -->
+<div class="modal-bg" id="pvModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pvTitle">
+    <div class="modal-header">
+      <h2 id="pvTitle">미리보기</h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body"><div class="nt-preview" id="pvBody"></div></div>
+    <div class="modal-footer"><button type="button" class="btn" data-close>닫기</button></div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261206"></script>
-<script src="feedback.js?v=20261206"></script>
-<script>AdminUtil.initSidebar();</script>
+<script src="board-store.js?v=20261219"></script>
+<script src="member-type-store.js?v=20261219"></script>
+<script src="list-tools.js?v=20261219"></script>
+<script src="feedback.js?v=20261219"></script>
+<script>
+(function () {
+  'use strict';
+  // 공지사항 (게시판 코드 notice, board-store.js 게시글)
+  //   목록: 상태 탭(전체·게시중·예약·종료·숨김) · 검색(제목·내용·작성자, 말머리) · 고정 공지는 맨 위 · N개씩
+  //   등록·수정(주소 #new / #id=글번호): 말머리·제목·상단 고정·노출·게시 기간(상시/기간)·내용(서식)·첨부 파일 · 미리보기 · 삭제
+  //   상태: 숨김(노출 안 함) / 예약(시작 전) / 종료(끝난 뒤) / 게시중
+  const { esc, toast, initSidebar, ADMIN_NAME } = AdminUtil;
+  const $ = id => document.getElementById(id);
+  initSidebar();
+  const CODE = 'notice', PIN_MAX = 5;
+  const board = BoardStore.byCode(CODE);
+  const pad = n => String(n).padStart(2, '0');
+  const nowStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const statusOf = p => (!p.use ? '숨김' : p.startAt && p.startAt > nowStr() ? '예약' : p.endAt && p.endAt < nowStr() ? '종료' : '게시중');
+  const STATUS_CLASS = { '게시중': 'iq-st-완료', '예약': 'iq-st-확인중', '종료': 'nt-st-end', '숨김': 'nt-st-hide' };
+  const TABS = ['전체', '게시중', '예약', '종료', '숨김'];
+  const textOf = html => String(html || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  $('sHead').innerHTML += board.heads.map(h => `<option>${esc(h)}</option>`).join('');
+  $('fHead').innerHTML = '<option value="">말머리 없음</option>' + board.heads.map(h => `<option>${esc(h)}</option>`).join('');
+
+  // ===== 목록 =====
+  let filter = '전체', search = { keyType: 'all', kw: '', head: '' }, rows = [];
+  const tools = ListTools.create({ section: $('listBody').closest('.panel'), onChange: () => renderList(),
+    units: [{ label: '공지 단위', desc: '공지 1건 = 1행', file: '공지사항', rows: () => [['번호', '말머리', '제목', '상단 고정', '작성자', '등록일', '게시 시작', '게시 종료', '조회', '상태'], ...rows.map(p => [p.no, p.head, p.title, p.pinned ? 'Y' : '', p.author, p.at, p.startAt || '상시', p.endAt || '상시', p.views, statusOf(p)])] }] });
+  let lastKey = '';
+  function renderList() {
+    const s = search;
+    const base = BoardStore.postsOf(CODE).filter(p => (!s.head || p.head === s.head) &&
+      (!s.kw || (s.keyType === 'all' ? [p.title, textOf(p.content), p.author] : [s.keyType === 'content' ? textOf(p.content) : p[s.keyType]]).some(v => String(v).toLowerCase().includes(s.kw))));
+    $('statusTabs').innerHTML = TABS.map(t => `<button type="button" role="tab" class="tab ${t === filter ? 'active' : ''}" aria-selected="${t === filter}" data-status="${t}">${t} <span class="tab-count">${(t === '전체' ? base.length : base.filter(p => statusOf(p) === t).length).toLocaleString()}</span></button>`).join('');
+    // 고정 공지 먼저, 그다음 최근 순
+    rows = base.filter(p => filter === '전체' || statusOf(p) === filter).sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || b.at.localeCompare(a.at));
+    const key = filter + JSON.stringify(s); if (key !== lastKey) { tools.first(); lastKey = key; }
+    const pinned = base.filter(p => p.pinned).length;
+    $('listGuide').innerHTML = `공지 <b>${rows.length.toLocaleString()}</b>건 · 상단 고정 ${pinned}/${PIN_MAX}`;
+    $('listBody').innerHTML = tools.page(rows).map(p => {
+      const st = statusOf(p);
+      return `<tr${p.pinned ? ' class="nt-pinned"' : ''}${st === '숨김' || st === '종료' ? ' style="color:var(--faint)"' : ''}>
+        <td>${p.pinned ? '<span class="badge nt-pin">고정</span>' : p.no}</td>
+        <td>${p.head ? `<span class="iq-tag-chip">${esc(p.head)}</span>` : '<span class="muted">-</span>'}</td>
+        <td><div class="iq-subject"><button type="button" class="iq-title-link" data-open="${esc(p.id)}" title="${esc(p.title)}">${esc(p.title)}</button>${(p.files || []).length ? `<span class="muted" title="첨부 ${p.files.length}개">📎</span>` : ''}</div></td>
+        <td>${esc(p.author)}</td><td>${esc(p.at)}</td>
+        <td>${p.startAt || p.endAt ? `${esc((p.startAt || '').slice(0, 16) || '-')} ~ ${esc((p.endAt || '').slice(0, 16) || '-')}` : '<span class="muted">상시</span>'}</td>
+        <td class="num">${p.views.toLocaleString()}</td>
+        <td><span class="badge ${STATUS_CLASS[st]}">${st}</span></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="8" class="empty">조건에 맞는 공지가 없습니다.</td></tr>';
+  }
+  $('statusTabs').addEventListener('click', e => { const b = e.target.closest('[data-status]'); if (b) { filter = b.dataset.status; renderList(); } });
+  $('searchForm').addEventListener('submit', e => { e.preventDefault(); search = { keyType: $('sKeyType').value, kw: $('sKeyword').value.trim().toLowerCase(), head: $('sHead').value }; renderList(); });
+  $('btnReset').addEventListener('click', () => { $('searchForm').reset(); search = { keyType: 'all', kw: '', head: '' }; renderList(); });
+  $('listBody').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) location.hash = `id=${b.dataset.open}`; });
+  $('btnNew').addEventListener('click', () => { location.hash = 'new'; });
+
+  // ===== 등록·수정 =====
+  let editing = null, files = [], dirty = false;
+  const toLocal = s => (s ? s.replace(' ', 'T').slice(0, 16) : '');
+  const fromLocal = s => (s ? s.replace('T', ' ') : '');
+  function route() {
+    const h = location.hash, id = (h.match(/id=([\w-]+)/) || [])[1];
+    const p = id ? BoardStore.postsOf(CODE).find(x => x.id === id) : null;
+    if (id && !p) toast('공지를 찾을 수 없습니다.');
+    const form = h === '#new' || !!p;
+    $('listView').hidden = form; $('formView').hidden = !form;
+    if (form) openForm(p); else { document.title = '스탑북 관리자 - 공지사항'; renderList(); }
+    window.scrollTo(0, 0);
+  }
+  // 저장하지 않고 다른 화면으로 가려 하면 확인. 취소하면 주소를 되돌리고 그대로 둠
+  let curHash = location.hash, ignoreNext = false;
+  window.addEventListener('hashchange', () => {
+    if (ignoreNext) { ignoreNext = false; return; }
+    if (dirty && !confirm('저장하지 않은 내용이 있습니다. 이동할까요?')) { ignoreNext = true; location.hash = curHash; return; }
+    dirty = false; curHash = location.hash; route();
+  });
+  function openForm(p) {
+    editing = p ? p.id : null; dirty = false;
+    document.title = `스탑북 관리자 - 공지사항 ${p ? '수정' : '등록'}`;
+    $('fTitleH').textContent = p ? '공지 수정' : '공지 등록';
+    $('fMeta').textContent = p ? `${p.author} · ${p.at} 등록${p.updatedAt ? ` · ${p.updatedAt} 수정 (${p.updatedBy})` : ''} · 조회 ${p.views.toLocaleString()}` : '';
+    $('fHead').value = p ? p.head : (board.heads[0] || '');
+    $('fTitle').value = p ? p.title : ''; $('fTitleLen').textContent = $('fTitle').value.length;
+    $('fPinned').checked = !!(p && p.pinned);
+    document.querySelector(`[name=fUse][value="${!p || p.use ? 'Y' : 'N'}"]`).checked = true;
+    const range = !!(p && (p.startAt || p.endAt));
+    document.querySelector(`[name=fPeriod][value="${range ? 'range' : 'always'}"]`).checked = true;
+    $('fStart').value = toLocal(p && p.startAt); $('fEnd').value = toLocal(p && p.endAt);
+    $('editor').innerHTML = p ? p.content : '';
+    files = p ? (p.files || []).slice() : [];
+    $('fErr').textContent = '';
+    $('btnDelete').hidden = !p;
+    $('btnSave').textContent = p ? '저장' : '등록';
+    syncPeriod(); renderFiles(); syncPinNote();
+    $('fTitle').focus();
+  }
+  const syncPeriod = () => { $('fRange').hidden = document.querySelector('[name=fPeriod]:checked').value !== 'range'; };
+  const pinnedCount = () => BoardStore.postsOf(CODE).filter(p => p.pinned && p.id !== editing).length;
+  const syncPinNote = () => { $('fPinnedNote').textContent = `고정 공지 ${pinnedCount() + ($('fPinned').checked ? 1 : 0)}/${PIN_MAX}`; };
+  function renderFiles() {
+    $('fFiles').innerHTML = files.map((f, i) => `<span class="st-tag">📎 ${esc(f)}<button type="button" data-rmfile="${i}" aria-label="${esc(f)} 삭제">×</button></span>`).join('') || '<span class="muted">첨부 파일 없음</span>';
+  }
+  document.querySelectorAll('[name=fPeriod]').forEach(r => r.addEventListener('change', syncPeriod));
+  $('fPinned').addEventListener('change', syncPinNote);
+  $('fTitle').addEventListener('input', () => { $('fTitleLen').textContent = $('fTitle').value.length; });
+  $('ntForm').addEventListener('input', () => { dirty = true; });
+  $('editor').addEventListener('input', () => { dirty = true; });
+  $('fFilePick').addEventListener('change', e => {
+    const picked = [...e.target.files];
+    const big = picked.filter(f => f.size > 10 * 1024 * 1024);
+    picked.filter(f => f.size <= 10 * 1024 * 1024).forEach(f => { if (!files.includes(f.name)) files.push(f.name); });
+    if (files.length > 5) { files = files.slice(0, 5); toast('첨부 파일은 5개까지입니다.'); }
+    if (big.length) toast(`10MB를 넘는 파일은 첨부할 수 없습니다: ${big.map(f => f.name).join(', ')}`);
+    e.target.value = ''; dirty = true; renderFiles();
+  });
+  $('fFiles').addEventListener('click', e => { const b = e.target.closest('[data-rmfile]'); if (b) { files.splice(Number(b.dataset.rmfile), 1); dirty = true; renderFiles(); } });
+  // 서식 도구 · 링크
+  document.querySelectorAll('[data-cmd]').forEach(b => b.addEventListener('click', () => { $('editor').focus(); document.execCommand(b.dataset.cmd); }));
+  $('btnLink').addEventListener('click', () => {
+    const url = prompt('이동할 주소(URL)를 입력해 주세요.', 'https://');
+    if (!url) return;
+    if (!/^https?:\/\/\S+$/i.test(url)) { toast('http:// 또는 https://로 시작하는 주소를 입력해 주세요.'); return; }
+    $('editor').focus(); document.execCommand('createLink', false, url);
+  });
+  // 편집기 내용 정리: 서식 태그만 남김 (링크는 http/https만)
+  const ALLOWED = ['B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI', 'BR', 'P', 'DIV', 'A', 'SPAN'];
+  function cleanHtml(html) {
+    const tpl = document.createElement('template'); tpl.innerHTML = html;
+    [...tpl.content.querySelectorAll('*')].reverse().forEach(el => {
+      if (!ALLOWED.includes(el.tagName)) { el.replaceWith(...(['SCRIPT', 'STYLE', 'IFRAME'].includes(el.tagName) ? [] : el.childNodes)); return; }
+      const href = el.tagName === 'A' ? el.getAttribute('href') : null;
+      [...el.attributes].forEach(a => el.removeAttribute(a.name));
+      if (href && /^https?:\/\//i.test(href)) { el.setAttribute('href', href); el.setAttribute('target', '_blank'); el.setAttribute('rel', 'noopener'); }
+    });
+    const wrap = document.createElement('div'); wrap.appendChild(tpl.content); return wrap.innerHTML;
+  }
+  // 입력값 → 저장 형식 (검사 실패 시 null)
+  function readForm() {
+    const range = document.querySelector('[name=fPeriod]:checked').value === 'range';
+    const startAt = range ? fromLocal($('fStart').value) : '', endAt = range ? fromLocal($('fEnd').value) : '';
+    if (range && !startAt && !endAt) { $('fErr').textContent = '게시 기간을 지정하려면 시작 또는 종료 일시를 입력해 주세요.'; return null; }
+    if (startAt && endAt && startAt >= endAt) { $('fErr').textContent = '게시 종료 일시가 시작 일시보다 늦어야 합니다.'; return null; }
+    if ($('fPinned').checked && pinnedCount() >= PIN_MAX) { $('fErr').textContent = `상단 고정 공지는 ${PIN_MAX}개까지입니다. 다른 공지의 고정을 먼저 해제해 주세요.`; return null; }
+    return { id: editing, head: $('fHead').value, title: $('fTitle').value, content: cleanHtml($('editor').innerHTML), use: document.querySelector('[name=fUse]:checked').value === 'Y',
+      extra: { pinned: $('fPinned').checked, startAt, endAt, files: files.slice() } };
+  }
+  $('ntForm').addEventListener('submit', e => {
+    e.preventDefault();
+    $('fErr').textContent = '';
+    const x = readForm();
+    if (!x) return;
+    const err = BoardStore.savePost(CODE, x, ADMIN_NAME);
+    if (err) { $('fErr').textContent = err; return; }
+    dirty = false;
+    toast(editing ? '공지를 저장했습니다.' : '공지를 등록했습니다.');
+    location.hash = '';
+  });
+  $('btnDelete').addEventListener('click', () => {
+    if (!editing || !confirm('이 공지를 삭제할까요? 쇼핑몰에서도 바로 내려가며 되돌릴 수 없습니다.')) return;
+    BoardStore.deletePost(CODE, editing); dirty = false; toast('공지를 삭제했습니다.'); location.hash = '';
+  });
+  $('btnCancel').addEventListener('click', () => { location.hash = ''; });
+  $('btnBack').addEventListener('click', () => { location.hash = ''; });
+  // 미리보기 (쇼핑몰 공지 상세 모양)
+  $('btnPreview').addEventListener('click', () => {
+    const title = $('fTitle').value.trim() || '(제목 없음)', head = $('fHead').value;
+    $('pvBody').innerHTML = `<div class="nt-pv-head">${head ? `<span class="iq-tag-chip">${esc(head)}</span> ` : ''}<b>${esc(title)}</b><small>${esc(nowStr().slice(0, 10))} · 스탑북</small></div>
+      <div class="nt-pv-body">${cleanHtml($('editor').innerHTML) || '<span class="muted">(내용 없음)</span>'}</div>
+      ${files.length ? `<div class="nt-pv-files">${files.map(f => `<span>📎 ${esc(f)}</span>`).join('')}</div>` : ''}`;
+    $('pvModal').classList.add('open');
+  });
+  $('pvModal').addEventListener('click', e => { if (e.target.id === 'pvModal' || e.target.closest('[data-close]')) $('pvModal').classList.remove('open'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') $('pvModal').classList.remove('open'); });
+  window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+  route();
+})();
+</script>
 </body>
 </html>

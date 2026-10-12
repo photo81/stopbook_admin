@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>스탑북 관리자 - 1:1 문의하기 관리</title>
-<link rel="stylesheet" href="admin.css?v=20261206">
+<title>스탑북 관리자 - 1:1 문의 설정</title>
+<link rel="stylesheet" href="admin.css?v=20261219">
 </head>
 <body>
 <div class="layout">
@@ -68,32 +68,33 @@
         <a href="#" class="menu-parent" aria-expanded="true">게시판관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="board-all.html">게시판 통합 관리</a></li>
-          <li><a href="board-notice.html">공지사항 관리</a></li>
-          <li><a href="board-faq.html">FAQ 관리</a></li>
           <li><a href="board-admin-notice.html">관리자 공지</a></li>
-          <li><a href="board-inquiry-settings.html" class="active" aria-current="page">1:1 문의하기 관리</a></li>
+          <li><a href="board-inquiry-settings.html" class="active" aria-current="page">1:1 문의 설정</a></li>
         </ul>
       </li>
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
-          <li><a href="board-review.html">이용후기 관리</a></li>
+          <li><a href="board-notice.html">공지사항</a></li>
+          <li><a href="board-inquiry.html">1:1 문의</a></li>
+          <li><a href="board-faq.html">FAQ</a></li>
+          <li><a href="board-review.html">이용후기</a></li>
         </ul>
       </li>    </ul>
   </aside>
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 게시판관리 &gt; <b>1:1 문의하기 관리</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.50 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div class="breadcrumb">홈 &gt; 게시판관리 &gt; <b>1:1 문의 설정</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.63 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>1:1 문의하기 관리 <span class="page-desc">쇼핑몰 1:1 문의하기의 문의 유형과 유형별 태그, AI 답변 프롬프트를 관리합니다.</span></h1>
+      <h1>1:1 문의 설정 <span class="page-desc">쇼핑몰 1:1 문의하기의 문의 유형과 유형별 태그, AI 답변에 쓰는 답변 데이터와 프롬프트를 관리합니다.</span></h1>
 
       <div class="tabs" role="tablist" id="setTabs">
         <button type="button" role="tab" class="tab active" aria-selected="true" data-tab="types" aria-controls="panelTypes">유형/태그</button>
+        <button type="button" role="tab" class="tab" aria-selected="false" data-tab="knowledge" aria-controls="panelKnowledge">답변 데이터 <span class="tab-count" id="kTabCount"></span></button>
         <button type="button" role="tab" class="tab" aria-selected="false" data-tab="prompt" aria-controls="panelPrompt">답변 프롬프트</button>
       </div>
 
@@ -140,7 +141,46 @@
         </div>
       </div>
 
-      <!-- ===== 답변 프롬프트: AI 모델 + 형식 프롬프트 (1:1 문의 관리 > AI 답변 생성에 사용) ===== -->
+      <!-- ===== 답변 데이터: AI 답변 생성 때 참고하는 상담 기준. 문의 유형(또는 공통) + 키워드로 문의와 연결 ===== -->
+      <div role="tabpanel" id="panelKnowledge" hidden>
+        <form class="panel" id="kSearch" novalidate>
+          <div class="search-row">
+            <div class="search-grid order-search">
+              <div class="field f-keyword">
+                <label for="kKeyword">검색어</label>
+                <input type="text" id="kKeyword" placeholder="제목·키워드·답변 내용 검색">
+              </div>
+              <div class="field f-status">
+                <label for="kType">문의유형</label>
+                <select id="kType"><option value="">전체</option></select>
+              </div>
+              <div class="field f-status">
+                <label for="kUse">사용 여부</label>
+                <select id="kUse"><option value="">전체</option><option value="Y">사용</option><option value="N">사용 안 함</option></select>
+              </div>
+            </div>
+            <div class="search-actions">
+              <button type="submit" class="btn btn-primary">검색</button>
+              <button type="button" class="btn" id="kReset">초기화</button>
+            </div>
+          </div>
+        </form>
+        <section class="panel">
+          <div class="list-head">
+            <div class="count" id="kGuide"></div>
+            <div class="right"><button type="button" class="btn btn-primary" id="kAdd">답변 데이터 등록</button></div>
+          </div>
+          <div class="table-wrap">
+            <table class="st-k-table">
+              <colgroup><col style="width:100px"><col style="width:200px"><col style="width:220px"><col><col style="width:84px"><col style="width:136px"><col style="width:120px"></colgroup>
+              <thead><tr><th>문의유형</th><th>제목(상황)</th><th>키워드</th><th>답변 내용</th><th>사용</th><th>수정일</th><th>관리</th></tr></thead>
+              <tbody id="kBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===== 답변 프롬프트: AI 모델 + 형식 프롬프트 (1:1 문의 > AI 답변 생성에 사용) ===== -->
       <div role="tabpanel" id="panelPrompt" hidden>
         <section class="panel">
           <div class="section-title" style="margin-top:0">AI 모델</div>
@@ -162,20 +202,52 @@
   </div>
 </div>
 
+<!-- 답변 데이터 등록·수정 -->
+<div class="modal-bg" id="kModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="kTitle">
+    <div class="modal-header">
+      <h2 id="kTitle">답변 데이터 등록</h2>
+      <button type="button" class="close" data-kclose aria-label="닫기">&times;</button>
+    </div>
+    <form class="modal-body" id="kForm" novalidate>
+      <table class="form-table">
+        <tr><th>문의유형 *</th><td><select id="fType" class="w-auto" aria-label="문의유형"></select>
+          <div class="readonly" style="margin-top:4px">'공통'은 모든 유형의 문의에서 참고합니다.</div></td></tr>
+        <tr><th>제목(상황) *</th><td><input type="text" id="fTitle" maxlength="40" placeholder="예: 배송지 변경"></td></tr>
+        <tr><th>키워드</th><td><input type="text" id="fKeywords" maxlength="200" placeholder="쉼표로 구분 (예: 배송지, 주소, 이사)">
+          <div class="readonly" style="margin-top:4px">문의 제목·내용에 이 단어가 들어 있으면 AI가 이 답변 데이터를 참고합니다.</div></td></tr>
+        <tr><th>답변 내용 *</th><td>
+          <div class="st-vars" id="fVars"></div>
+          <textarea id="fAnswer" maxlength="1000" style="height:140px" placeholder="이 상황에서 안내할 기준·답변 (AI가 문장을 다듬어 사용)"></textarea>
+        </td></tr>
+        <tr><th>사용 여부</th><td><label class="check-chip"><input type="checkbox" id="fUse" checked> AI 답변 생성에 사용</label></td></tr>
+      </table>
+      <div class="err" id="fErr"></div>
+    </form>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-danger" id="kDelete" style="margin-right:auto">삭제</button>
+      <button type="button" class="btn" data-kclose>닫기</button>
+      <button type="submit" form="kForm" class="btn btn-primary">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261206"></script>
-<script src="member-data.js?v=20261206"></script>
-<script src="order-data.js?v=20261206"></script>
-<script src="inquiry-settings.js?v=20261206"></script>
-<script src="inquiry-data.js?v=20261206"></script>
-<script src="feedback.js?v=20261206"></script>
+<script src="board-store.js?v=20261219"></script>
+<script src="member-type-store.js?v=20261219"></script>
+<script src="member-data.js?v=20261219"></script>
+<script src="order-data.js?v=20261219"></script>
+<script src="inquiry-settings.js?v=20261219"></script>
+<script src="inquiry-data.js?v=20261219"></script>
+<script src="feedback.js?v=20261219"></script>
 <script>
 (function () {
   'use strict';
-  // 1:1 문의하기 관리
-  //   유형/태그: 유형 추가·이름 변경·사용 여부·순서(▲▼)·삭제, 유형별 태그 추가·삭제. 바꾸면 바로 저장 (1:1 문의 관리에 바로 반영)
-  //   답변 프롬프트: AI 모델 선택 + 형식 프롬프트 (저장 버튼). 1:1 문의 관리 > AI 답변 생성이 사용
+  // 1:1 문의 설정
+  //   유형/태그: 유형 추가·이름 변경·사용 여부·순서(▲▼)·삭제, 유형별 태그 추가·삭제. 바꾸면 바로 저장 (1:1 문의에 바로 반영)
+  //   답변 데이터: AI가 참고하는 상담 기준 등록·수정·삭제 (유형·키워드로 문의와 연결)
+  //   답변 프롬프트: AI 모델 선택 + 형식 프롬프트 (저장 버튼). 1:1 문의 > AI 답변 생성이 사용
   //   유형·태그별 문의 건수는 1:1 문의 데이터(inquiry-data.js)로 셈
   const { esc, toast, initSidebar, ADMIN_NAME } = AdminUtil;
   const S = InquirySettings;
@@ -186,10 +258,12 @@
   $('setTabs').addEventListener('click', e => {
     const b = e.target.closest('[data-tab]');
     if (!b) return;
-    if (b.dataset.tab === 'types' && promptDirty() && !confirm('저장하지 않은 프롬프트 변경 내용이 있습니다. 탭을 옮길까요? (탭을 다시 열면 그대로 남아 있습니다)')) return;
+    if (b.dataset.tab !== 'prompt' && !$('panelPrompt').hidden && promptDirty() && !confirm('저장하지 않은 프롬프트 변경 내용이 있습니다. 탭을 옮길까요? (탭을 다시 열면 그대로 남아 있습니다)')) return;
     $('setTabs').querySelectorAll('[data-tab]').forEach(x => { const on = x === b; x.classList.toggle('active', on); x.setAttribute('aria-selected', String(on)); });
     $('panelTypes').hidden = b.dataset.tab !== 'types';
+    $('panelKnowledge').hidden = b.dataset.tab !== 'knowledge';
     $('panelPrompt').hidden = b.dataset.tab !== 'prompt';
+    if (b.dataset.tab === 'knowledge') renderKnowledge();   // 유형 이름을 바꿨으면 반영
   });
 
   // ===== 유형/태그 =====
@@ -316,7 +390,7 @@
     if (err) { toast(err); $('promptText').focus(); return; }
     $('promptText').value = S.prompt().format;
     renderPromptMeta();
-    toast(`답변 프롬프트를 저장했습니다. 1:1 문의 관리의 AI 답변 생성에 ${S.modelLabel(model)}와 이 형식이 쓰입니다.`);
+    toast(`답변 프롬프트를 저장했습니다. 1:1 문의 화면의 AI 답변 생성에 ${S.modelLabel(model)}와 이 형식이 쓰입니다.`);
   });
   $('btnPromptReset').addEventListener('click', () => {
     if (!confirm('AI 모델과 형식 프롬프트를 기본값으로 되돌릴까요? 저장을 눌러야 반영됩니다.')) return;
@@ -327,7 +401,76 @@
   window.addEventListener('beforeunload', e => { if (promptDirty()) { e.preventDefault(); e.returnValue = ''; } });
 
   $('promptText').value = S.prompt().format;
-  renderModels(); renderPromptMeta(); renderTypes();
+  // ===== 답변 데이터 =====
+  //   목록(검색: 검색어·문의유형·사용 여부) + 등록·수정 모달. 저장하면 바로 1:1 문의 AI 답변 생성에 반영
+  const typeOptions = () => S.typeNames().concat(S.COMMON);
+  let kSearch = { kw: '', type: '', use: '' }, kEditing = null;
+  function renderKnowledge() {
+    const all = S.knowledge();
+    const typeSel = $('kType'), prevType = typeSel.value;
+    typeSel.innerHTML = '<option value="">전체</option>' + [...new Set(typeOptions().concat(all.map(k => k.type)))].map(t => `<option>${esc(t)}</option>`).join('');
+    typeSel.value = prevType;
+    const s = kSearch;
+    const rows = all.filter(k => (!s.type || k.type === s.type) && (!s.use || (s.use === 'Y') === k.use) &&
+      (!s.kw || [k.title, k.answer, k.keywords.join(' ')].some(v => v.toLowerCase().includes(s.kw))));
+    $('kTabCount').textContent = all.length;
+    $('kGuide').innerHTML = `답변 데이터 <b>${rows.length}</b>건${rows.length !== all.length ? ` / 전체 ${all.length}건` : ''} <span class="muted">· AI 답변 생성 때 문의 유형이 같고(또는 공통) 키워드가 맞는 데이터를 참고합니다.</span>`;
+    $('kBody').innerHTML = rows.map(k => `<tr${k.use ? '' : ' class="off"'}>
+        <td>${k.type === S.COMMON ? '<span class="badge">공통</span>' : esc(k.type)}</td>
+        <td><button type="button" class="iq-title-link" data-kedit="${esc(k.id)}" title="${esc(k.title)}">${esc(k.title)}</button></td>
+        <td title="${esc(k.keywords.join(', '))}"><div class="iq-tag-cell">${k.keywords.map(w => `<span class="iq-tag-chip">${esc(w)}</span>`).join('') || '<span class="muted">-</span>'}</div></td>
+        <td class="st-k-answer" title="${esc(k.answer)}">${esc(k.answer)}</td>
+        <td>${k.use ? '사용' : '<span class="muted">사용 안 함</span>'}</td>
+        <td>${esc(k.updatedAt || '기본 데이터')}</td>
+        <td><button type="button" class="btn btn-xs" data-kedit="${esc(k.id)}">수정</button> <button type="button" class="btn btn-xs btn-danger" data-kdel="${esc(k.id)}">삭제</button></td>
+      </tr>`).join('') || '<tr><td colspan="7" class="empty">조건에 맞는 답변 데이터가 없습니다.</td></tr>';
+  }
+  $('kSearch').addEventListener('submit', e => { e.preventDefault(); kSearch = { kw: $('kKeyword').value.trim().toLowerCase(), type: $('kType').value, use: $('kUse').value }; renderKnowledge(); });
+  $('kReset').addEventListener('click', () => { $('kSearch').reset(); kSearch = { kw: '', type: '', use: '' }; renderKnowledge(); });
+  $('fVars').innerHTML = S.VARIABLES.map(v => `<button type="button" class="btn btn-xs" data-fvar="${esc(v)}">${esc(v)}</button>`).join('');
+  $('fVars').addEventListener('click', e => {
+    const b = e.target.closest('[data-fvar]');
+    if (!b) return;
+    const ta = $('fAnswer'), st = ta.selectionStart, en = ta.selectionEnd, v = b.dataset.fvar;
+    ta.value = ta.value.slice(0, st) + v + ta.value.slice(en); ta.focus(); ta.selectionStart = ta.selectionEnd = st + v.length;
+  });
+  function openKnowledge(id) {
+    const k = id ? S.knowledge().find(x => x.id === id) : null;
+    kEditing = k ? k.id : null;
+    $('kTitle').textContent = k ? '답변 데이터 수정' : '답변 데이터 등록';
+    $('fType').innerHTML = [...new Set(typeOptions().concat(k ? [k.type] : []))].map(t => `<option>${esc(t)}</option>`).join('');
+    $('fType').value = k ? k.type : ($('kType').value || S.typeNames()[0]);
+    $('fTitle').value = k ? k.title : ''; $('fKeywords').value = k ? k.keywords.join(', ') : ''; $('fAnswer').value = k ? k.answer : ''; $('fUse').checked = k ? k.use : true;
+    $('fErr').textContent = '';
+    $('kDelete').hidden = !k;
+    $('kModal').classList.add('open');
+    $('fTitle').focus();
+  }
+  const closeKnowledge = () => $('kModal').classList.remove('open');
+  $('kAdd').addEventListener('click', () => openKnowledge(null));
+  $('kBody').addEventListener('click', e => {
+    const ed = e.target.closest('[data-kedit]'), del = e.target.closest('[data-kdel]');
+    if (ed) openKnowledge(ed.dataset.kedit);
+    if (del) deleteKnowledgeById(del.dataset.kdel);
+  });
+  function deleteKnowledgeById(id) {
+    const k = S.knowledge().find(x => x.id === id);
+    if (!k || !confirm(`'${k.title}' 답변 데이터를 삭제할까요? 삭제하면 AI 답변 생성에 더 이상 쓰이지 않습니다.`)) return false;
+    S.deleteKnowledge(id, ADMIN_NAME); renderKnowledge(); toast(`'${k.title}' 답변 데이터를 삭제했습니다.`);
+    return true;
+  }
+  $('kDelete').addEventListener('click', () => { if (kEditing && deleteKnowledgeById(kEditing)) closeKnowledge(); });
+  $('kForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const err = S.saveKnowledge({ id: kEditing, type: $('fType').value, title: $('fTitle').value, keywords: $('fKeywords').value, answer: $('fAnswer').value, use: $('fUse').checked }, ADMIN_NAME);
+    if (err) { $('fErr').textContent = err; return; }
+    closeKnowledge(); renderKnowledge();
+    toast(kEditing ? '답변 데이터를 수정했습니다.' : '답변 데이터를 등록했습니다. 이제 AI 답변 생성에 참고됩니다.');
+  });
+  $('kModal').addEventListener('click', e => { if (e.target.id === 'kModal' || e.target.closest('[data-kclose]')) closeKnowledge(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('kModal').classList.contains('open')) closeKnowledge(); });
+
+  renderModels(); renderPromptMeta(); renderTypes(); renderKnowledge();
 })();
 </script>
 </body>

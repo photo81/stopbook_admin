@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 대시보드</title>
-<link rel="stylesheet" href="admin.css?v=20261206">
+<link rel="stylesheet" href="admin.css?v=20261219">
 </head>
 <body class="no-sidebar">
 <!-- 대시보드는 사이드 메뉴 없이 전체 폭으로 (body.no-sidebar: 사이드 메뉴 숨김, 로고는 상단 바로 이동 — member-type-store.js initGnb). 다른 화면은 대메뉴·메뉴로 이동 -->
@@ -69,17 +69,17 @@
         <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="board-all.html">게시판 통합 관리</a></li>
-          <li><a href="board-notice.html">공지사항 관리</a></li>
-          <li><a href="board-faq.html">FAQ 관리</a></li>
           <li><a href="board-admin-notice.html">관리자 공지</a></li>
-          <li><a href="board-inquiry-settings.html">1:1 문의하기 관리</a></li>
+          <li><a href="board-inquiry-settings.html">1:1 문의 설정</a></li>
         </ul>
       </li>
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
-          <li><a href="board-review.html">이용후기 관리</a></li>
+          <li><a href="board-notice.html">공지사항</a></li>
+          <li><a href="board-inquiry.html">1:1 문의</a></li>
+          <li><a href="board-faq.html">FAQ</a></li>
+          <li><a href="board-review.html">이용후기</a></li>
         </ul>
       </li>    </ul>
   </aside>
@@ -87,7 +87,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; <b>대시보드</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.50 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.63 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -170,15 +170,16 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261206"></script>
-<script src="member-data.js?v=20261206"></script>
-<script src="order-data.js?v=20261206"></script>
-<script src="inquiry-settings.js?v=20261206"></script>
-<script src="inquiry-data.js?v=20261206"></script>
-<script src="claim-data.js?v=20261206"></script>
-<script src="document-data.js?v=20261206"></script>
-<script src="notice-store.js?v=20261206"></script>
-<script src="feedback.js?v=20261206"></script>
+<script src="board-store.js?v=20261219"></script>
+<script src="member-type-store.js?v=20261219"></script>
+<script src="member-data.js?v=20261219"></script>
+<script src="order-data.js?v=20261219"></script>
+<script src="inquiry-settings.js?v=20261219"></script>
+<script src="inquiry-data.js?v=20261219"></script>
+<script src="claim-data.js?v=20261219"></script>
+<script src="document-data.js?v=20261219"></script>
+<script src="notice-store.js?v=20261219"></script>
+<script src="feedback.js?v=20261219"></script>
 <script>
 (function () {
   'use strict';
@@ -447,27 +448,31 @@
   });
 
   // 취소 요청 · 교환/반품 = 클레임 신청 데이터(claim-data.js, 신청일 기준)
+  // 처리 대기 샘플(클레임·문의)은 실제 오늘 날짜로 접수됨 → 기준일보다 늦은 접수는 기준일(오늘)로 셈
+  const inRangeLive = (d, p) => inRange(d && d.slice(0, 10) > todayStr ? todayStr : d, p);
   function claimStats(p) {
-    const inq = inquiries.filter(x => inRange(x.q.at, p));
+    const inq = inquiries.filter(x => inRangeLive(x.q.at, p));
     const rv = REVIEWS.filter(v => inRange(v.at, p));
-    const cancels = ClaimData.cancel.requests.filter(q => inRange(q.at, p));
-    const exch = ClaimData.exchange.requests.filter(q => inRange(q.at, p));
+    const cancels = ClaimData.cancel.requests.filter(q => inRangeLive(q.at, p));
+    const exch = ClaimData.exchange.requests.filter(q => inRangeLive(q.at, p));
     // 서류발급 = 기간 안 자동 발급 이력(사업자등록증·통장사본·견적서·거래내역서·현금영수증·세금계산서) + 별도 발급 신청 (document-data.js, 발급일·신청일 기준)
     const docIssues = DocData.issues.filter(x => inRange(x.at, p));
-    const docReqs = DocData.requests.filter(q => inRange(q.at, p));
+    const docReqs = DocData.requests.filter(q => inRangeLive(q.at, p));
+    // 대기 건수는 기간과 상관없이 지금 처리해야 할 전체 건수 (각 화면의 대기 탭·사이드 메뉴 건수와 같음)
+    //   1:1 문의 = inquiry-data.js 처리 상태 '대기'(담당자 미지정) / '확인중', 취소·교환반품·서류 = 승인·처리 대기
     return {
-      inq: inq.length, inqWait: inq.filter(x => x.q.status === '답변대기').length,
+      inq: inq.length, inqWait: InquiryData.inquiries.filter(q => q.status === '대기').length, inqChecking: InquiryData.inquiries.filter(q => q.status === '확인중').length,
       docs: docIssues.length + docReqs.length, docsAuto: docIssues.length, docsReq: docReqs.length,
-      docsWait: DocData.requests.filter(q => q.status === '대기').length,   // 처리 대기는 기간과 상관없이 전체
-      cancel: cancels.length, cancelWait: cancels.filter(q => q.status === '대기').length, cancelAmount: cancels.filter(q => q.status === '승인').reduce((t, q) => t + q.refundAmount, 0),
-      exch: exch.length, exchWait: exch.filter(q => q.status === '대기').length, exchChange: exch.filter(q => q.type === '교환').length, exchReturn: exch.filter(q => q.type === '반품').length,
+      docsWait: DocData.requests.filter(q => q.status === '대기').length,
+      cancel: cancels.length, cancelWait: ClaimData.cancel.requests.filter(q => q.status === '대기').length, cancelAmount: cancels.filter(q => q.status === '승인').reduce((t, q) => t + q.refundAmount, 0),
+      exch: exch.length, exchWait: ClaimData.exchange.requests.filter(q => q.status === '대기').length, exchChange: exch.filter(q => q.type === '교환').length, exchReturn: exch.filter(q => q.type === '반품').length,
       reviews: rv.length, reviewAvg: rv.length ? rv.reduce((t, v) => t + v.rating, 0) / rv.length : 0, reviewLow: rv.filter(v => v.rating <= 2).length
     };
   }
   function renderClaims(days) {
     const cur = claimStats(periodOf(days)), prev = claimStats(prevOf(days));
     $('claimStats').innerHTML = [
-      ['1:1 문의', `${num(cur.inq)}건`, cur.inqWait ? `답변대기 <b class="warn">${num(cur.inqWait)}건</b>` : '답변대기 없음', delta(cur.inq, prev.inq, '건'), 'board-inquiry.html'],
+      ['1:1 문의', `${num(cur.inq)}건`, `${cur.inqWait ? `대기 <b class="warn">${num(cur.inqWait)}건</b>` : '대기 없음'}${cur.inqChecking ? ` · 확인중 ${num(cur.inqChecking)}건` : ''}`, delta(cur.inq, prev.inq, '건'), 'board-inquiry.html'],
       ['서류발급', `${num(cur.docs)}건`, `자동 발급 ${num(cur.docsAuto)} · 별도 신청 ${num(cur.docsReq)}${cur.docsWait ? ` · 처리대기 <b class="warn">${num(cur.docsWait)}건</b>` : ''}`, delta(cur.docs, prev.docs, '건'), 'claim-documents.html'],
       ['취소 요청', `${num(cur.cancel)}건`, `${cur.cancelWait ? `승인대기 <b class="warn">${num(cur.cancelWait)}건</b> · ` : ''}환불 ${won(cur.cancelAmount)}`, delta(cur.cancel, prev.cancel, '건'), 'claim-cancel.html'],
       ['교환/반품', `${num(cur.exch)}건`, `교환 ${num(cur.exchChange)} · 반품 ${num(cur.exchReturn)}${cur.exchWait ? ` · 승인대기 <b class="warn">${num(cur.exchWait)}건</b>` : ''}`, delta(cur.exch, prev.exch, '건'), 'claim-exchange.html'],

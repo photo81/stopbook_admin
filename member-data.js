@@ -306,7 +306,17 @@
     });
   }
   members.forEach(makeUsage);
-  // 1:1 문의 관리(board-inquiry.html)에서 관리자가 처리한 내용(유형 변경·답변 완료·답변 수정)을 회원 문의 이력에도 반영
+  // 답변 대기 문의는 오늘 접수분 7~10건만 (1:1 문의는 대부분 당일 답변). 남긴 문의는 접수 시각을 오늘로, 나머지 답변 대기 샘플은 문의 이력에서 뺌
+  //   (member-type-store.js keepTodayPending. 답변 완료 문의 = 지난 이력은 그대로)
+  if (window.AdminUtil && AdminUtil.keepTodayPending) {
+    const all = members.flatMap(m => m.inquiries || []);
+    const kept = new Set(AdminUtil.keepTodayPending(all, q => q.status === '답변대기', 'inquiry'));
+    members.forEach(m => {
+      if (!m.inquiries) return;
+      m.inquiries = m.inquiries.filter(q => q.status !== '답변대기' || kept.has(q)).sort((a, b) => b.at.localeCompare(a.at));
+    });
+  }
+  // 1:1 문의(board-inquiry.html)에서 관리자가 처리한 내용(유형 변경·답변 완료·답변 수정)을 회원 문의 이력에도 반영
   //   저장 형식은 inquiry-data.js 참고 ({ [문의 no]: { type, status, answer, answeredAt, answeredBy, ... } })
   // TODO: 실서비스에서는 문의 API 한 곳에서 조회
   try {

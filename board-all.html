@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 게시판 통합 관리</title>
-<link rel="stylesheet" href="admin.css?v=20261206">
+<link rel="stylesheet" href="admin.css?v=20261219">
 </head>
 <body>
 <div class="layout">
@@ -68,17 +68,17 @@
         <a href="#" class="menu-parent" aria-expanded="true">게시판관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="board-all.html" class="active" aria-current="page">게시판 통합 관리</a></li>
-          <li><a href="board-notice.html">공지사항 관리</a></li>
-          <li><a href="board-faq.html">FAQ 관리</a></li>
           <li><a href="board-admin-notice.html">관리자 공지</a></li>
-          <li><a href="board-inquiry-settings.html">1:1 문의하기 관리</a></li>
+          <li><a href="board-inquiry-settings.html">1:1 문의 설정</a></li>
         </ul>
       </li>
       <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="board-inquiry.html">1:1 문의 관리</a></li>
-          <li><a href="board-review.html">이용후기 관리</a></li>
+          <li><a href="board-notice.html">공지사항</a></li>
+          <li><a href="board-inquiry.html">1:1 문의</a></li>
+          <li><a href="board-faq.html">FAQ</a></li>
+          <li><a href="board-review.html">이용후기</a></li>
         </ul>
       </li>    </ul>
   </aside>
@@ -86,27 +86,213 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 게시판관리 &gt; <b>게시판 통합 관리</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.50 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.63 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>게시판 통합 관리 <span class="page-desc">공지사항·FAQ 등 게시판 전체의 게시글을 한곳에서 검색하고 관리합니다.</span></h1>
+      <h1>게시판 통합 관리 <span class="page-desc">쇼핑몰이 쓰는 게시판을 추가하고 유형·말머리·연동·권한을 설정합니다.</span></h1>
 
-      <!-- 빈 페이지: 화면 구성 예정 -->
-      <section class="panel">
-        <div class="empty-page">
-          <b>준비 중인 화면입니다.</b>
-          <p>게시판 통합 관리 화면은 구성 예정입니다.</p>
+      <form class="panel" id="searchForm" novalidate>
+        <div class="search-row">
+          <div class="search-grid order-search">
+            <div class="field f-keyword">
+              <label for="sKeyword">검색어</label>
+              <input type="text" id="sKeyword" placeholder="게시판명 · 코드">
+            </div>
+            <div class="field f-status">
+              <label for="sType">유형</label>
+              <select id="sType"><option value="">전체</option></select>
+            </div>
+            <div class="field f-status">
+              <label for="sUse">쇼핑몰 노출</label>
+              <select id="sUse"><option value="">전체</option><option value="Y">노출</option><option value="N">숨김</option></select>
+            </div>
+          </div>
+          <div class="search-actions">
+            <button type="submit" class="btn btn-primary">검색</button>
+            <button type="button" class="btn" id="btnReset">초기화</button>
+          </div>
         </div>
+      </form>
+
+      <section class="panel">
+        <div class="list-head">
+          <div class="count" id="listGuide"></div>
+          <div class="right"><button type="button" class="btn btn-primary" id="btnAdd">새 게시판 등록</button></div>
+        </div>
+        <div class="table-wrap">
+          <table class="bd-table">
+            <colgroup><col style="width:56px"><col style="width:144px"><col style="width:112px"><col style="width:150px"><col><col style="width:80px"><col style="width:100px"><col style="width:76px"><col style="width:96px"><col style="width:60px"><col style="width:120px"></colgroup>
+            <thead><tr><th>번호</th><th>코드</th><th>유형</th><th>게시판명</th><th>말머리</th><th>연동</th><th>권한(읽기/쓰기)</th><th class="num">게시물 수</th><th class="num">신규 게시물 수</th><th>노출</th><th>관리</th></tr></thead>
+            <tbody id="listBody"></tbody>
+          </table>
+        </div>
+        <p class="readonly" style="margin:10px 0 0">기본 게시판(공지사항·1:1 문의·FAQ·이용후기)은 관리 화면이 따로 있어 삭제할 수 없습니다. 게시판명을 누르면 설정을, '게시글'을 누르면 게시글 관리 화면을 엽니다.</p>
       </section>
     </main>
   </div>
 </div>
 
+<!-- 게시판 등록·수정 -->
+<div class="modal-bg" id="bdModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bdTitle">
+    <div class="modal-header">
+      <h2 id="bdTitle">새 게시판 등록</h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <form class="modal-body" id="bdForm" novalidate>
+      <table class="form-table">
+        <tr><th>게시판명 *</th><td><input type="text" id="fName" maxlength="30" placeholder="예: 가이드 - 주문 제작"></td></tr>
+        <tr><th>코드 *</th><td><input type="text" id="fCode" maxlength="30" placeholder="예: guide_order" style="width:220px">
+          <div class="readonly" id="fCodeHint" style="margin-top:4px">쇼핑몰 주소·연동에 쓰는 식별값입니다. 영문 소문자·숫자·밑줄(_), 등록 후에는 바꿀 수 없습니다.</div></td></tr>
+        <tr><th>유형 *</th><td><div class="bd-types" id="fTypes"></div></td></tr>
+        <tr><th>말머리</th><td>
+          <div class="st-tags" id="fHeads"></div>
+          <div class="inline-row" style="max-width:360px"><input type="text" id="fHead" maxlength="10" placeholder="말머리 (10자 이내)" style="flex:1"> <button type="button" class="btn btn-sm" id="fHeadAdd">추가</button></div>
+          <div class="readonly" style="margin-top:4px">글 목록에서 제목 앞에 붙는 분류입니다. (예: 공지사항 · 이벤트)</div>
+        </td></tr>
+        <tr><th>연동</th><td><select id="fLink" class="w-auto" aria-label="연동"></select> <span class="readonly" id="fLinkHint"></span></td></tr>
+        <tr><th>권한</th><td><div class="inline-row">읽기 <select id="fRead" class="w-auto" aria-label="읽기 권한"></select> 쓰기 <select id="fWrite" class="w-auto" aria-label="쓰기 권한"></select></div></td></tr>
+        <tr><th>쇼핑몰 노출</th><td><label class="check-chip"><input type="checkbox" id="fUse" checked> 쇼핑몰에 게시판 표시</label></td></tr>
+      </table>
+      <div class="err" id="fErr"></div>
+    </form>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-danger" id="bdDelete" style="margin-right:auto">삭제</button>
+      <button type="button" class="btn" data-close>닫기</button>
+      <button type="submit" form="bdForm" class="btn btn-primary">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261206"></script>
-<script src="feedback.js?v=20261206"></script>
-<script>AdminUtil.initSidebar();</script>
+<script src="board-store.js?v=20261219"></script>
+<script src="member-type-store.js?v=20261219"></script>
+<script src="member-data.js?v=20261219"></script>
+<script src="order-data.js?v=20261219"></script>
+<script src="inquiry-settings.js?v=20261219"></script>
+<script src="inquiry-data.js?v=20261219"></script>
+<script src="feedback.js?v=20261219"></script>
+<script>
+(function () {
+  'use strict';
+  // 게시판 통합 관리
+  //   등록한 게시판은 사이드 메뉴 게시글관리에 바로 생기고, 게시글은 board-posts.html?board=코드에서 관리
+  //   목록: 검색(이름·코드, 유형, 노출) · 번호·코드·유형·이름·말머리·연동·권한·게시물 수·신규 게시물 수 · 수정/삭제
+  //   등록·수정 모달: 이름·코드(등록 때만)·유형(기본형/상품리뷰/1:1 문의형)·말머리·연동·권한·노출. 유형을 고르면 기본 권한·연동이 채워짐
+  const { esc, toast, initSidebar, ADMIN_NAME } = AdminUtil;
+  const $ = id => document.getElementById(id);
+  initSidebar();
+
+  $('sType').innerHTML += BoardStore.TYPES.map(t => `<option>${esc(t.key)}</option>`).join('');
+  $('fLink').innerHTML = BoardStore.LINKS.map(l => `<option>${esc(l)}</option>`).join('');
+  $('fRead').innerHTML = $('fWrite').innerHTML = BoardStore.PERMS.map(p => `<option>${esc(p)}</option>`).join('');
+  const typeBadge = t => `<span class="badge bd-ty-${t === '1:1 문의형' ? 'qna' : t === '상품리뷰' ? 'review' : 'basic'}">${esc(t)}</span>`;
+
+  // ===== 목록 =====
+  let search = { kw: '', type: '', use: '' };
+  function render() {
+    AdminUtil.injectBoardMenu();   // 등록·수정·삭제한 게시판을 사이드 메뉴 게시글관리에 바로 반영
+    const all = BoardStore.list(), s = search;
+    const rows = all.filter(b => (!s.type || b.type === s.type) && (!s.use || (s.use === 'Y') === b.use) && (!s.kw || [b.name, b.code].some(v => v.toLowerCase().includes(s.kw))));
+    $('listGuide').innerHTML = `게시판 <b>${rows.length}</b>개${rows.length !== all.length ? ` / 전체 ${all.length}개` : ''} <span class="muted">· ${BoardStore.TYPES.map(t => `${t.key} ${all.filter(b => b.type === t.key).length}`).join(' · ')}</span>`;
+    $('listBody').innerHTML = rows.map(b => `<tr${b.use ? '' : ' class="off"'}>
+        <td>${b.no}</td>
+        <td class="mono">${esc(b.code)}</td>
+        <td>${typeBadge(b.type)}</td>
+        <td><button type="button" class="iq-title-link" data-edit="${b.no}">${esc(b.name)}</button>${b.system ? ' <span class="muted" title="기본 게시판">기본</span>' : ''}</td>
+        <td title="${esc(b.heads.join(', '))}">${b.heads.length ? `<div class="bd-heads">${b.heads.map(h => `<span class="iq-tag-chip">${esc(h)}</span>`).join('')}</div>` : '<span class="muted">-</span>'}</td>
+        <td>${b.link === '상품' ? '<b>상품</b>' : '<span class="muted">연동 없음</span>'}</td>
+        <td>${esc(b.read)} / ${esc(b.write)}</td>
+        <td class="num">${b.posts.toLocaleString()}</td>
+        <td class="num">${b.fresh ? `<b class="text-danger">${b.fresh.toLocaleString()}</b>` : '0'}</td>
+        <td>${b.use ? '노출' : '<span class="muted">숨김</span>'}</td>
+        <td>${b.href ? `<a class="btn btn-xs" href="${esc(b.href)}">게시글</a> ` : ''}<button type="button" class="btn btn-xs" data-edit="${b.no}">수정</button>${b.system ? '' : ` <button type="button" class="btn btn-xs btn-danger" data-del="${b.no}">삭제</button>`}</td>
+      </tr>`).join('') || '<tr><td colspan="11" class="empty">조건에 맞는 게시판이 없습니다.</td></tr>';
+  }
+  $('searchForm').addEventListener('submit', e => { e.preventDefault(); search = { kw: $('sKeyword').value.trim().toLowerCase(), type: $('sType').value, use: $('sUse').value }; render(); });
+  $('btnReset').addEventListener('click', () => { $('searchForm').reset(); search = { kw: '', type: '', use: '' }; render(); });
+  $('listBody').addEventListener('click', e => {
+    const ed = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]');
+    if (ed) openModal(Number(ed.dataset.edit));
+    if (del) removeBoard(Number(del.dataset.del));
+  });
+
+  // ===== 등록·수정 모달 =====
+  let editing = null, heads = [];
+  function renderTypes(sel, locked) {
+    $('fTypes').innerHTML = BoardStore.TYPES.map(t => `<label class="bd-type${t.key === sel ? ' active' : ''}${locked && t.key !== sel ? ' disabled' : ''}">
+        <input type="radio" name="bdType" value="${esc(t.key)}"${t.key === sel ? ' checked' : ''}${locked && t.key !== sel ? ' disabled' : ''}>
+        <span><b>${esc(t.key)}</b><small>${esc(t.desc)}</small></span></label>`).join('');
+  }
+  const renderHeads = () => { $('fHeads').innerHTML = heads.map(h => `<span class="st-tag">${esc(h)}<button type="button" data-head="${esc(h)}" aria-label="${esc(h)} 말머리 삭제">×</button></span>`).join('') || '<span class="muted">말머리 없음</span>'; };
+  const curType = () => (document.querySelector('[name=bdType]:checked') || {}).value;
+  function syncLink() {
+    const review = curType() === '상품리뷰';
+    $('fLink').disabled = review;
+    if (review) $('fLink').value = '상품';
+    $('fLinkHint').textContent = review ? '상품리뷰 게시판은 상품과 연동됩니다.' : curType() === '1:1 문의형' ? '문의 유형·태그는 게시판관리 > 1:1 문의 설정에서 관리합니다.' : '';
+  }
+  function openModal(no) {
+    const b = no ? BoardStore.find(no) : null;
+    editing = b ? b.no : null;
+    $('bdTitle').textContent = b ? `게시판 수정 · ${b.name}` : '새 게시판 등록';
+    $('fName').value = b ? b.name : '';
+    $('fCode').value = b ? b.code : ''; $('fCode').disabled = !!b;
+    $('fCodeHint').textContent = b ? '코드는 등록 후 바꿀 수 없습니다.' : '쇼핑몰 주소·연동에 쓰는 식별값입니다. 영문 소문자·숫자·밑줄(_), 등록 후에는 바꿀 수 없습니다.';
+    renderTypes(b ? b.type : '기본형', b && b.system);
+    heads = b ? b.heads.slice() : []; renderHeads();
+    const d = BoardStore.TYPE_DEFAULT[b ? b.type : '기본형'];
+    $('fLink').value = b ? b.link : d.link; $('fRead').value = b ? b.read : d.read; $('fWrite').value = b ? b.write : d.write;
+    $('fUse').checked = b ? b.use : true;
+    $('fErr').textContent = '';
+    $('bdDelete').hidden = !b || b.system;
+    syncLink();
+    $('bdModal').classList.add('open');
+    $('fName').focus();
+  }
+  const closeModal = () => $('bdModal').classList.remove('open');
+  // 유형을 바꾸면 그 유형의 기본 권한·연동으로
+  $('fTypes').addEventListener('change', e => {
+    if (e.target.name !== 'bdType') return;
+    const d = BoardStore.TYPE_DEFAULT[e.target.value];
+    $('fRead').value = d.read; $('fWrite').value = d.write; $('fLink').value = d.link;
+    renderTypes(e.target.value, false); syncLink();
+  });
+  const addHead = () => {
+    const h = $('fHead').value.trim();
+    if (!h) return;
+    if (h.length > 10) { $('fErr').textContent = '말머리는 10자 이내로 입력해 주세요.'; return; }
+    if (heads.includes(h)) { $('fErr').textContent = '같은 말머리가 있습니다.'; return; }
+    heads.push(h); $('fHead').value = ''; $('fErr').textContent = ''; renderHeads(); $('fHead').focus();
+  };
+  $('fHeadAdd').addEventListener('click', addHead);
+  $('fHead').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addHead(); } });
+  $('fHeads').addEventListener('click', e => { const b = e.target.closest('[data-head]'); if (b) { heads = heads.filter(h => h !== b.dataset.head); renderHeads(); } });
+  $('bdForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const err = BoardStore.saveBoard({ no: editing, name: $('fName').value, code: $('fCode').value, type: curType(), heads, link: $('fLink').value, read: $('fRead').value, write: $('fWrite').value, use: $('fUse').checked }, ADMIN_NAME);
+    if (err) { $('fErr').textContent = err; return; }
+    closeModal(); render();
+    toast(editing ? '게시판 설정을 저장했습니다.' : `'${$('fName').value.trim()}' 게시판을 등록했습니다.`);
+  });
+  function removeBoard(no) {
+    const b = BoardStore.find(no);
+    if (!b) return false;
+    if (!confirm(`'${b.name}' 게시판을 삭제할까요?${b.posts ? `\n게시물 ${b.posts.toLocaleString()}건도 쇼핑몰에서 보이지 않게 됩니다.` : ''}\n삭제하면 되돌릴 수 없습니다.`)) return false;
+    const err = BoardStore.deleteBoard(no);
+    if (err) { toast(err); return false; }
+    render(); toast(`'${b.name}' 게시판을 삭제했습니다.`);
+    return true;
+  }
+  $('bdDelete').addEventListener('click', () => { if (editing && removeBoard(editing)) closeModal(); });
+  $('btnAdd').addEventListener('click', () => openModal(null));
+  $('bdModal').addEventListener('click', e => { if (e.target.id === 'bdModal' || e.target.closest('[data-close]')) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('bdModal').classList.contains('open')) closeModal(); });
+
+  render();
+})();
+</script>
 </body>
 </html>

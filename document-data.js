@@ -175,6 +175,10 @@
       requests.push(req);
     });
   })();
+  // 처리 대기 샘플은 오늘 접수분 7~10건만 (서류 발급도 대부분 당일 처리). 발급 희망일은 오늘 기준으로 다시 잡음. 관리자가 처리·등록한 신청은 그대로
+  AdminUtil.keepTodayPending(requests, q => q.status === '대기' && !overlay[q.reqNo], 'document').forEach((q, k) => {
+    if (q.wantBy) { const d = new Date(); d.setDate(d.getDate() + 2 + k % 5); q.wantBy = fmtDate(d); }
+  });
   // 관리자가 직접 등록한 신청 (유선·이메일 등으로 받은 별도 발급 신청, 신청번호 DM…)
   Object.values(overlay).filter(x => x.manual && !requests.some(r => r.reqNo === x.reqNo)).forEach(x => requests.push(x));
   // ===== 신청 정보: 담당자 · 기관/회사명 + 서류별 추가 정보 =====

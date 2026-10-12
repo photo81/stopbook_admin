@@ -1,7 +1,8 @@
-// 1:1 문의하기 설정 (게시판관리 > 1:1 문의하기 관리)
+// 1:1 문의하기 설정 (게시판관리 > 1:1 문의 설정)
 //   유형/태그: 쇼핑몰 1:1 문의하기에서 고객이 고르는 문의 유형(순서·사용 여부)과, 유형마다 관리자가 답변할 때 붙이는 태그
-//   답변 프롬프트: 1:1 문의 관리 > AI 답변 생성에 쓰는 AI 모델과 형식 프롬프트
-//   저장: localStorage 한 곳 (없으면 기본값). 1:1 문의 관리(board-inquiry.html)·inquiry-data.js가 같은 값을 읽음
+//   답변 데이터: AI 답변 생성 때 참고하는 상담 기준 (유형별·공통, 키워드로 문의와 연결)
+//   답변 프롬프트: 1:1 문의 > AI 답변 생성에 쓰는 AI 모델과 형식 프롬프트
+//   저장: localStorage 한 곳 (없으면 기본값). 1:1 문의(board-inquiry.html)·inquiry-data.js가 같은 값을 읽음
 //   유형 이름을 바꾸면 예전 이름 → 새 이름을 기록해 두고, 예전 이름으로 접수된 문의도 새 이름으로 보여 줌
 //   (유형·태그를 지워도 이미 분류된 문의의 값은 그대로 남음)
 // TODO: 실서비스에서는 GET/PUT /api/admin/inquiry-settings (유형·태그·프롬프트), 프롬프트는 서버에서 AI 호출에 사용
@@ -42,7 +43,26 @@
     ['회원정보', ['회원정보', '등급']],
     ['기타', ['단체견적', '제휴', '기타']]
   ].map(([name, tags], i) => ({ id: `t${i + 1}`, name, use: true, tags }));
-  const defaults = () => ({ types: JSON.parse(JSON.stringify(DEFAULT_TYPES)), renames: {}, prompt: { model: MODELS[0].id, format: DEFAULT_PROMPT, updatedAt: '', updatedBy: '' }, updatedAt: '', updatedBy: '' });
+  // 기본 답변 데이터: AI가 답변 초안을 쓸 때 참고하는 상담 기준 (유형별 + 공통). 키워드가 문의 제목·내용에 들어 있으면 참고 대상
+  const COMMON = '공통';
+  const DEFAULT_KNOWLEDGE = [
+    ['주문/결제', '결제 수단 변경', '결제 수단, 변경, 무통장, 카드 결제로', '입금 전 주문은 결제 수단만 바꿀 수 없어, 주문을 취소한 뒤 원하시는 결제 수단으로 다시 주문해 주셔야 합니다. 제작 전이라 취소 수수료는 없으며, 편집한 작업물은 보관함에 그대로 남아 있습니다.'],
+    ['주문/결제', '영수증·증빙 서류 발급', '영수증, 거래내역서, 경비, 증빙, 세금계산서', '카드 영수증은 마이페이지 > 주문 내역 > 주문 상세에서 바로 출력하실 수 있습니다. 거래내역서·세금계산서가 필요하시면 주문 상세의 서류 발급 신청을 이용해 주세요.'],
+    ['주문/결제', '중복 결제(이중 승인)', '두 번, 이중, 중복, 승인 문자', '결제 대행사에 확인한 결과 중복 승인된 1건은 자동 취소되며, 카드사에 따라 취소가 반영되기까지 3~5영업일이 걸릴 수 있습니다.'],
+    ['배송', '제작·배송 일정', '언제, 도착, 제작 중, 받을 수, 출고', '포토북은 주문 후 제작에 3~4영업일, 출고 후 배송에 1~2일이 걸립니다. 출고되면 알림톡으로 송장번호를 보내드립니다. 받으실 날짜가 정해져 있다면 남겨 주세요. 가능한 범위에서 우선 제작을 요청해 드리겠습니다.'],
+    ['배송', '배송지 변경', '배송지, 주소, 이사, 새 주소', '출고 전이라면 배송지를 바로 바꿔 드릴 수 있습니다. 변경할 주소를 남겨 주시면 반영한 뒤 다시 안내드리겠습니다. 이미 출고된 경우에는 택배사를 통해 주소 변경을 요청해 드립니다.'],
+    ['배송', '배송 완료인데 받지 못함', '분실, 받지 못, 배송 완료, 없습니다', '택배사에 배송 경로 확인을 요청했습니다. 확인 결과 분실로 판명되면 같은 상품을 다시 제작해 무상으로 보내드립니다.'],
+    ['상품', '포토북 페이지 추가', '페이지, 추가, 최대', '포토북은 편집기에서 최대 100페이지까지 늘릴 수 있고, 2페이지마다 추가 금액이 붙습니다. 제작이 시작되기 전이라면 주문 후에도 편집 내용을 고칠 수 있습니다.'],
+    ['상품', '캘린더 시작 월 변경', '캘린더, 시작 월, 시작으로, 3월', '제작이 시작되기 전이라면 편집기에서 시작 월을 바꾼 뒤 다시 저장해 주시면 그대로 제작됩니다. 제작이 시작된 뒤에는 변경이 어려워 다시 주문해 주셔야 합니다.'],
+    ['상품', '액자 인쇄 영역', '액자, 사이즈, 잘리, 인쇄 영역', '액자는 테두리 안쪽 약 3mm가 가려집니다. 편집기의 점선 안쪽이 실제로 보이는 영역이니, 중요한 부분은 점선 안에 넣어 주세요.'],
+    ['교환/반품', '인쇄·제본 불량 재제작', '불량, 줄무늬, 재제작, 파손, 찢어', '인쇄·제본 불량은 받으신 날부터 7일 안에 사진과 함께 접수해 주시면 무상으로 다시 제작해 드립니다. 받으신 상품은 회수하지 않습니다.'],
+    ['교환/반품', '색감 차이', '색감, 어둡, 화면, 모니터', '모니터와 인쇄물은 색을 표현하는 방식이 달라 색감 차이가 생길 수 있습니다. 보내주신 사진으로 확인해 정상 범위를 벗어난 경우 무상으로 다시 제작해 드리며, 다음 주문부터는 편집기의 "밝기 보정"을 켜 두시길 권해 드립니다.'],
+    ['회원정보', '회원 등급 산정 기준', '등급, 산정, 실적, 내려', '회원 등급은 최근 6개월 결제 금액으로 매월 1일에 산정되며, 취소한 주문은 실적에서 빠집니다.'],
+    ['회원정보', '휴대폰 번호 변경', '휴대폰, 번호, 본인 인증, 인증', '마이페이지 > 회원정보 수정에서 본인 인증 후 번호를 바꾸실 수 있습니다. 인증이 되지 않으면 고객센터(02-0000-0000)로 연락 주세요. 확인 후 바로 변경해 드리겠습니다.'],
+    ['기타', '단체·대량 제작 견적', '단체, 대량, 견적, 졸업앨범, 부를', '50부 이상 단체 주문은 수량별 할인과 디자인 지원을 받으실 수 있습니다. 단체 회원 신청 후 견적을 요청해 주시면 담당자가 1영업일 안에 연락드립니다.'],
+    [COMMON, '고객센터 운영 시간', '전화, 연락, 상담, 운영 시간', '고객센터는 평일 09:00~18:00(점심 12:00~13:00)에 운영하며, 1:1 문의는 운영 시간 안에 순서대로 답변드립니다.']
+  ].map(([type, title, keywords, answer], i) => ({ id: `k${i + 1}`, type, title, keywords: keywords.split(',').map(s => s.trim()).filter(Boolean), answer, use: true, updatedAt: '', updatedBy: '' }));
+  const defaults = () => ({ types: JSON.parse(JSON.stringify(DEFAULT_TYPES)), renames: {}, knowledge: JSON.parse(JSON.stringify(DEFAULT_KNOWLEDGE)), prompt: { model: MODELS[0].id, format: DEFAULT_PROMPT, updatedAt: '', updatedBy: '' }, updatedAt: '', updatedBy: '' });
 
   let data;
   try { data = Object.assign(defaults(), JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { data = defaults(); }
@@ -115,6 +135,36 @@
     save(by);
   }
 
+  // ===== 답변 데이터 (AI 답변 생성 때 참고하는 상담 기준) =====
+  //   { id, type(문의 유형 또는 '공통'), title, keywords[], answer, use, updatedAt, updatedBy }
+  const knowledge = () => data.knowledge.map(k => Object.assign({}, k, { type: k.type === COMMON ? COMMON : canonicalType(k.type), keywords: k.keywords.slice() }));
+  function checkKnowledge(x) {
+    if (!clean(x.title)) return '제목(상황)을 입력해 주세요.';
+    if (!String(x.answer || '').trim()) return '답변 내용을 입력해 주세요.';
+    if (!x.type) return '문의 유형을 선택해 주세요.';
+    return '';
+  }
+  const normKeywords = s => [...new Set((Array.isArray(s) ? s : String(s || '').split(',')).map(clean).filter(Boolean))];
+  function saveKnowledge(x, by) {   // x.id 있으면 수정, 없으면 등록. 반환: 오류 문구 또는 ''
+    const err = checkKnowledge(x);
+    if (err) return err;
+    const rec = { type: x.type, title: clean(x.title), keywords: normKeywords(x.keywords), answer: String(x.answer).trim(), use: x.use !== false, updatedAt: nowText(), updatedBy: by || '' };
+    const cur = x.id && data.knowledge.find(k => k.id === x.id);
+    if (cur) Object.assign(cur, rec); else data.knowledge.unshift(Object.assign({ id: `k${Date.now().toString(36)}` }, rec));
+    save(by);
+    return '';
+  }
+  const deleteKnowledge = (id, by) => { data.knowledge = data.knowledge.filter(k => k.id !== id); save(by); };
+  // 문의에 맞는 답변 데이터: 같은 유형(+공통) 중 키워드·제목 단어가 문의 제목·내용에 많이 들어 있는 순. 하나도 안 맞으면 제외
+  function matchKnowledge(type, text, limit = 2) {
+    const t = canonicalType(type), body = String(text || '');
+    return knowledge().filter(k => k.use && (k.type === t || k.type === COMMON)).map(k => {
+      const hits = k.keywords.filter(w => body.includes(w));
+      const titleHits = k.title.split(/[\s·()]+/).filter(w => w.length >= 2 && body.includes(w));
+      return { k, hits, score: hits.length * 2 + titleHits.length + (k.type === t ? 0.5 : 0) };
+    }).filter(x => x.hits.length || x.score >= 2).sort((a, b) => b.score - a.score).slice(0, limit);
+  }
+
   // ===== 답변 프롬프트 =====
   const prompt = () => Object.assign({}, data.prompt);
   function savePrompt(model, format, by) {
@@ -130,7 +180,8 @@
   const fillVars = (text, vars) => String(text || '').replace(/\{([^{}]+)\}/g, (all, k) => (vars[k] !== undefined && vars[k] !== '' ? vars[k] : all));
 
   window.InquirySettings = {
-    KEY, MODELS, VARIABLES, DEFAULT_PROMPT,
+    KEY, MODELS, VARIABLES, DEFAULT_PROMPT, COMMON,
+    knowledge, saveKnowledge, deleteKnowledge, matchKnowledge,
     types, typeNames, activeTypeNames, canonicalType, typeOf, tagsOf,
     addType, renameType, setUse, moveType, deleteType, addTag, deleteTag, moveTag,
     prompt, savePrompt, modelLabel, promptLine, fillVars,

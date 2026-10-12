@@ -134,6 +134,8 @@
     }
     cancel.push(req);
   });
+  // 승인 대기 샘플은 오늘 접수분 7~10건만 (취소 요청은 대부분 당일 처리). 관리자가 처리한 신청은 그대로
+  AdminUtil.keepTodayPending(cancel, q => q.status === '대기' && !overlays.cancel[q.reqNo], 'cancel');
   // 부분 취소요청 샘플 보충: 승인 대기인 전체 요청 가운데 상품이 2건 이상인 주문 5건을 '일부 상품만 요청'으로 바꿈 (처리된 신청은 제외)
   cancel.filter(q => !overlays.cancel[q.reqNo] && q.status === '대기' && q.scope === '전체' && q.items.length >= 2).slice(0, 5).forEach(q => {
     q.items = [q.items[0]];
@@ -219,6 +221,8 @@
     }
     exchange.push(req);
   });
+  // 승인 대기 샘플은 오늘 접수분 7~10건만 (교환·반품도 대부분 당일 처리). 관리자가 처리한 신청은 그대로
+  AdminUtil.keepTodayPending(exchange, q => q.status === '대기' && !overlays.exchange[q.reqNo], 'exchange');
 
   // ===== 처리 =====
   // 취소 요청 승인: 신청 상품(또는 관리자가 고른 일부) 취소 + 환불. opts = { items?(상품 index 일부), amount, refund?(관리자가 확정한 환불 수단), memo, by }
