@@ -46,7 +46,8 @@
   const loadList = key => { try { return JSON.parse(localStorage.getItem(key)) || []; } catch (e) { return []; } };
   const overlay = loadOverlay(KEYS.requests);
   const adminIssues = loadList(KEYS.issues);
-  const saveReq = req => { overlay[req.reqNo] = JSON.parse(JSON.stringify(req)); try { localStorage.setItem(KEYS.requests, JSON.stringify(overlay)); return true; } catch (e) { return false; } };
+  // 저장 후 새 신청 알림(대메뉴 빨간 점, member-type-store.js refreshNewMarks) 갱신
+  const saveReq = req => { overlay[req.reqNo] = JSON.parse(JSON.stringify(req)); let ok; try { localStorage.setItem(KEYS.requests, JSON.stringify(overlay)); ok = true; } catch (e) { ok = false; } if (window.AdminUtil && AdminUtil.refreshNewMarks) AdminUtil.refreshNewMarks(); return ok; };
   const saveIssues = () => { try { localStorage.setItem(KEYS.issues, JSON.stringify(adminIssues)); return true; } catch (e) { return false; } };
 
   const orderOf = x => (x.orderNo ? OrderData.find(x.orderNo) : null);
@@ -176,6 +177,35 @@
   })();
   // 관리자가 직접 등록한 신청 (유선·이메일 등으로 받은 별도 발급 신청, 신청번호 DM…)
   Object.values(overlay).filter(x => x.manual && !requests.some(r => r.reqNo === x.reqNo)).forEach(x => requests.push(x));
+  // ===== 신청 정보: 담당자 · 기관/회사명 + 서류별 추가 정보 =====
+  //   contact = { name(담당자명), phone, email, org(기관/회사명) } — 모든 신청
+  //   bizCert = 사업자등록증 첨부 파일 — 세금계산서를 신청한 경우
+  //   cashReceipt = { purpose(소득공제/지출증빙), idType(휴대폰/주민번호/사업자등록번호), idValue } — 현금영수증을 신청한 경우
+  //   샘플(고객 신청)은 주문자·사업자 정보로 채움 (신청번호별 별도 난수, 저장된 처리 결과에 없으면 여기서 보충). 관리자 등록 건은 입력값 그대로
+  const CASH_ID_TYPES = { '소득공제': ['휴대폰', '주민번호'], '지출증빙': ['사업자등록번호'] };
+  const maskPhone = p => String(p || '').replace(/-(\d{3,4})-/, '-****-');
+  function fillRequestInfo(req) {
+    const r = rng(req.reqNo, 89);
+    const o = orderOf(req), c = req.customer || {};
+    const m = o ? o.member : (c.userId ? MemberData.members.find(x => x.userId === c.userId) : null);
+    const b = m && m.business;
+    if (!req.contact) {
+      req.contact = { name: b ? b.managerName : (o ? o.name : c.name || ''), phone: b ? b.managerPhone : (o ? o.phone : c.phone || ''), email: b ? b.managerEmail : (o ? o.email : c.email || ''),
+        org: b ? b.companyName : (c.company || '') };
+    }
+    const types = typesOf(req);
+    if (types.includes('세금계산서') && !req.bizCert) req.bizCert = `사업자등록증_${(m && m.userId) || req.reqNo}.${r() < 0.6 ? 'pdf' : 'jpg'}`;
+    if (types.includes('현금영수증') && !req.cashReceipt) {
+      const purpose = r() < (b ? 0.5 : 0.3) ? '지출증빙' : '소득공제';   // 사업자 회원도 개인 소득공제로 받는 경우가 있음
+      const idType = purpose === '지출증빙' ? '사업자등록번호' : (r() < 0.75 ? '휴대폰' : '주민번호');
+      const idValue = idType === '사업자등록번호' ? (b ? b.bizNo : `${100 + Math.floor(r() * 800)}-${10 + Math.floor(r() * 80)}-${10000 + Math.floor(r() * 89999)}`)
+        : idType === '휴대폰' ? maskPhone(req.contact.phone || '010-0000-0000') : `${pad(70 + Math.floor(r() * 30))}${pad(1 + Math.floor(r() * 12))}${pad(1 + Math.floor(r() * 28))}-${r() < 0.5 ? 1 : 2}******`;
+      req.cashReceipt = { purpose, idType, idValue };
+    }
+    return req;
+  }
+  requests.filter(q => !q.manual).forEach(fillRequestInfo);
+
   // ===== 처리 =====
   // 발급 완료: 관리자가 만든 서류를 고객에게 전달. opts = { file, sentBy, sentTo, memo, by }. 주문 히스토리('서류발급')에 남김
   function complete(req, opts) {
@@ -196,13 +226,15 @@
     return saveReq(req);
   }
   // 관리자 등록: 유선 등으로 받은 별도 발급 신청을 관리자가 직접 입력 → 처리 대기로 추가. 주문 히스토리('서류발급')에도 남김
-  //   input = { orderNo(선택), customer(주문번호가 없을 때: name, phone, email, company), docTypes[], requirement, receiveBy, receiveTo, wantBy, attachment, channel(접수 경로), memo }
+  //   input = { orderNo(선택), customer(주문번호가 없을 때: name, phone, email, company), contact{name, phone, email, org}, bizCert(세금계산서), cashReceipt{purpose, idType, idValue}(현금영수증),
+  //             docTypes[], requirement, receiveBy, receiveTo, wantBy, attachment, channel(접수 경로), memo }
   function addRequest(input, by) {
     const at = nowText();
     const today = at.slice(0, 10).replace(/-/g, '');
     const n = Object.values(overlay).filter(x => x.manual && x.reqNo.startsWith(`DM${today}`)).length + 1;
     const req = { reqNo: `DM${today}-${String(n).padStart(3, '0')}`, manual: true, channel: input.channel, orderNo: input.orderNo || '', customer: input.orderNo ? null : input.customer, at,
       docType: input.docTypes[0], docTypes: input.docTypes.slice(), requirement: input.requirement, attachment: input.attachment || '',
+      contact: input.contact, bizCert: input.bizCert || '', cashReceipt: input.cashReceipt || null,
       receiveBy: input.receiveBy, receiveTo: input.receiveTo, wantBy: input.wantBy || '',
       status: '대기', processedAt: '', processedBy: '', file: '', sentBy: '', sentTo: '', memo: '', rejectReason: '',
       history: [{ at, content: `관리자 등록 (${input.channel} 접수${input.orderNo ? '' : ', 주문 전 요청'}) · ${input.docTypes.join(', ')} · ${input.receiveBy} 수령${input.memo ? ` · 메모: ${input.memo}` : ''}`, by }] };
@@ -230,7 +262,7 @@
 
   const byAt = (a, b) => b.at.localeCompare(a.at);
   window.DocData = {
-    STATUS_TEXT, AUTO_TYPES, REQUEST_TYPES, RECEIVE_METHODS, CHANNEL_OF, RECEIPT_CHANNELS: ['유선', '이메일', '팩스', '방문', '기타'], orderOf, applicantOf, typesOf, typeLabel,
+    STATUS_TEXT, AUTO_TYPES, REQUEST_TYPES, RECEIVE_METHODS, CHANNEL_OF, RECEIPT_CHANNELS: ['유선', '이메일', '팩스', '방문', '기타'], CASH_ID_TYPES, orderOf, applicantOf, typesOf, typeLabel,
     issues: issues.sort(byAt), requests: requests.sort(byAt),
     complete, reject, addIssue, reissue, addRequest
   };

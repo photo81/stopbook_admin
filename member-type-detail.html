@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 회원 유형 상세</title>
-<link rel="stylesheet" href="admin.css?v=20261186">
+<link rel="stylesheet" href="admin.css?v=20261206">
 </head>
 <body>
 <div class="layout">
@@ -40,6 +40,12 @@
         </ul>
       </li>
       <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">관리자계정관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="admin-accounts.html">계정 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">제작/배송관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="production-orders.html">통합 제작 관리</a></li>
@@ -65,6 +71,7 @@
           <li><a href="board-notice.html">공지사항 관리</a></li>
           <li><a href="board-faq.html">FAQ 관리</a></li>
           <li><a href="board-admin-notice.html">관리자 공지</a></li>
+          <li><a href="board-inquiry-settings.html">1:1 문의하기 관리</a></li>
         </ul>
       </li>
       <li class="has-sub">
@@ -79,7 +86,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 회원관리 &gt; <a href="member-types.html">회원 유형 관리</a> &gt; <a id="crumbGroup" href="member-types.html"></a> &gt; <b id="crumbName">상세</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.31 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.50 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -176,9 +183,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261186"></script>
-<script src="feedback.js?v=20261186"></script>
-<script src="member-data.js?v=20261186"></script>
+<script src="member-type-store.js?v=20261206"></script>
+<script src="feedback.js?v=20261206"></script>
+<script src="member-data.js?v=20261206"></script>
 <script>
 (function () {
   'use strict';

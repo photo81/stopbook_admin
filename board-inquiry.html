@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 1:1 문의 관리</title>
-<link rel="stylesheet" href="admin.css?v=20261186">
+<link rel="stylesheet" href="admin.css?v=20261206">
 </head>
 <body>
 <div class="layout">
@@ -40,6 +40,12 @@
         </ul>
       </li>
       <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">관리자계정관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="admin-accounts.html">계정 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">제작/배송관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="production-orders.html">통합 제작 관리</a></li>
@@ -65,6 +71,7 @@
           <li><a href="board-notice.html">공지사항 관리</a></li>
           <li><a href="board-faq.html">FAQ 관리</a></li>
           <li><a href="board-admin-notice.html">관리자 공지</a></li>
+          <li><a href="board-inquiry-settings.html">1:1 문의하기 관리</a></li>
         </ul>
       </li>
       <li class="has-sub open">
@@ -79,27 +86,592 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 게시글관리 &gt; <b>1:1 문의 관리</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.31 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.50 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>1:1 문의 관리 <span class="page-desc">고객 1:1 문의를 확인하고 답변합니다.</span></h1>
+      <h1>1:1 문의 관리 <span class="page-desc">접수된 문의를 확인하고 담당자를 지정해 답변합니다.</span></h1>
 
-      <!-- 빈 페이지: 화면 구성 예정 -->
-      <section class="panel">
-        <div class="empty-page">
-          <b>준비 중인 화면입니다.</b>
-          <p>1:1 문의 관리 화면은 구성 예정입니다.</p>
+      <!-- ===== 문의 목록 ===== -->
+      <div id="listView">
+        <!-- 처리 상태 탭 (검색 조건 기준 건수) -->
+        <div class="tabs" role="tablist" id="statusTabs"></div>
+
+        <form class="panel" id="searchForm" novalidate>
+          <div class="search-row">
+            <div class="search-grid order-search">
+              <div class="field f-keyword">
+                <label for="sKeyType">검색어</label>
+                <select id="sKeyType" style="flex:0 0 96px">
+                  <option value="all">전체</option>
+                  <option value="name">고객명</option>
+                  <option value="email">이메일</option>
+                  <option value="subject">제목</option>
+                  <option value="content">내용</option>
+                  <option value="orderNo">주문번호</option>
+                </select>
+                <input type="text" id="sKeyword" placeholder="검색어 입력">
+              </div>
+              <div class="field f-period">
+                <label for="sDateType">기간</label>
+                <select id="sDateType" style="flex:0 0 100px">
+                  <option value="at">접수일</option>
+                  <option value="answeredAt">답변일</option>
+                </select>
+                <div class="range">
+                  <input type="date" id="sFrom" aria-label="기간 시작"> ~ <input type="date" id="sTo" aria-label="기간 종료">
+                </div>
+                <div class="quick-range" role="group" aria-label="기간 빠른 선택">
+                  <button type="button" class="btn btn-xs" data-days="0">오늘</button>
+                  <button type="button" class="btn btn-xs" data-days="7">7일</button>
+                  <button type="button" class="btn btn-xs" data-days="30">1개월</button>
+                  <button type="button" class="btn btn-xs" data-days="90">3개월</button>
+                  <button type="button" class="btn btn-xs" data-days="all">전체</button>
+                </div>
+              </div>
+            </div>
+            <div class="search-actions">
+              <button type="submit" class="btn btn-primary">검색</button>
+              <button type="button" class="btn" id="btnReset">초기화</button>
+            </div>
+          </div>
+
+          <!-- 상세검색: 문의유형·처리담당자 (접어 둠, 적용 중인 조건 수를 옆에 표시) -->
+          <button type="button" class="detail-toggle" id="btnDetail" aria-expanded="false" aria-controls="detailSearch">
+            상세검색 <span id="detailCount"></span><span class="chev">▼</span>
+          </button>
+          <div class="search-grid detail-search" id="detailSearch" hidden>
+            <div class="field">
+              <label for="sType">문의유형</label>
+              <select id="sType"><option value="">전체</option></select>
+            </div>
+            <div class="field">
+              <label for="sTag">태그</label>
+              <select id="sTag"><option value="">전체</option></select>
+            </div>
+            <div class="field">
+              <label for="sAgent">처리담당자</label>
+              <select id="sAgent"><option value="">전체</option><option value="-">미지정</option></select>
+            </div>
+          </div>
+        </form>
+
+        <section class="panel">
+          <div class="list-head">
+            <div class="count" id="listGuide"></div>
+          </div>
+          <div class="table-wrap">
+            <table class="iq-table">
+              <colgroup id="listCols"></colgroup>
+              <thead><tr id="headRow"></tr></thead>
+              <tbody id="listBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===== 문의 상세: 왼쪽 문의·답변, 오른쪽 담당자·고객 정보·문의 이력 ===== -->
+      <div id="detailView" hidden>
+        <button type="button" class="iq-back" id="btnBack">← 문의 목록으로</button>
+        <div class="iq-grid">
+          <div class="iq-main">
+            <section class="panel iq-card">
+              <div class="iq-title">
+                <div><h2 id="dSubject"></h2><p id="dNumber"></p></div>
+                <span id="dStatus"></span>
+              </div>
+              <div class="iq-meta">
+                <div><label class="iq-label" for="dType">문의 유형</label><select id="dType"></select></div>
+                <div><span class="iq-label">태그 설정 <span class="readonly iq-label-note">답변할 때 정한 문의유형·태그가 목록(완료·전체 탭)에 표시됩니다.</span></span><div class="iq-tags" id="dTags" role="group" aria-label="태그"></div></div>
+              </div>
+              <!-- 고객이 문의할 때 선택한 주문 -->
+              <div class="iq-order-wrap">
+                <span class="iq-label">선택한 주문</span>
+                <div class="iq-order" id="dOrder"></div>
+              </div>
+            </section>
+
+            <!-- 문의 내용: 고객이 쓴 내용 + 첨부 파일 -->
+            <section class="panel iq-card">
+              <h3 class="iq-card-title">문의 내용</h3>
+              <div class="iq-content" id="dContent"></div>
+              <div class="iq-files" id="dFiles"></div>
+            </section>
+
+            <section class="panel iq-card">
+              <div class="iq-reply-head">
+                <h3>답변 내용</h3>
+                <button type="button" class="btn btn-sm iq-ai" id="btnAi" title="문의 내용·주문 정보·같은 유형의 답변 사례로 답변 초안을 만듭니다.">✦ AI 답변 생성</button>
+              </div>
+              <div class="iq-editor-frame" id="editorFrame">
+                <div class="iq-toolbar" role="toolbar" aria-label="서식">
+                  <button type="button" data-cmd="bold" title="굵게"><b>B</b></button>
+                  <button type="button" data-cmd="italic" title="기울임"><i>I</i></button>
+                  <button type="button" data-cmd="underline" title="밑줄"><u>U</u></button>
+                  <button type="button" data-cmd="insertUnorderedList" title="글머리 기호">•</button>
+                  <button type="button" data-cmd="insertOrderedList" title="번호 목록">1.</button>
+                  <button type="button" id="btnLink" title="링크">🔗</button>
+                </div>
+                <div class="iq-editor" id="editor" contenteditable="true" data-placeholder="고객에게 전달할 답변을 작성해 주세요."></div>
+              </div>
+              <div class="iq-reply-foot">
+                <span class="readonly" id="replyMeta"></span>
+                <div class="iq-actions" id="replyActions"></div>
+              </div>
+            </section>
+          </div>
+
+          <aside class="iq-side">
+            <section class="panel iq-card">
+              <label class="iq-label" for="dAssignee">처리 담당자 <span class="readonly iq-label-note">(담당자명 입력 시 확인중으로 상태 전환)</span></label>
+              <div class="iq-assign">
+                <input type="text" id="dAssignee" list="agentList" placeholder="이름 입력" autocomplete="off">
+                <datalist id="agentList"></datalist>
+                <button type="button" class="btn btn-primary" id="btnAssign">확인</button>
+              </div>
+            </section>
+            <details class="iq-acc" open>
+              <summary>고객 정보</summary>
+              <div class="iq-acc-body" id="dCustomer"></div>
+            </details>
+            <!-- 문의 이력: 문의를 열 때마다 닫힌 상태로 시작, 필요할 때 펼침 -->
+            <details class="iq-acc" id="histAcc">
+              <summary>문의 이력 <span class="tab-count" id="dHistCount"></span></summary>
+              <div class="iq-acc-body" id="dHistory"></div>
+            </details>
+          </aside>
         </div>
-      </section>
+      </div>
     </main>
+  </div>
+</div>
+
+<!-- 이전 문의 보기 (문의 이력에서 선택) -->
+<div class="modal-bg" id="histModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="histTitle">
+    <div class="modal-header">
+      <h2 id="histTitle">문의 이력</h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="readonly" id="histMeta"></p>
+      <div class="section-title">문의 내용</div>
+      <div class="iq-box" id="histContent"></div>
+      <div class="section-title">답변 내용</div>
+      <div class="iq-box" id="histReply"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>닫기</button>
+      <button type="button" class="btn btn-primary" id="histOpen">이 문의로 이동</button>
+    </div>
+  </div>
+</div>
+
+<!-- 첨부파일 미리보기 -->
+<div class="modal-bg" id="fileModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="fileTitle">
+    <div class="modal-header">
+      <h2 id="fileTitle"></h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="iq-preview" id="filePreview"></div>
+      <p class="readonly" style="margin:8px 0 0">프로토타입 견본 이미지입니다. 실서비스에서는 고객이 올린 원본 파일을 보여 줍니다.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>닫기</button>
+      <button type="button" class="btn btn-primary" id="fileDownload">다운로드</button>
+    </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
-<script src="member-type-store.js?v=20261186"></script>
-<script src="feedback.js?v=20261186"></script>
-<script>AdminUtil.initSidebar();</script>
+<script src="member-type-store.js?v=20261206"></script>
+<script src="member-data.js?v=20261206"></script>
+<script src="order-data.js?v=20261206"></script>
+<script src="inquiry-settings.js?v=20261206"></script>
+<script src="inquiry-data.js?v=20261206"></script>
+<script src="list-tools.js?v=20261206"></script>
+<script src="feedback.js?v=20261206"></script>
+<script>
+(function () {
+  'use strict';
+  // 1:1 문의 관리
+  //   목록: 상태 탭(대기·확인중·완료·전체) · 검색(검색어, 접수일/답변일 기간, 문의유형, 담당자) · N개씩 · 엑셀 다운로드
+  //   상세(주소 #no=문의번호): 문의 유형·태그 분류, 문의 내용(연결 주문·첨부), 답변 작성(서식·AI 초안·임시 저장·답변 완료·수정),
+  //     처리 담당자 지정(대기 → 확인중), 고객 정보, 같은 회원의 문의 이력
+  //     (처리 이력은 화면에 따로 보이지 않고 주문 히스토리·엑셀에 남음)
+  const { esc, toast, initSidebar, listToday, setDefaultRange, ADMIN_NAME } = AdminUtil;
+  const D = InquiryData;
+  const $ = id => document.getElementById(id);
+  const won = n => `${Number(n || 0).toLocaleString()}원`;
+  const statusBadge = s => `<span class="badge iq-st-${s}">${esc(s)}</span>`;
+  const textHtml = s => esc(s).replace(/\n/g, '<br>');
+  initSidebar();
+
+  // 문의 유형·태그: 게시판관리 > 1:1 문의하기 관리(inquiry-settings.js). 유형마다 쓸 수 있는 태그가 다름
+  const S = InquirySettings;
+  const extraTypes = [...new Set(D.inquiries.map(q => q.type))].filter(t => !S.typeNames().includes(t));   // 지운 유형으로 분류된 예전 문의
+  $('sType').innerHTML += S.typeNames().concat(extraTypes).map(t => `<option>${esc(t)}</option>`).join('');
+  $('sAgent').innerHTML += D.AGENTS.map(n => `<option>${esc(n)}</option>`).join('');
+  // 상세 문의 유형 선택: 사용 중인 유형 + (사용 안 함·삭제된 유형으로 분류된 문의면) 그 유형도 표시
+  function renderTypeSelect(q) {
+    const list = S.activeTypeNames();
+    if (!list.includes(q.type)) list.push(q.type);
+    $('dType').innerHTML = list.map(t => `<option${S.typeNames().includes(t) && !S.activeTypeNames().includes(t) ? ' title="사용 안 함 유형"' : ''}>${esc(t)}</option>`).join('');
+    $('dType').value = q.type;
+  }
+  $('agentList').innerHTML = D.AGENTS.map(n => `<option value="${esc(n)}"></option>`).join('');
+
+  // ===== 기간 빠른 선택 (기본 1개월) =====
+  const pad = n => String(n).padStart(2, '0');
+  const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const quickBtns = () => $('searchForm').querySelectorAll('[data-days]');
+  $('searchForm').addEventListener('click', e => {
+    const b = e.target.closest('[data-days]');
+    if (!b) return;
+    const d = b.dataset.days;
+    if (d === 'all') { $('sFrom').value = ''; $('sTo').value = ''; }
+    else {
+      const today = listToday();
+      $('sFrom').value = fmtDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - Number(d)));
+      $('sTo').value = fmtDate(today);
+    }
+    quickBtns().forEach(x => x.classList.toggle('btn-adjust', x === b));
+  });
+  ['sFrom', 'sTo'].forEach(id => $(id).addEventListener('input', () => quickBtns().forEach(x => x.classList.remove('btn-adjust'))));
+  setDefaultRange();
+
+  // ===== 상세검색 (접기/펼치기). 접혀 있어도 적용 중인 조건 수를 표시해 숨은 조건을 놓치지 않게 함 =====
+  // 태그 선택지: 문의유형을 고르면 그 유형의 태그, 전체면 모든 유형의 태그 (+ 문의에 붙어 있는 삭제된 태그). 고른 태그가 목록에 없으면 전체로
+  function renderTagOptions() {
+    const type = $('sType').value, prev = $('sTag').value;
+    const used = D.inquiries.filter(q => !type || q.type === type).flatMap(q => q.tags);
+    const list = [...new Set((type ? S.tagsOf(type) : S.types().flatMap(t => t.tags)).concat(used))];
+    $('sTag').innerHTML = '<option value="">전체</option>' + list.map(t => `<option>${esc(t)}</option>`).join('');
+    $('sTag').value = list.includes(prev) ? prev : '';
+  }
+  $('sType').addEventListener('change', renderTagOptions);
+  renderTagOptions();
+  const updateDetailCount = () => { const n = ['sType', 'sTag', 'sAgent'].filter(id => $(id).value).length; $('detailCount').textContent = n ? `(${n})` : ''; };
+  $('btnDetail').addEventListener('click', () => {
+    const open = $('detailSearch').hidden;
+    $('detailSearch').hidden = !open;
+    $('btnDetail').setAttribute('aria-expanded', String(open));
+  });
+  $('detailSearch').addEventListener('change', updateDetailCount);
+
+  // ===== 목록 =====
+  //   상태 탭: 대기 → 확인중 → 완료 → 전체 (기본 대기). 탭 건수 = 검색 조건에 맞는 문의 중 그 상태 건수
+  const TABS = ['대기', '확인중', '완료', '전체'];
+  let filter = '대기', search = null, rows = [];
+  function readSearch() {
+    const s = { dateType: $('sDateType').value, from: $('sFrom').value, to: $('sTo').value, type: $('sType').value, tag: $('sTag').value, agent: $('sAgent').value, keyType: $('sKeyType').value, kw: $('sKeyword').value.trim().toLowerCase() };
+    if (s.from && s.to && s.from > s.to) { toast('기간 시작일이 종료일보다 늦습니다.'); return null; }
+    return s;
+  }
+  function matchesBase(q) {
+    const s = search, day = (q[s.dateType] || '').slice(0, 10);
+    const fields = { name: q.name, email: q.email, subject: q.subject, content: q.content, orderNo: q.orderNo };
+    const targets = s.keyType === 'all' ? [q.name, q.email, q.subject] : [fields[s.keyType]];
+    const inPeriod = (!s.from && !s.to) || (day && (!s.from || day >= s.from) && (!s.to || day <= s.to));   // 답변일 기준이면 답변 전 문의는 빠짐
+    return inPeriod && (!s.type || q.type === s.type) && (!s.tag || q.tags.includes(s.tag)) &&
+      (!s.agent || (s.agent === '-' ? !q.assignee : q.assignee === s.agent)) &&
+      (!s.kw || targets.some(v => String(v || '').toLowerCase().includes(s.kw)));
+  }
+  const tools = ListTools.create({
+    section: $('listBody').closest('.panel'),
+    onChange: () => renderList(),
+    units: [{ label: '문의 단위', desc: '문의 1건 = 1행 (문의·답변 내용, 처리 이력 포함)', file: '1대1문의',
+      rows: () => [['문의번호', '접수일시', '회원명', '아이디', '이메일', '휴대폰', '회원구분', '문의유형', '태그', '제목', '내용', '주문번호', '첨부파일', '처리담당자', '처리상태', '답변 내용', '답변일시', '답변자', '처리 이력'],
+        ...rows.map(q => [q.inquiryNo, q.at, q.name, q.userId, q.email, '\t' + q.phone, q.category, q.type, q.tags.join(', '), q.subject, q.content, q.orderNo, q.files.join(', '),
+          q.assignee, q.status, q.answer, q.answeredAt, q.answeredBy, q.log.map(l => `[${l.at}] ${l.text} (${l.by})`).join('\n')])] }]
+  });
+  let lastKey = '';
+  function renderList() {
+    const base = D.inquiries.filter(matchesBase);
+    const cnt = s => (s === '전체' ? base.length : base.filter(q => q.status === s).length);
+    $('statusTabs').innerHTML = TABS.map(s => `
+      <button type="button" role="tab" class="tab ${s === filter ? 'active' : ''}" aria-selected="${s === filter}" data-status="${s}">${s} <span class="tab-count">${cnt(s).toLocaleString()}</span></button>`).join('');
+    rows = base.filter(q => filter === '전체' || q.status === filter);
+    const key = filter + '|' + JSON.stringify(search);
+    if (key !== lastKey) { tools.first(); lastKey = key; }
+    const GUIDE = { '대기': '담당자가 지정되지 않은 문의입니다. 제목을 눌러 담당자를 지정하고 답변하세요.', '확인중': '담당자가 확인 중인 문의입니다.', '완료': '답변을 마친 문의입니다.', '전체': '제목을 누르면 문의 내용을 보고 답변할 수 있습니다.' };
+    $('listGuide').innerHTML = `${filter} <b>${rows.length.toLocaleString()}</b>건 · ${GUIDE[filter]}`;
+    // 완료·전체 탭: 문의유형 옆에 태그 (관리자가 답변하며 정한 분류)
+    const showTags = filter === '완료' || filter === '전체';
+    const heads = [['접수일시', 136], ['고객명', 96], ['이메일', 200], ['문의유형', 100], ...(showTags ? [['태그', 170]] : []), ['제목', 0], ['처리담당자', 100], ['상태', 104]];
+    $('listCols').innerHTML = heads.map(([, w]) => `<col${w ? ` style="width:${w}px"` : ''}>`).join('');
+    $('headRow').innerHTML = heads.map(([h]) => `<th>${h}</th>`).join('');
+    const page = tools.page(rows);
+    $('listBody').innerHTML = page.length ? page.map(q => `<tr>
+      <td>${esc(q.at)}</td>
+      <td><b>${esc(q.name)}</b></td>
+      <td title="${esc(q.email)}">${esc(q.email || '-')}</td>
+      <td>${esc(q.type)}</td>
+      ${showTags ? `<td title="${esc(q.tags.join(', '))}">${q.tags.length ? `<div class="iq-tag-cell">${q.tags.map(tg => `<span class="iq-tag-chip">${esc(tg)}</span>`).join('')}</div>` : '<span class="muted">-</span>'}</td>` : ''}
+      <td><div class="iq-subject"><button type="button" class="iq-title-link" data-open="${q.no}" title="${esc(q.subject)}">${esc(q.subject)}</button>${q.files.length ? `<span class="muted" title="첨부파일 ${q.files.length}개">📎</span>` : ''}${q.tags.includes('긴급') ? '<span class="iq-urgent">긴급</span>' : ''}</div></td>
+      <td>${q.assignee ? esc(q.assignee) : '<span class="muted">-</span>'}</td>
+      <td>${statusBadge(q.status)}</td>
+    </tr>`).join('') : `<tr><td colspan="${heads.length}" class="empty">조회된 문의가 없습니다.</td></tr>`;
+  }
+  $('searchForm').addEventListener('submit', e => { e.preventDefault(); const s = readSearch(); if (s) { search = s; renderList(); } });
+  $('btnReset').addEventListener('click', () => {
+    $('searchForm').reset(); setDefaultRange(); renderTagOptions(); updateDetailCount();
+    search = readSearch(); renderList();
+  });
+  $('statusTabs').addEventListener('click', e => {
+    const b = e.target.closest('[data-status]');
+    if (!b) return;
+    filter = b.dataset.status;
+    renderList();
+  });
+  $('listBody').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) location.hash = `no=${b.dataset.open}`; });
+
+  // ===== 상세 =====
+  let current = null, editing = false;
+  const hashNo = () => (location.hash.match(/no=(\d+)/) || [])[1];
+  function route() {
+    const no = hashNo(), q = no ? D.find(no) : null;
+    if (no && !q) toast('문의를 찾을 수 없습니다. 목록에서 다시 선택해 주세요.');
+    $('listView').hidden = !!q; $('detailView').hidden = !q;
+    if (q) showDetail(q); else { current = null; document.title = '스탑북 관리자 - 1:1 문의 관리'; renderList(); }
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', route);
+  $('btnBack').addEventListener('click', () => { location.hash = ''; });
+
+  function showDetail(q) {
+    current = q; editing = false;
+    document.title = `${q.subject} - 1:1 문의 관리`;
+    $('dSubject').textContent = q.subject;
+    $('dNumber').textContent = `${q.inquiryNo} · ${q.at} 접수`;
+    renderTypeSelect(q);
+    $('dContent').innerHTML = textHtml(q.content);
+    renderOrder(q);
+    renderFiles(q);
+    $('dAssignee').value = q.assignee || '';
+    renderAssignBtn();
+    $('histAcc').open = false;   // 문의 이력은 닫힌 상태로 시작
+    $('dCustomer').innerHTML = [['회원명', q.name], ['아이디', q.userId], ['이메일', q.email], ['전화번호', q.phone], ['회원구분', q.category]]
+      .map(([k, v]) => `<div class="iq-info"><span>${k}</span><strong>${esc(v || '-')}</strong></div>`).join('') +
+      `<a class="btn btn-sm iq-member-link" href="members.html?member=${q.member.no}" target="_blank">회원 상세 열기</a>`;
+    renderHistory(q);
+    renderStatus(); renderTags();
+    $('editor').innerHTML = q.status === '완료' ? q.replyHtml : (q.draft || '');
+    renderReply();
+  }
+  const renderStatus = () => { $('dStatus').innerHTML = statusBadge(current.status); };
+  function renderTags() {
+    // 선택한 문의 유형의 태그 + 이미 붙어 있지만 지금 목록에 없는 태그(삭제된 태그, 누르면 해제)
+    const list = S.tagsOf(current.type), gone = current.tags.filter(t => !list.includes(t));
+    $('dTags').innerHTML = list.map(t => `<button type="button" class="iq-tag${current.tags.includes(t) ? ' active' : ''}" data-tag="${esc(t)}" aria-pressed="${current.tags.includes(t)}">${esc(t)}</button>`).join('') +
+      gone.map(t => `<button type="button" class="iq-tag active gone" data-tag="${esc(t)}" aria-pressed="true" title="1:1 문의하기 관리에서 삭제된 태그입니다. 누르면 해제됩니다.">${esc(t)} ×</button>`).join('') +
+      (list.length || gone.length ? '' : '<span class="muted">이 유형에 등록된 태그가 없습니다. 게시판관리 &gt; 1:1 문의하기 관리에서 추가할 수 있습니다.</span>');
+  }
+  function renderOrder(q) {
+    const o = D.orderOf(q);
+    if (!o) { $('dOrder').innerHTML = '<span class="muted">선택한 주문이 없습니다.</span>'; return; }
+    $('dOrder').innerHTML = `<div class="iq-order-head"><b>주문번호 · <a class="name-link" href="order-detail.html?orderNo=${encodeURIComponent(o.orderNo)}" target="_blank">${esc(o.orderNo)}</a></b>
+        <span class="muted">${esc(o.orderedAt)} · ${esc(o.payMethod)} · ${esc(o.payStatus)} · ${esc(o.status)}</span>
+        <span class="readonly iq-order-note">문의 접수·처리 이력은 이 주문의 주문 히스토리에도 남습니다.</span></div>
+      <ul class="iq-order-items">${o.items.map(it => `<li><span class="iq-thumb" aria-hidden="true">${esc(it.category.slice(0, 2))}</span>
+        <span><b>${esc(it.name)}</b><small>${esc(it.category)} · ${it.qty}부 · ${won(it.paid)}${it.status ? ` · ${esc(it.status)}` : it.payStatus === '취소' ? ' · 취소' : ''}</small></span></li>`).join('')}</ul>`;
+  }
+  function renderFiles(q) {
+    $('dFiles').innerHTML = q.files.length ? q.files.map(f => `<button type="button" class="iq-file" data-file="${esc(f)}" title="미리보기"><img src="${sampleImage(f, 68, 68).toDataURL()}" alt=""><span>${esc(f)}</span></button>`).join('')
+      : '<span class="muted">첨부파일 없음</span>';
+  }
+  function renderHistory(q) {
+    const list = D.historyOf(q);
+    $('dHistCount').textContent = list.length || '';
+    $('dHistory').innerHTML = list.length ? list.map(x => `<button type="button" class="iq-hist" data-hist="${x.no}">
+        <span><strong>${esc(x.subject)}</strong><small>${esc(x.at.slice(0, 10))} · ${esc(x.type)} · ${esc(x.status)}</small></span><span class="iq-hist-arrow">›</span></button>`).join('')
+      : '<p class="muted iq-empty">같은 회원의 다른 문의가 없습니다.</p>';
+  }
+  // 답변 영역: 완료 건은 읽기 전용 + 수정, 수정 중이면 수정 취소/저장, 그 외는 임시 저장/답변 완료
+  function renderReply() {
+    const done = current.status === '완료', readOnly = done && !editing;
+    $('editor').contentEditable = readOnly ? 'false' : 'true';
+    $('editorFrame').classList.toggle('readonly', readOnly);
+    $('btnAi').disabled = readOnly;
+    $('replyActions').innerHTML = readOnly ? '<button type="button" class="btn btn-primary" data-act="edit">수정</button>'
+      : done ? '<button type="button" class="btn" data-act="cancel">수정 취소</button><button type="button" class="btn btn-primary" data-act="saveEdit">수정 저장</button>'
+      : '<button type="button" class="btn" data-act="draft">임시 저장</button><button type="button" class="btn btn-primary" data-act="complete">답변 완료</button>';
+    $('replyMeta').textContent = done ? `답변 ${current.answeredAt} · ${current.answeredBy}${editing ? ' (수정 중)' : ''}`
+      : current.draft ? '임시 저장한 답변을 불러왔습니다.' : current.assignee ? '' : '답변 완료 전에 처리 담당자를 지정해 주세요.';
+  }
+
+  // 편집기 내용 정리: 서식 태그만 남기고 속성·스크립트 제거 (링크는 http/https 주소만)
+  const ALLOWED = ['B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI', 'BR', 'P', 'DIV', 'A', 'SPAN'];
+  function cleanHtml(html) {
+    const tpl = document.createElement('template');   // template 안은 이미지·스크립트가 실행되지 않음
+    tpl.innerHTML = html;
+    const box = tpl.content;
+    [...box.querySelectorAll('*')].reverse().forEach(el => {
+      if (!ALLOWED.includes(el.tagName)) { el.replaceWith(...(['SCRIPT', 'STYLE', 'IFRAME'].includes(el.tagName) ? [] : el.childNodes)); return; }
+      const href = el.tagName === 'A' ? el.getAttribute('href') : null;
+      [...el.attributes].forEach(a => el.removeAttribute(a.name));
+      if (href && /^https?:\/\//i.test(href)) { el.setAttribute('href', href); el.setAttribute('target', '_blank'); el.setAttribute('rel', 'noopener'); }
+    });
+    const wrap = document.createElement('div');
+    wrap.appendChild(box);
+    return wrap.innerHTML;
+  }
+  const editorText = () => $('editor').innerText.trim();
+
+  $('replyActions').addEventListener('click', e => {
+    const act = (e.target.closest('[data-act]') || {}).dataset?.act;
+    if (!act || !current) return;
+    if (act === 'edit') { editing = true; renderReply(); $('editor').focus(); return; }
+    if (act === 'cancel') { editing = false; $('editor').innerHTML = current.replyHtml; renderReply(); return; }
+    if (!editorText()) { toast('답변 내용을 입력해 주세요.'); $('editor').focus(); return; }
+    const html = cleanHtml($('editor').innerHTML), text = editorText();
+    if (act === 'draft') { D.saveDraft(current, html, ADMIN_NAME); toast('답변을 임시 저장했습니다.'); }
+    else if (act === 'complete') {
+      if (!current.assignee) { toast('처리 담당자를 먼저 지정해 주세요.'); $('dAssignee').focus(); return; }
+      if (!confirm('답변을 등록하고 고객에게 답변 알림을 보낼까요?')) return;
+      D.complete(current, html, text, ADMIN_NAME);
+      $('editor').innerHTML = html;
+      toast('답변을 완료 처리했습니다.');
+    } else if (act === 'saveEdit') {
+      D.editReply(current, html, text, ADMIN_NAME);
+      editing = false; $('editor').innerHTML = html;
+      toast('답변 내용을 수정했습니다.');
+    }
+    renderStatus(); renderReply();
+  });
+
+  // 서식 도구
+  document.querySelectorAll('[data-cmd]').forEach(b => b.addEventListener('click', () => { $('editor').focus(); document.execCommand(b.dataset.cmd); }));
+  $('btnLink').addEventListener('click', () => {
+    const url = prompt('이동할 주소(URL)를 입력해 주세요.', 'https://');
+    if (!url) return;
+    if (!/^https?:\/\/\S+$/i.test(url)) { toast('http:// 또는 https://로 시작하는 주소를 입력해 주세요.'); return; }
+    $('editor').focus(); document.execCommand('createLink', false, url);
+  });
+
+  // 담당자 지정 (대기 → 확인중). 버튼: 담당자가 없으면 '확인'(처음 지정), 지정된 뒤에는 '수정'
+  const renderAssignBtn = () => { $('btnAssign').textContent = current && current.assignee ? '수정' : '확인'; };
+  $('btnAssign').addEventListener('click', () => {
+    const name = $('dAssignee').value.trim(), first = !current.assignee;
+    if (!D.AGENTS.includes(name)) { toast('목록에 있는 담당자 이름을 선택해 주세요.'); $('dAssignee').focus(); return; }
+    if (name === current.assignee) { toast(`이미 ${name} 담당자로 지정되어 있습니다.`); return; }
+    const before = current.status;
+    D.assign(current, name, ADMIN_NAME);
+    renderStatus(); renderReply(); renderAssignBtn();
+    toast(first ? `${name} 담당자로 지정했습니다.${before === '대기' ? ' 상태가 확인중으로 바뀌었습니다.' : ''}` : `처리 담당자를 ${name}(으)로 수정했습니다.`);
+  });
+  $('dAssignee').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('btnAssign').click(); } });
+
+  // 분류: 문의 유형·태그 (바로 저장)
+  // 유형을 바꾸면 새 유형에 없는 태그는 해제 (태그는 유형별로 따로 관리)
+  $('dType').addEventListener('change', () => {
+    const type = $('dType').value, keep = current.tags.filter(t => S.tagsOf(type).includes(t));
+    const dropped = current.tags.filter(t => !keep.includes(t));
+    D.classify(current, type, ADMIN_NAME);
+    if (dropped.length) D.setTags(current, keep);
+    renderTags();
+    toast(`문의 유형을 저장했습니다.${dropped.length ? ` 새 유형에 없는 태그(${dropped.join(', ')})는 해제했습니다.` : ''}`);
+  });
+  $('dTags').addEventListener('click', e => {
+    const b = e.target.closest('[data-tag]');
+    if (!b) return;
+    const t = b.dataset.tag;
+    D.setTags(current, current.tags.includes(t) ? current.tags.filter(x => x !== t) : current.tags.concat(t));
+    renderTags(); toast('태그를 저장했습니다.');
+  });
+
+  // ===== AI 답변 초안 =====
+  //   프로토타입: 문의 유형·연결 주문·첨부 여부로 초안을 만듦. 같은 유형의 답변 완료 문의 수를 '참고한 상담 데이터'로 안내
+  //   AI 모델·형식 프롬프트는 1:1 문의하기 관리 > 답변 프롬프트 (inquiry-settings.js)
+  // TODO: 실서비스에서는 POST /api/admin/inquiries/{no}/ai-reply (상담 데이터·첨부 이미지를 반영한 생성형 AI 초안)
+  function draftFor(q) {
+    const o = D.orderOf(q);
+    const ord = o ? `주문번호 <b>${esc(o.orderNo)}</b>(${esc(o.orderedAt.slice(0, 10))} 주문, ${esc(o.title)})` : '';
+    const body = {
+      '주문/결제': o ? `문의하신 ${ord}의 결제 내역을 확인했습니다. 현재 결제 상태는 <b>${esc(o.payStatus)}</b>(${esc(o.payMethod)})입니다.<br>요청하신 내용은 확인 후 바로 처리해 드리고, 처리 결과는 마이페이지 &gt; 주문 내역에서 확인하실 수 있습니다.`
+        : '문의하신 결제 내역을 확인하고 있습니다. 주문번호를 알려 주시면 더 빠르게 확인해 드리겠습니다.',
+      '배송': o ? `${ord}은 현재 <b>${esc(o.status)}</b> 상태입니다.<br>${o.shippedAt ? `${esc(o.shippedAt)}에 출고되었으며, 배송 조회는 마이페이지 &gt; 주문 내역에서 하실 수 있습니다.` : '출고되면 알림톡으로 송장번호를 안내해 드리겠습니다.'}`
+        : '주문하신 상품의 제작·출고 일정을 확인하고 있습니다. 출고되면 알림톡으로 송장번호를 안내해 드리겠습니다.',
+      '상품': `문의하신 옵션은 편집기에서 바로 변경하실 수 있습니다.${o ? ` (${ord})` : ''}<br>제작이 시작되기 전이라면 추가 비용 없이 변경되며, 페이지 추가 등 옵션에 따라 금액이 달라질 수 있습니다.`,
+      '교환/반품': `${q.files.length ? '보내주신 사진으로 상품 상태를 확인했습니다. ' : ''}불편을 드려 죄송합니다.${o ? `<br>${ord}을 재제작으로 접수해 두었으며,` : '<br>재제작으로 접수해 두었으며,'} 제작이 끝나면 다시 배송해 드리겠습니다. 받으신 상품은 회수하지 않으셔도 됩니다.`,
+      '회원정보': '회원정보를 확인했습니다. 마이페이지 &gt; 회원정보 수정에서 변경하실 수 있으며, 본인 인증이 되지 않으면 고객센터로 연락 주시면 도와드리겠습니다.',
+      '기타': '문의하신 내용을 담당 부서에 전달했습니다. 담당자가 확인한 뒤 남겨주신 연락처로 상세 견적과 일정을 안내해 드리겠습니다.'
+    }[q.type] || '문의하신 내용을 확인하고 있습니다. 확인되는 대로 다시 안내드리겠습니다.';
+    // 인사말·맺음말: 1:1 문의하기 관리 > 답변 프롬프트의 '첫 줄', '마지막 줄' 문구 (값은 문의 정보로 채움)
+    const p = S.prompt(), vars = { '고객명': q.name, '문의유형': q.type, '문의제목': q.subject, '주문번호': o ? o.orderNo : '', '주문상태': o ? o.status : '', '담당자': q.assignee };
+    const first = S.fillVars(S.promptLine(p.format, '첫 줄'), vars) || `안녕하세요, ${q.name} 고객님. 스탑북 고객센터입니다.`;
+    const last = S.fillVars(S.promptLine(p.format, '마지막 줄'), vars) || '추가로 궁금하신 점은 1:1 문의 또는 고객센터(02-0000-0000)로 연락 주세요. 감사합니다.';
+    return `${esc(first)}<br><br>문의하신 <b>${esc(q.subject)}</b> 내용을 확인했습니다.<br>${body}<br><br>${esc(last)}`;
+  }
+  $('btnAi').addEventListener('click', () => {
+    if (!current) return;
+    if (editorText() && !confirm('작성 중인 답변을 AI 초안으로 바꿀까요?')) return;
+    const b = $('btnAi'), before = b.textContent;
+    b.disabled = true; b.textContent = 'AI 작성 중...';
+    setTimeout(() => {
+      $('editor').innerHTML = draftFor(current);
+      b.disabled = false; b.textContent = before;
+      const ref = D.inquiries.filter(x => x.type === current.type && x.status === '완료' && x.no !== current.no).length;
+      toast(`${S.modelLabel(S.prompt().model)} · 형식 프롬프트와 같은 유형의 답변 사례 ${ref.toLocaleString()}건${current.files.length ? `, 첨부 이미지 ${current.files.length}장` : ''}을 참고해 초안을 만들었습니다. 내용을 확인한 뒤 답변해 주세요.`);
+    }, 600);
+  });
+
+  // ===== 문의 이력 모달 =====
+  let histNo = null;
+  $('dHistory').addEventListener('click', e => {
+    const b = e.target.closest('[data-hist]');
+    if (!b) return;
+    const x = D.find(b.dataset.hist);
+    histNo = x.no;
+    $('histTitle').textContent = x.subject;
+    $('histMeta').innerHTML = `${esc(x.inquiryNo)} · ${esc(x.at)} · ${esc(x.type)} · ${statusBadge(x.status)}`;
+    $('histContent').innerHTML = textHtml(x.content);
+    $('histReply').innerHTML = x.replyHtml ? `${x.replyHtml}<p class="readonly" style="margin:8px 0 0">${esc(x.answeredBy)} · ${esc(x.answeredAt)}</p>` : '<span class="muted">등록된 답변이 없습니다.</span>';
+    $('histModal').classList.add('open');
+  });
+  $('histOpen').addEventListener('click', () => { $('histModal').classList.remove('open'); location.hash = `no=${histNo}`; });
+
+  // ===== 첨부파일: 견본 이미지 미리보기·다운로드 =====
+  function sampleImage(name, w, h) {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'), hue = [...name].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 360, 7);
+    g.fillStyle = `hsl(${hue},45%,86%)`; g.fillRect(0, 0, w, h);
+    g.fillStyle = `hsl(${hue},40%,62%)`;
+    g.beginPath(); g.moveTo(0, h); g.lineTo(w * 0.35, h * 0.45); g.lineTo(w * 0.6, h * 0.75); g.lineTo(w * 0.78, h * 0.55); g.lineTo(w, h); g.closePath(); g.fill();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(w * 0.75, h * 0.25, Math.min(w, h) * 0.1, 0, Math.PI * 2); g.fill();
+    if (w > 200) { g.fillStyle = 'rgba(24,24,27,.75)'; g.font = '600 16px sans-serif'; g.fillText(name, 16, 28); g.font = '13px sans-serif'; g.fillText('견본 이미지 (STOPBOOK 프로토타입)', 16, 50); }
+    return c;
+  }
+  let fileName = '';
+  $('dFiles').addEventListener('click', e => {
+    const b = e.target.closest('[data-file]');
+    if (!b) return;
+    fileName = b.dataset.file;
+    $('fileTitle').textContent = fileName;
+    $('filePreview').innerHTML = '';
+    $('filePreview').appendChild(sampleImage(fileName, 640, 420));
+    $('fileModal').classList.add('open');
+  });
+  $('fileDownload').addEventListener('click', () => {
+    sampleImage(fileName, 640, 420).toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      toast(`${fileName}을 내려받았습니다.`);
+    }, 'image/png');
+  });
+
+  // 모달 닫기 (닫기 버튼·바깥 클릭·Esc)
+  ['histModal', 'fileModal'].forEach(id => $(id).addEventListener('click', e => { if (e.target.id === id || e.target.closest('[data-close]')) $(id).classList.remove('open'); }));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') ['histModal', 'fileModal'].forEach(id => $(id).classList.remove('open')); });
+
+  search = readSearch();
+  route();
+})();
+</script>
 </body>
 </html>

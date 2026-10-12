@@ -99,5 +99,41 @@
     };
   }
 
-  window.ListTools = { create, downloadCsv };
+  // ===== ZIP 다운로드 (압축 없이 묶기, 외부 라이브러리 없음) =====
+  // files = [{ name, content(문자열) }] → name.zip 으로 내려받기. 파일 이름은 UTF-8 (한글 가능)
+  const CRC_TABLE = (() => { const t = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc32 = bytes => { let c = 0xFFFFFFFF; for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  function downloadZip(files, zipName) {
+    const enc = new TextEncoder();
+    const now = new Date();
+    const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2);
+    const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+    const parts = [], central = [];
+    let offset = 0;
+    files.forEach(f => {
+      const nameBytes = enc.encode(f.name), data = enc.encode(f.content), crc = crc32(data);
+      const local = new DataView(new ArrayBuffer(30));
+      [[0, 0x04034b50, 4], [4, 20, 2], [6, 0x0800, 2], [8, 0, 2], [10, dosTime, 2], [12, dosDate, 2], [14, crc, 4], [18, data.length, 4], [22, data.length, 4], [26, nameBytes.length, 2], [28, 0, 2]]
+        .forEach(([o, v, s]) => (s === 4 ? local.setUint32(o, v, true) : local.setUint16(o, v, true)));
+      parts.push(local, nameBytes, data);
+      const cen = new DataView(new ArrayBuffer(46));
+      [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [8, 0x0800, 2], [10, 0, 2], [12, dosTime, 2], [14, dosDate, 2], [16, crc, 4], [20, data.length, 4], [24, data.length, 4], [28, nameBytes.length, 2],
+        [30, 0, 2], [32, 0, 2], [34, 0, 2], [36, 0, 2], [38, 0, 4], [42, offset, 4]].forEach(([o, v, s]) => (s === 4 ? cen.setUint32(o, v, true) : cen.setUint16(o, v, true)));
+      central.push(cen, nameBytes);
+      offset += 30 + nameBytes.length + data.length;
+    });
+    const cenSize = central.reduce((n, p) => n + p.byteLength, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    [[0, 0x06054b50, 4], [4, 0, 2], [6, 0, 2], [8, files.length, 2], [10, files.length, 2], [12, cenSize, 4], [16, offset, 4], [20, 0, 2]].forEach(([o, v, s]) => (s === 4 ? end.setUint32(o, v, true) : end.setUint16(o, v, true)));
+    const blob = new Blob([...parts, ...central, end], { type: 'application/zip' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = zipName.endsWith('.zip') ? zipName : `${zipName}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  }
+
+  window.ListTools = { create, downloadCsv, downloadZip };
 })();

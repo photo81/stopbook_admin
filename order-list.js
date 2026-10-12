@@ -241,7 +241,7 @@
     // 상품명 검색은 주문의 모든 상품명(productNames)에서 찾음 ('마이트립북 외 2종'의 나머지 상품도 검색됨)
     const KEYWORD_FIELDS = ['orderNo', 'name', 'recipient', 'userId', 'email', 'phone', 'productNames'];
     const DATE_KEY = { orderedAt: 'orderDate', paidAt: 'paidAt', shippedAt: 'shippedAt', outAt: 'outDate' };   // outAt: 출고일 (배송중·외주 제작, 상품 기준)
-    const state = { filtered: [], page: 1, size: 10, sortKey: 'orderedAt', sortDir: 'desc', search: null, tab: 'all', view: 'order' };
+    const state = { filtered: [], page: 1, size: 10, sortKey: 'orderedAt', sortDir: 'desc', search: null, tab: outsource ? 'waiting' : 'all', view: 'order' };
     const inSet = (list, v) => !list || !list.length || list.includes(v);
     // 상담여부: 고른 구분의 관리자 메모가 하나라도 있으면 해당
     const matchInquiry = (list, o) => !list.length || OrderData.memoCategories(o.orderNo).some(c => list.includes(c));
@@ -251,10 +251,11 @@
     // 검색 조건과 함께 적용. 탭 건수는 검색 결과 기준. 입금을 등록하면 입금 합계에 따라 후결제대기 → 부분결제 → 결제완료 탭으로 옮겨감
     // (부분취소·전체취소 건은 전체 탭에서만 보임)
     // 외주 제작: 전체 / 의뢰대기(결제완료·주문완료, 공정 주문접수) / 의뢰완료(의뢰완료 이후 공정 전부: 의뢰완료~배송완료, 취소 제외)
+    // 외주 제작: 의뢰대기 → 의뢰완료 → 전체 순 (처음 열면 의뢰대기, 클레임관리 화면처럼 처리할 건이 먼저)
     const TABS = !$('statusTabs') ? null : outsource ? [
-      { key: 'all', label: '전체', test: () => true },
       { key: 'waiting', label: '의뢰대기', test: r => OrderData.isRequestWaiting(r.item) },
-      { key: 'requested', label: '의뢰완료', test: r => OrderData.isRequested(r.item) }
+      { key: 'requested', label: '의뢰완료', test: r => OrderData.isRequested(r.item) },
+      { key: 'all', label: '전체', test: () => true }
     ] : [
       { key: 'all', label: '전체', test: () => true },
       ...['후결제대기', '부분결제', '결제완료'].map(st => ({ key: st, label: st, test: o => payStatusOf(o) === st }))

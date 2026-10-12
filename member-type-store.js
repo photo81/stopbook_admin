@@ -757,7 +757,7 @@
   window.AdminUtil = { fmtDateTime, esc, toast, initSidebar, setDefaultRange, listToday, ADMIN_NAME: '관리자' };  // TODO: 로그인 관리자명
 
   // 상단바 프로토타입 버전 표시. 버전을 올릴 때는 여기만 바꾸면 모든 화면에 반영됨 (HTML의 같은 문구는 스크립트 실패 시 대비용)
-  const PROTO_VERSION = '프로토타입 v2.31 (2026-10-12)';
+  const PROTO_VERSION = '프로토타입 v2.50 (2026-10-12)';
   document.querySelectorAll('[data-proto-version]').forEach(el => { el.textContent = PROTO_VERSION; });
 
   // ===== 상단 대메뉴(GNB): 회원 / 주문·배송 =====
@@ -766,7 +766,7 @@
   // 처음 열면 현재 화면이 속한 대메뉴가 선택됨 (선택된 화면이 없으면 주문·배송). 사이드 메뉴 마크업은 각 화면에 그대로 두고 여기서 보이기만 조절
   // TODO: 실서비스에서는 메뉴 구성을 공통 레이아웃(서버 템플릿/컴포넌트)에서 그림
   const GNB = [
-    { key: 'member', label: '회원', cats: ['회원관리', '메시지전송관리'] },
+    { key: 'member', label: '회원', cats: ['회원관리', '메시지전송관리', '관리자계정관리'] },
     { key: 'order', label: '주문/배송', cats: ['주문관리', '제작/배송관리', '클레임관리'] },
     { key: 'board', label: '게시판', cats: ['게시판관리', '게시글관리'] }   // 게시판관리(통합·공지사항·FAQ) / 게시글관리(1:1 문의·이용후기)
   ];
@@ -777,7 +777,7 @@
     const catOf = li => (li.querySelector('.menu-parent').childNodes[0].textContent || '').trim();
     const sectionOf = li => (GNB.find(g => g.cats.includes(catOf(li))) || GNB[1]).key;
     // 카테고리 구분 표시용 (admin.css .sidebar li[data-cat]: 카테고리명 연한 회색 배경)
-    const CAT_KEYS = { '회원관리': 'member', '메시지전송관리': 'message', '주문관리': 'order', '제작/배송관리': 'production', '클레임관리': 'claim', '게시판관리': 'board', '게시글관리': 'post' };
+    const CAT_KEYS = { '회원관리': 'member', '메시지전송관리': 'message', '관리자계정관리': 'account', '주문관리': 'order', '제작/배송관리': 'production', '클레임관리': 'claim', '게시판관리': 'board', '게시글관리': 'post' };
     groups.forEach(li => { li.dataset.cat = CAT_KEYS[catOf(li)] || 'etc'; });
     const activeLi = groups.find(li => li.querySelector('.submenu a.active'));
     let current = activeLi ? sectionOf(activeLi) : 'order';
@@ -841,4 +841,58 @@
     show(current, !activeLi);
   }
   initGnb();
-})();
+
+  // ===== 새 글·새 신청 알림: 대메뉴·사이드 메뉴에 빨간 점 =====
+  //   아직 처리하지 않은 새 건이 있으면 그 메뉴에 표시하고, 처리해서 0건이 되면 사라짐
+  //     게시판 > 1:1 문의 관리: 담당자가 지정되지 않은 문의(대기)
+  //     주문/배송 > 클레임관리: 취소 요청·교환 반품·서류 발급의 처리 대기 신청
+  //   표시 위치: 대메뉴 버튼 오른쪽 위에 빨간 점 · 사이드 카테고리와 해당 메뉴 오른쪽에 대기 건수(작은 글씨)
+  //   건수: 그 데이터(js)를 불러온 화면은 바로 계산하고 저장, 불러오지 않은 화면은 마지막으로 저장된 건수를 씀 (localStorage)
+  // TODO: 실서비스에서는 GET /api/admin/new-counts (주기적 조회 또는 푸시)
+  const NEW_KEY = 'stopbook.newCounts.v1';
+  const NEW_SOURCES = [
+    { key: 'inquiry', gnb: 'board', href: 'board-inquiry.html', label: '1:1 문의', note: '담당자 미지정', count: () => (window.InquiryData ? InquiryData.newCount() : null) },
+    { key: 'cancel', gnb: 'order', href: 'claim-cancel.html', label: '취소 요청', note: '승인 대기', count: () => (window.ClaimData ? ClaimData.cancel.requests.filter(q => q.status === '대기').length : null) },
+    { key: 'exchange', gnb: 'order', href: 'claim-exchange.html', label: '교환·반품 신청', note: '승인 대기', count: () => (window.ClaimData ? ClaimData.exchange.requests.filter(q => q.status === '대기').length : null) },
+    { key: 'document', gnb: 'order', href: 'claim-documents.html', label: '서류 발급 신청', note: '처리 대기', count: () => (window.DocData ? DocData.requests.filter(q => q.status === '대기').length : null) }
+  ];
+  const readNew = () => { try { return JSON.parse(localStorage.getItem(NEW_KEY)) || {}; } catch (e) { return {}; } };
+  function setDot(el, n, title) {
+    if (!el) return;
+    let dot = el.querySelector(':scope > .new-dot');
+    if (n && !dot) { dot = document.createElement('span'); dot.className = 'new-dot'; const chev = el.querySelector(':scope > .chev'); el.insertBefore(dot, chev); }
+    if (dot) { dot.hidden = !n; dot.title = title; dot.setAttribute('aria-label', title); dot.setAttribute('role', n ? 'img' : 'presentation'); }
+  }
+  // 사이드 메뉴 대기 건수 (작은 글씨, 오른쪽 정렬. 카테고리는 ▼ 앞)
+  function setCount(el, n, title) {
+    if (!el) return;
+    let c = el.querySelector(':scope > .new-count');
+    if (n && !c) { c = document.createElement('span'); c.className = 'new-count'; el.insertBefore(c, el.querySelector(':scope > .chev')); }
+    if (c) { c.hidden = !n; c.textContent = n ? n.toLocaleString() : ''; c.title = title; c.setAttribute('aria-label', n ? `대기 ${n}건` : ''); }
+  }
+  function refreshNewMarks() {
+    const saved = readNew(), counts = {};
+    NEW_SOURCES.forEach(src => { const live = src.count(); counts[src.key] = live === null ? Number(saved[src.key]) || 0 : live; });
+    if (NEW_SOURCES.some(src => src.count() !== null)) {
+      try { localStorage.setItem(NEW_KEY, JSON.stringify(Object.assign(saved, counts, { at: new Date().toISOString() }))); } catch (e) { /* 저장 불가 시 이 화면만 */ }
+    }
+    const text = list => list.filter(src => counts[src.key]).map(src => `${src.label} ${counts[src.key]}건(${src.note})`).join(' · ');
+    // 사이드 메뉴: 해당 메뉴 + 그 메뉴가 들어 있는 카테고리 이름 오른쪽에 대기 건수 (카테고리 = 메뉴 건수 합계)
+    NEW_SOURCES.forEach(src => {
+      const link = document.querySelector(`.sidebar .submenu a[href="${src.href}"]`);
+      setCount(link, counts[src.key], counts[src.key] ? `${src.label} ${src.note} ${counts[src.key]}건` : '');
+    });
+    document.querySelectorAll('.sidebar li.has-sub').forEach(li => {
+      const mine = NEW_SOURCES.filter(src => li.querySelector(`.submenu a[href="${src.href}"]`));
+      if (mine.length) setCount(li.querySelector('.menu-parent'), mine.reduce((n, src) => n + counts[src.key], 0), text(mine));
+    });
+    // 대메뉴
+    [...new Set(NEW_SOURCES.map(src => src.gnb))].forEach(g => {
+      const t = text(NEW_SOURCES.filter(src => src.gnb === g));
+      setDot(document.querySelector(`.gnb-item[data-gnb="${g}"]`), t ? 1 : 0, t ? `새로 들어온 건: ${t}` : '');
+    });
+  }
+  window.AdminUtil.refreshNewMarks = refreshNewMarks;
+  // 화면의 데이터 스크립트가 모두 실행된 뒤 표시. 다른 탭에서 처리하면 저장값 변경으로 다시 표시
+  document.addEventListener('DOMContentLoaded', refreshNewMarks);
+  window.addEventListener('storage', e => { if (e.key === NEW_KEY) refreshNewMarks(); });})();

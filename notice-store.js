@@ -18,12 +18,13 @@
   const addMonths = (dateStr, n) => { const d = new Date(dateStr); d.setMonth(d.getMonth() + n); return fmtDate(d); };
   const defaultPeriod = () => ({ showFrom: today(), showTo: addMonths(today(), 1) });
 
+  // 샘플 작성자: 관리자 실명 (김지영 · 김태복 · 창경훈 · 최의담 · 이고은)
   const SAMPLES = [
-    { id: 's1', type: '중요', category: '공정', title: '10/9(한글날) 택배 집하 휴무', body: '10/8 오후 출고분까지 당일 집하되고, 10/9 출고분은 10/10에 집하됩니다.\n배송 문의가 오면 1일 지연을 안내해 주세요. 퀵서비스는 정상 운영합니다.', by: '운영팀', at: '2026-10-07 09:10', showFrom: '2026-10-07', showTo: '2026-10-12' },
-    { id: 's2', type: '중요', category: '상품', title: '랑데부 190g 용지 단종', body: '포토북 내지 옵션 중 랑데부 190g가 10/15부터 단종됩니다.\n기존 주문은 재고분으로 제작하고, 이후 주문은 몽블랑 190g로 자동 대체됩니다. 상품 사양 변경 안내를 참고해 주세요.', by: '상품팀', at: '2026-10-06 14:00', showFrom: '2026-10-06', showTo: '2026-11-06' },
-    { id: 's3', type: '공지', category: '고객관리', title: '후결제 주문 입금 확인 방법 변경', body: '후결제 주문은 후결제 주문 리스트 > 입금관리에서 입금일시·결제수단·입금액을 등록합니다.\n분할 입금은 회차별로 등록하고, 전액이 들어오면 결제완료로 바뀝니다.', by: '운영팀', at: '2026-10-02 14:20', showFrom: '2026-10-02', showTo: '2026-11-02' },
-    { id: 's4', type: '공지', category: '마케팅', title: '가을 포토북 10% 할인 이벤트 (10/13~10/31)', body: '10/13부터 전 포토북 10% 할인 이벤트가 시작됩니다. 광고성 메시지는 수신 동의 회원에게만 발송해 주세요.\n이벤트 문의는 마케팅팀으로 전달 바랍니다.', by: '마케팅팀', at: '2026-10-01 11:30', showFrom: '2026-10-01', showTo: '2026-10-31' },
-    { id: 's5', type: '공지', category: '운영', title: '단체회원 승인 시 적용 기간 확인', body: '적용 기간 종료일이 지나면 자동으로 일반 회원으로 전환됩니다.\n연장 요청은 회원 상세에서 기간을 수정해 주세요.', by: '회원팀', at: '2026-09-25 11:00', showFrom: '2026-09-25', showTo: '2026-10-25' }
+    { id: 's1', type: '중요', category: '공정', title: '10/9(한글날) 택배 집하 휴무', body: '10/8 오후 출고분까지 당일 집하되고, 10/9 출고분은 10/10에 집하됩니다.\n배송 문의가 오면 1일 지연을 안내해 주세요. 퀵서비스는 정상 운영합니다.', by: '김지영', at: '2026-10-07 09:10', showFrom: '2026-10-07', showTo: '2026-10-12' },
+    { id: 's2', type: '중요', category: '상품', title: '랑데부 190g 용지 단종', body: '포토북 내지 옵션 중 랑데부 190g가 10/15부터 단종됩니다.\n기존 주문은 재고분으로 제작하고, 이후 주문은 몽블랑 190g로 자동 대체됩니다. 상품 사양 변경 안내를 참고해 주세요.', by: '김태복', at: '2026-10-06 14:00', showFrom: '2026-10-06', showTo: '2026-11-06' },
+    { id: 's3', type: '공지', category: '고객관리', title: '후결제 주문 입금 확인 방법 변경', body: '후결제 주문은 후결제 주문 리스트 > 입금관리에서 입금일시·결제수단·입금액을 등록합니다.\n분할 입금은 회차별로 등록하고, 전액이 들어오면 결제완료로 바뀝니다.', by: '창경훈', at: '2026-10-02 14:20', showFrom: '2026-10-02', showTo: '2026-11-02' },
+    { id: 's4', type: '공지', category: '마케팅', title: '가을 포토북 10% 할인 이벤트 (10/13~10/31)', body: '10/13부터 전 포토북 10% 할인 이벤트가 시작됩니다. 광고성 메시지는 수신 동의 회원에게만 발송해 주세요.\n이벤트 문의는 마케팅팀으로 전달 바랍니다.', by: '최의담', at: '2026-10-01 11:30', showFrom: '2026-10-01', showTo: '2026-10-31' },
+    { id: 's5', type: '공지', category: '운영', title: '단체회원 승인 시 적용 기간 확인', body: '적용 기간 종료일이 지나면 자동으로 일반 회원으로 전환됩니다.\n연장 요청은 회원 상세에서 기간을 수정해 주세요.', by: '이고은', at: '2026-09-25 11:00', showFrom: '2026-09-25', showTo: '2026-10-25' }
   ];
   // 게시 상태: 게시 중 / 게시 예정 / 게시 종료 (기한 없는 예전 데이터는 게시 중으로 봄)
   const periodState = n => { const t = today(); if (!n.showFrom && !n.showTo) return '게시 중'; if (n.showFrom && t < n.showFrom) return '게시 예정'; if (n.showTo && t > n.showTo) return '게시 종료'; return '게시 중'; };
@@ -36,6 +37,11 @@
   function list() {
     let items = read(KEY, null);
     if (!Array.isArray(items)) { items = SAMPLES.map(n => Object.assign({}, n)); write(KEY, items); }
+    // 예전 샘플의 작성자(운영팀 등 팀 이름)가 저장돼 있으면 실명 샘플 작성자로 바꿈 (관리자가 등록·수정한 공지는 그대로)
+    const OLD_BY = ['운영팀', '상품팀', '마케팅팀', '회원팀'];
+    let fixed = false;
+    items.forEach(n => { const s = SAMPLES.find(x => x.id === n.id); if (s && OLD_BY.includes(n.by)) { n.by = s.by; fixed = true; } });
+    if (fixed) write(KEY, items);
     return items.slice().sort((a, b) => ((b.type === '중요') - (a.type === '중요')) || b.at.localeCompare(a.at));
   }
   const find = id => list().find(n => n.id === id) || null;

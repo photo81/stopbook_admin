@@ -67,7 +67,8 @@
 
   const loadOverlay = key => { try { return JSON.parse(localStorage.getItem(key)) || {}; } catch (e) { return {}; } };
   const overlays = { cancel: loadOverlay(KEYS.cancel), exchange: loadOverlay(KEYS.exchange) };
-  const saveReq = (kind, req) => { overlays[kind][req.reqNo] = JSON.parse(JSON.stringify(req)); try { localStorage.setItem(KEYS[kind], JSON.stringify(overlays[kind])); return true; } catch (e) { return false; } };
+  // 저장 후 새 신청 알림(대메뉴 빨간 점, member-type-store.js refreshNewMarks) 갱신
+  const saveReq = (kind, req) => { overlays[kind][req.reqNo] = JSON.parse(JSON.stringify(req)); let ok; try { localStorage.setItem(KEYS[kind], JSON.stringify(overlays[kind])); ok = true; } catch (e) { ok = false; } if (window.AdminUtil && AdminUtil.refreshNewMarks) AdminUtil.refreshNewMarks(); return ok; };
 
   const orderOf = req => OrderData.find(req.orderNo);
   // 신청 상품의 결제금액 합계 (= 환불 가능 최대 금액). 이미 취소된 상품은 취소금액

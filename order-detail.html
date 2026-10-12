@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스탑북 관리자 - 주문 상세</title>
-<link rel="stylesheet" href="admin.css?v=20261186">
+<link rel="stylesheet" href="admin.css?v=20261206">
 </head>
 <body>
 <div class="layout">
@@ -40,6 +40,12 @@
         </ul>
       </li>
       <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">관리자계정관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="admin-accounts.html">계정 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
         <a href="#" class="menu-parent" aria-expanded="false">제작/배송관리<span class="chev">▼</span></a>
         <ul class="submenu">
           <li><a href="production-orders.html">통합 제작 관리</a></li>
@@ -65,6 +71,7 @@
           <li><a href="board-notice.html">공지사항 관리</a></li>
           <li><a href="board-faq.html">FAQ 관리</a></li>
           <li><a href="board-admin-notice.html">관리자 공지</a></li>
+          <li><a href="board-inquiry-settings.html">1:1 문의하기 관리</a></li>
         </ul>
       </li>
       <li class="has-sub">
@@ -79,7 +86,7 @@
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">홈 &gt; 주문관리 &gt; <a href="orders.html">통합 주문 관리</a> &gt; <b>주문 상세</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.31 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.50 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
@@ -517,16 +524,18 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261186"></script>
-<script src="member-type-store.js?v=20261186"></script>
-<script src="feedback.js?v=20261186"></script>
-<script src="member-data.js?v=20261186"></script>
-<script src="order-data.js?v=20261186"></script>
-<script src="claim-data.js?v=20261186"></script>
-<script src="document-data.js?v=20261186"></script>
-<script src="deposit-modal.js?v=20261186"></script>
-<script src="make-modal.js?v=20261186"></script>
-<script src="item-detail.js?v=20261186"></script>
+<script src="alimtalk.js?v=20261206"></script>
+<script src="member-type-store.js?v=20261206"></script>
+<script src="feedback.js?v=20261206"></script>
+<script src="member-data.js?v=20261206"></script>
+<script src="order-data.js?v=20261206"></script>
+<script src="claim-data.js?v=20261206"></script>
+<script src="document-data.js?v=20261206"></script>
+<script src="inquiry-settings.js?v=20261206"></script>
+<script src="inquiry-data.js?v=20261206"></script>
+<script src="deposit-modal.js?v=20261206"></script>
+<script src="make-modal.js?v=20261206"></script>
+<script src="item-detail.js?v=20261206"></script>
 <script>
 (function () {
   'use strict';
@@ -733,9 +742,10 @@
           </li>`
         : `<li data-id="${esc(mm.id)}"><span class="badge memo-badge mc-${esc(mm.category)}">${esc(mm.category)}</span><span class="memo-meta"><b>${esc(mm.by)}</b> ${esc(mm.at)}${mm.editedAt ? ` <span title="수정 ${esc(mm.editedAt)} ${esc(mm.editedBy)}">(수정됨)</span>` : ''}</span><span class="memo-text">${esc(mm.text)}</span><span class="memo-btns"><button type="button" class="btn btn-xs" data-memo-edit>수정</button><button type="button" class="btn btn-xs btn-danger" data-memo-del>삭제</button></span></li>`
       ).join('') || '<li class="memo-empty muted">등록된 메모가 없습니다.</li>';
-      // 주문 히스토리: 관리자 변경 이력 + 시스템 처리 이력 + 취소 요청·교환·반품 신청/처리 이력(claim-data.js)을 최신순으로
+      // 주문 히스토리: 관리자 변경 이력 + 시스템 처리 이력 + 취소 요청·교환·반품 신청/처리 이력(claim-data.js) + 1:1 문의 접수·처리 이력(inquiry-data.js)을 최신순으로
       const claimHist = window.ClaimData ? ClaimData.historyOf(o.orderNo) : [];
-      const all = log.history.concat(OrderData.systemHistory(o), claimHist).sort((a, b) => b.at.localeCompare(a.at));
+      const inqHist = window.InquiryData ? InquiryData.orderHistory(o.orderNo) : [];
+      const all = log.history.concat(OrderData.systemHistory(o), claimHist, inqHist).sort((a, b) => b.at.localeCompare(a.at));
       $('tabHistoryCount').textContent = all.length || '';
       $('historyBody').innerHTML = all.map(h => `<tr${h.by === '시스템' ? ' class="hist-system"' : ''}>
           <td>${esc(h.at)}</td><td><span class="badge hist-${esc(h.type)}">${esc(h.type)}</span></td>
