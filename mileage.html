@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스탑북 관리자 - 마일리지 내역</title>
+<link rel="stylesheet" href="admin.css?v=20261228">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="logo" href="dashboard.html" title="대시보드">STOPBOOK Admin</a>
+    <ul>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">회원관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="members.html">통합 회원 관리</a></li>
+          <li><a href="group-applications.html">단체 회원 신청 관리</a></li>
+          <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
+          <li><a href="member-types.html">회원 유형 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">메시지전송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="message-send.html">메시지 전송</a></li>
+          <li><a href="message-sms.html">SMS 발송 관리</a></li>
+          <li><a href="message-alimtalk.html">알림톡 발송 관리</a></li>
+          <li><a href="message-email.html">이메일 발송 관리</a></li>
+        </ul>
+      </li>      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="orders.html">통합 주문 관리</a></li>
+          <li><a href="paid-orders.html">결제 완료 주문</a></li>
+          <li><a href="unpaid-orders.html">미입금 주문</a></li>
+          <li><a href="postpay-orders.html">후결제 주문</a></li>
+          <li><a href="prepaid-orders.html">선결제 주문</a></li>
+          <li><a href="canceled-orders.html">취소 주문</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">관리자계정관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="admin-accounts.html">계정 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">제작/배송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="production-orders.html">통합 제작 관리</a></li>
+          <li><a href="ordered-orders.html">주문 완료</a></li>
+          <li><a href="making-orders.html">제작 중</a></li>
+          <li><a href="shipping-orders.html">배송 중</a></li>
+          <li><a href="delivered-orders.html">배송 완료</a></li>
+          <li><a href="outsource-orders.html">외주 제작</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">클레임관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="claim-cancel.html">취소 요청 관리</a></li>
+          <li><a href="claim-exchange.html">교환 반품 관리</a></li>
+          <li><a href="claim-documents.html">서류 발급 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-all.html">게시판 통합 관리</a></li>
+          <li><a href="board-admin-notice.html">관리자 공지</a></li>
+          <li><a href="board-inquiry-settings.html">1:1 문의 설정</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-notice.html">공지사항</a></li>
+          <li><a href="board-inquiry.html">1:1 문의</a></li>
+          <li><a href="board-faq.html">FAQ</a></li>
+          <li><a href="board-review.html">이용후기</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">혜택관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="mileage-types.html">마일리지 유형 관리</a></li>
+        </ul>
+      </li>
+<li class="has-sub open">
+        <a href="#" class="menu-parent" aria-expanded="true">혜택내역<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="mileage.html" class="active" aria-current="page">마일리지 내역</a></li>
+        </ul>
+      </li>    </ul>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">홈 &gt; 혜택내역 &gt; <b>마일리지 내역</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.72 (2026-10-13)</span> 관리자님 | <a href="#">로그아웃</a></div>
+    </header>
+
+    <main class="content">
+      <h1>마일리지 내역 <span class="page-desc">자동·수동으로 지급하거나 차감한 모든 마일리지 이력을 확인합니다.</span></h1>
+
+      <!-- 유형 탭: 전체 / 지급 / 차감 (검색 조건 기준 건수) + 오른쪽 마일리지 지급/차감 (회원 검색 → 지급·차감) -->
+      <div class="tabs-row">
+        <div class="tabs" role="tablist" id="typeTabs"></div>
+        <button type="button" class="btn btn-primary" id="btnAdjust">마일리지 지급/차감</button>
+      </div>
+
+      <form class="panel" id="searchForm" novalidate>
+        <div class="search-row">
+          <div class="search-grid order-search">
+            <div class="field f-keyword">
+              <label for="sKeyType">검색어</label>
+              <select id="sKeyType" style="flex:0 0 96px">
+                <option value="all">전체</option><option value="name">회원명</option><option value="userId">아이디</option><option value="reason">내용</option><option value="orderNo">주문번호</option><option value="by">처리자</option>
+              </select>
+              <input type="text" id="sKeyword" placeholder="검색어 입력">
+            </div>
+            <div class="field f-period">
+              <label for="sFrom">기간</label>
+              <div class="range"><input type="date" id="sFrom" aria-label="기간 시작"> ~ <input type="date" id="sTo" aria-label="기간 종료"></div>
+              <div class="quick-range" role="group" aria-label="기간 빠른 선택">
+                <button type="button" class="btn btn-xs" data-days="0">오늘</button>
+                <button type="button" class="btn btn-xs" data-days="7">7일</button>
+                <button type="button" class="btn btn-xs" data-days="30">1개월</button>
+                <button type="button" class="btn btn-xs" data-days="90">3개월</button>
+                <button type="button" class="btn btn-xs" data-days="all">전체</button>
+              </div>
+            </div>
+            <div class="field f-status">
+              <label for="sMode">구분</label>
+              <select id="sMode"><option value="">전체</option><option value="자동">자동</option><option value="수동">수동</option></select>
+            </div>
+          </div>
+          <div class="search-actions">
+            <button type="submit" class="btn btn-primary">검색</button>
+            <button type="button" class="btn" id="btnReset">초기화</button>
+          </div>
+        </div>
+      </form>
+
+      <!-- 기간 합계 -->
+      <div class="kpi-row" id="summary"></div>
+
+      <section class="panel">
+        <div class="list-head">
+          <div class="count" id="listGuide"></div>
+        </div>
+        <div class="table-wrap">
+          <table class="ml-table">
+            <colgroup><col style="width:136px"><col style="width:84px"><col style="width:110px"><col style="width:88px"><col style="width:72px"><col><col style="width:130px"><col style="width:96px"><col style="width:96px"><col style="width:96px"><col style="width:84px"></colgroup>
+            <thead><tr><th>일시</th><th>회원명</th><th>아이디</th><th>구분</th><th>유형</th><th>내용</th><th>주문번호</th><th class="num">지급</th><th class="num">차감</th><th class="num">잔여</th><th>처리자</th></tr></thead>
+            <tbody id="listBody"></tbody>
+          </table>
+        </div>
+        <p class="readonly" style="margin:10px 0 0">자동 = 시스템 적립(구매 확정·리뷰 작성)·주문 사용·취소/반품 마일리지 환불, 수동 = 관리자가 회원 상세나 이 화면의 마일리지 지급/차감에서 직접 지급·차감한 건입니다. 회원명을 누르면 회원 상세, 주문번호를 누르면 주문 상세가 열립니다.</p>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- 마일리지 지급/차감: 회원 검색(조건으로 걸러 한 명 또는 여러 명 선택) → 같은 금액으로 지급·차감 (회원 상세 > 마일리지 관리 모달과 같은 입력) -->
+<div class="modal-bg" id="adjModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="adjTitle">
+    <div class="modal-header">
+      <h2 id="adjTitle">마일리지 지급/차감</h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <!-- 회원 검색: 검색어 + 회원 정보 조건 -->
+      <div class="section-title" style="margin-top:0">회원 검색</div>
+      <form class="ml-bulk-filter" id="bkFilter" novalidate>
+        <div class="ml-bulk-grid">
+          <label class="wide">검색어 <span class="inline-row">
+            <select id="bkKeyType" class="w-auto" aria-label="검색 항목"><option value="all">전체</option><option value="name">회원명</option><option value="userId">아이디</option><option value="email">이메일</option><option value="phone">휴대폰</option></select>
+            <input type="text" id="bkKeyword" placeholder="회원명 · 아이디 · 이메일 · 휴대폰" style="flex:1">
+          </span></label>
+          <label>회원구분 <select id="bkCategory"><option value="">전체</option></select></label>
+          <label>등급 <select id="bkGrade"><option value="">전체</option></select></label>
+          <label>최근 주문 <select id="bkOrder"><option value="">전체</option><option value="90">최근 3개월 주문 있음</option><option value="-90">최근 3개월 주문 없음</option></select></label>
+          <label class="wide">가입일 <span class="inline-row"><input type="date" id="bkJoinFrom" aria-label="가입일 시작"> ~ <input type="date" id="bkJoinTo" aria-label="가입일 종료"></span></label>
+          <label>보유 마일리지 <span class="inline-row"><input type="text" id="bkMileMin" inputmode="numeric" placeholder="0"> ~ <input type="text" id="bkMileMax" inputmode="numeric" placeholder="제한 없음"></span></label>
+        </div>
+        <div class="ml-bulk-actions"><button type="button" class="btn btn-sm" id="bkReset">초기화</button> <button type="submit" class="btn btn-sm btn-primary">조회</button></div>
+      </form>
+
+      <!-- 조회 결과: 조회를 눌렀을 때만 표시. 체크로 한 명 또는 여러 명 선택 (조건을 바꿔도 선택 유지) -->
+      <div class="ml-bulk-head">
+        <span id="bkGuide" class="readonly">조건을 넣고 조회를 누르면 회원 목록이 나옵니다. (조건 없이 조회하면 전체 회원)</span>
+        <span><b id="bkCount">선택 0명</b> <button type="button" class="btn btn-xs" id="bkClear">선택 해제</button></span>
+      </div>
+      <div class="table-wrap history-wrap ml-bulk-list" id="bkListWrap" hidden>
+        <table class="history-table">
+          <thead><tr><th style="width:36px"><input type="checkbox" id="bkAll" aria-label="조회 결과 전체 선택" title="조회 결과 전체 선택"></th><th>회원명</th><th>아이디</th><th>이메일</th><th>휴대폰</th><th>회원구분</th><th>등급</th><th>가입일</th><th class="num">보유 마일리지</th></tr></thead>
+          <tbody id="bkBody"></tbody>
+        </table>
+      </div>
+
+      <!-- 선택한 회원에게 지급·차감 -->
+      <form id="bkForm" class="benefit-form" novalidate>
+        <div class="section-title">마일리지 지급/차감 <span class="section-note" id="bkTarget">회원을 선택해 주세요.</span></div>
+        <table class="form-table">
+          <tr><th>처리 구분</th><td>
+            <label><input type="radio" name="bkType" value="plus" checked> 지급</label>
+            <label style="margin-left:12px"><input type="radio" name="bkType" value="minus"> 차감</label>
+          </td></tr>
+          <tr><th id="bkAmountLabel">금액 *</th><td><input type="text" id="bkAmount" inputmode="numeric" style="width:160px"> P <span class="readonly" id="bkTotal" style="margin-left:8px"></span></td></tr>
+          <tr><th>사유 *</th><td><input type="text" id="bkReason" maxlength="100" placeholder="처리 사유 (회원 내역에 표시됨)"></td></tr>
+          <tr id="bkOrderRow" hidden><th>주문번호</th><td><select id="bkOrderNo" class="w-auto" aria-label="관련 주문"></select> <span class="readonly">주문과 관련된 지급·차감이면 선택 (한 명을 선택했을 때만)</span></td></tr>
+        </table>
+        <div class="err" id="bkErr"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close>닫기</button>
+      <button type="submit" form="bkForm" class="btn btn-primary" id="bkApply">적용</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="board-store.js?v=20261228"></script>
+<script src="member-type-store.js?v=20261228"></script>
+<script src="member-data.js?v=20261228"></script>
+<script src="list-tools.js?v=20261228"></script>
+<script src="feedback.js?v=20261228"></script>
+<script>
+(function () {
+  'use strict';
+  // 마일리지 내역 (혜택 > 혜택관리)
+  //   전체 회원의 마일리지 지급·차감 이력을 한 목록으로 (member-data.js mileageHistory)
+  //     자동: 시스템 적립(구매 확정·리뷰)·주문 사용·취소/반품 마일리지 환불(claim-data.js) / 수동: 회원 상세에서 관리자가 지급·차감
+  //   유형 탭(전체·지급·차감) · 검색(회원명·아이디·내용·관련번호·처리자, 기간, 구분) · 기간 합계 · N개씩 · 엑셀
+  // TODO: 실서비스에서는 GET /api/admin/benefits/mileage/history?{조건}
+  const { esc, toast, initSidebar, setDefaultRange, listToday } = AdminUtil;
+  const $ = id => document.getElementById(id);
+  const pt = n => `${Number(n).toLocaleString()}P`;
+  const fmtDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  initSidebar();
+  let ALL = MemberData.mileageHistory();   // 지급·차감하면 다시 읽음
+  const SOURCE_TEXT = { system: '시스템', refund: '환불', manual: '관리자' };
+
+  // 기간 빠른 선택 (기본 1개월)
+  const quick = () => $('searchForm').querySelectorAll('[data-days]');
+  $('searchForm').addEventListener('click', e => {
+    const b = e.target.closest('[data-days]');
+    if (!b) return;
+    if (b.dataset.days === 'all') { $('sFrom').value = ''; $('sTo').value = ''; }
+    else { const t = listToday(); $('sFrom').value = fmtDate(new Date(t.getFullYear(), t.getMonth(), t.getDate() - Number(b.dataset.days))); $('sTo').value = fmtDate(t); }
+    quick().forEach(x => x.classList.toggle('btn-adjust', x === b));
+  });
+  ['sFrom', 'sTo'].forEach(id => $(id).addEventListener('input', () => quick().forEach(x => x.classList.remove('btn-adjust'))));
+  setDefaultRange();
+
+  const TABS = ['전체', '지급', '차감'];
+  let tab = '전체', search = null, rows = [];
+  function readSearch() {
+    const s = { keyType: $('sKeyType').value, kw: $('sKeyword').value.trim().toLowerCase(), from: $('sFrom').value, to: $('sTo').value, mode: $('sMode').value };
+    if (s.from && s.to && s.from > s.to) { toast('기간 시작일이 종료일보다 늦습니다.'); return null; }
+    return s;
+  }
+  function matches(e) {
+    const s = search, day = e.at.slice(0, 10);
+    const fields = { name: e.m.name, userId: e.m.userId, reason: e.reason, orderNo: e.orderNo, by: e.by };
+    return (!s.from || day >= s.from) && (!s.to || day <= s.to) && (!s.mode || e.mode === s.mode) &&
+      (!s.kw || (s.keyType === 'all' ? Object.values(fields) : [fields[s.keyType]]).some(v => String(v || '').toLowerCase().includes(s.kw)));
+  }
+  const tools = ListTools.create({ section: $('listBody').closest('.panel'), onChange: () => render(),
+    units: [{ label: '이력 단위', desc: '지급·차감 1건 = 1행', file: '마일리지내역',
+      rows: () => [['일시', '회원번호', '회원명', '아이디', '구분', '유형', '내용', '주문번호', '지급(P)', '차감(P)', '잔여(P)', '처리자'],
+        ...rows.map(e => [e.at, e.m.no, e.m.name, e.m.userId, `${e.mode}(${SOURCE_TEXT[e.source]})`, e.type, e.reason, e.orderNo, e.delta > 0 ? e.delta : '', e.delta < 0 ? -e.delta : '', e.balance, e.by])] }] });
+  let lastKey = '';
+  function render() {
+    const base = ALL.filter(matches);
+    const cnt = t => (t === '전체' ? base.length : base.filter(e => (t === '지급') === (e.delta > 0)).length);
+    $('typeTabs').innerHTML = TABS.map(t => `<button type="button" role="tab" class="tab ${t === tab ? 'active' : ''}" aria-selected="${t === tab}" data-tab="${t}">${t} <span class="tab-count">${cnt(t).toLocaleString()}</span></button>`).join('');
+    rows = base.filter(e => tab === '전체' || (tab === '지급') === (e.delta > 0));
+    const key = tab + JSON.stringify(search); if (key !== lastKey) { tools.first(); lastKey = key; }
+    // 기간 합계 (탭과 상관없이 검색 조건 기준)
+    const plus = base.filter(e => e.delta > 0), minus = base.filter(e => e.delta < 0);
+    const sum = l => l.reduce((t, e) => t + Math.abs(e.delta), 0);
+    const auto = base.filter(e => e.mode === '자동'), manual = base.filter(e => e.mode === '수동');
+    $('summary').innerHTML = [
+      ['지급 합계', pt(sum(plus)), `${plus.length.toLocaleString()}건`],
+      ['차감 합계', pt(sum(minus)), `${minus.length.toLocaleString()}건`],
+      ['순증감', `${sum(plus) - sum(minus) >= 0 ? '+' : '-'}${pt(Math.abs(sum(plus) - sum(minus)))}`, '지급 - 차감'],
+      ['자동', `${auto.length.toLocaleString()}건`, `지급 ${pt(sum(auto.filter(e => e.delta > 0)))} · 차감 ${pt(sum(auto.filter(e => e.delta < 0)))}`],
+      ['수동', `${manual.length.toLocaleString()}건`, `지급 ${pt(sum(manual.filter(e => e.delta > 0)))} · 차감 ${pt(sum(manual.filter(e => e.delta < 0)))}`]
+    ].map(([l, v, s]) => `<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div><div class="kpi-sub">${s}</div></div>`).join('');
+    $('listGuide').innerHTML = `${search.from || search.to ? `${search.from || '처음'} ~ ${search.to || '오늘'} · ` : ''}<b>${rows.length.toLocaleString()}</b>건`;
+    $('listBody').innerHTML = tools.page(rows).map(e => `<tr>
+        <td>${esc(e.at)}</td>
+        <td><a class="name-link" href="members.html?member=${e.m.no}" target="_blank">${esc(e.m.name)}</a></td>
+        <td class="mono">${esc(e.m.userId)}</td>
+        <td><span class="badge ml-${e.mode === '수동' ? 'manual' : 'auto'}" title="${esc(SOURCE_TEXT[e.source])}">${e.mode}</span></td>
+        <td>${esc(e.type)}</td>
+        <td title="${esc(e.reason)}">${esc(e.reason || '-')}</td>
+        <td>${e.orderNo ? `<a class="name-link mono" href="order-detail.html?orderNo=${encodeURIComponent(e.orderNo)}" target="_blank" title="주문 상세 열기${e.item ? ` (신청번호 ${esc(e.item)})` : ''}">${esc(e.orderNo)}</a>` : '<span class="muted">-</span>'}</td>
+        <td class="num">${e.delta > 0 ? `<b class="ml-plus">+${e.delta.toLocaleString()}</b>` : ''}</td>
+        <td class="num">${e.delta < 0 ? `<b class="ml-minus">-${(-e.delta).toLocaleString()}</b>` : ''}</td>
+        <td class="num">${e.balance.toLocaleString()}</td>
+        <td>${esc(e.by)}</td>
+      </tr>`).join('') || '<tr><td colspan="11" class="empty">조건에 맞는 마일리지 이력이 없습니다.</td></tr>';
+  }
+  $('typeTabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { tab = b.dataset.tab; render(); } });
+  $('searchForm').addEventListener('submit', e => { e.preventDefault(); const s = readSearch(); if (s) { search = s; render(); } });
+  $('btnReset').addEventListener('click', () => { $('searchForm').reset(); setDefaultRange(); search = readSearch(); render(); });
+
+  // ===== 마일리지 지급/차감 (오른쪽 위 버튼 → 회원 검색으로 한 명 또는 여러 명 선택 → 지급·차감) =====
+  //   회원 검색: 검색어(전체·회원명·아이디·이메일·휴대폰) + 회원구분 · 등급 · 최근 3개월 주문 있음/없음 · 가입일 · 보유 마일리지 범위
+  //   조회를 눌러야 결과가 나옴. 선택은 조건을 바꿔 다시 조회해도 유지 (선택 해제로 비움). 머리 칸 체크 = 조회 결과 전체 선택/해제
+  //   지급·차감: 회원 상세 > 마일리지 관리와 같은 처리(member-data.js addMileage, 수동). 차감은 보유량이 부족한 회원은 빼고 처리
+  //   한 명만 선택하면 관련 주문번호를 고를 수 있음
+  const members = MemberData.members;
+  const selected = new Set();
+  let bkRows = null;   // 조회 결과 (조회 전 null)
+  const BK_SHOW = 200;   // 목록에는 앞의 200명만 그림 (전체 선택은 조회 결과 전체)
+  $('bkCategory').innerHTML += [...new Set(members.map(m => m.category))].map(c => `<option>${esc(c)}</option>`).join('');
+  $('bkGrade').innerHTML += MemberData.GRADE_ORDER.map(g => `<option>${esc(g)}</option>`).join('');
+  ['bkMileMin', 'bkMileMax', 'bkAmount'].forEach(id => $(id).addEventListener('input', e => { const v = e.target.value.replace(/[^\d]/g, ''); e.target.value = v ? Number(v).toLocaleString() : ''; if (id === 'bkAmount') syncTotal(); }));
+  const numOf = id => { const v = $(id).value.replace(/,/g, ''); return v === '' ? null : Number(v); };
+  const recentOrder = m => { const t = listToday(), from = fmtDate(new Date(t.getFullYear(), t.getMonth(), t.getDate() - 90)); return (m.orders || []).some(o => o.at >= from); };
+  const isMinus = () => document.querySelector('[name=bkType]:checked').value === 'minus';
+
+  function openAdjust() {
+    $('bkFilter').reset(); $('bkForm').reset(); $('bkErr').textContent = '';
+    selected.clear(); bkRows = null;
+    $('bkBody').innerHTML = ''; $('bkListWrap').hidden = true;
+    $('bkGuide').textContent = '조건을 넣고 조회를 누르면 회원 목록이 나옵니다. (조건 없이 조회하면 전체 회원)';
+    renderCount();
+    $('adjModal').classList.add('open');
+    $('bkKeyword').focus();
+  }
+  const closeAdjust = () => $('adjModal').classList.remove('open');
+
+  function runFilter() {
+    const kw = $('bkKeyword').value.trim().toLowerCase(), keyType = $('bkKeyType').value;
+    const cat = $('bkCategory').value, grade = $('bkGrade').value, ord = $('bkOrder').value;
+    const jf = $('bkJoinFrom').value, jt = $('bkJoinTo').value, min = numOf('bkMileMin'), max = numOf('bkMileMax');
+    if (jf && jt && jf > jt) { toast('가입일 시작이 종료보다 늦습니다.'); return; }
+    if (min !== null && max !== null && min > max) { toast('보유 마일리지 최소값이 최대값보다 큽니다.'); return; }
+    // 휴대폰은 '-' 없이 비교
+    const norm = (v, k) => { const s = String(v || '').toLowerCase(); return k === 'phone' ? s.replace(/-/g, '') : s; };
+    const keyHit = m => !kw || (keyType === 'all' ? ['name', 'userId', 'email', 'phone'] : [keyType]).some(k => { const q = norm(kw, k); return q && norm(m[k], k).includes(q); });
+    bkRows = members.filter(m => keyHit(m) && (!cat || m.category === cat) && (!grade || m.grade === grade) &&
+      (!ord || (ord === '90') === recentOrder(m)) && (!jf || m.joinDate >= jf) && (!jt || m.joinDate <= jt) && (min === null || m.mileage >= min) && (max === null || m.mileage <= max));
+    renderList();
+  }
+  function renderList() {
+    const rows = bkRows || [];
+    $('bkListWrap').hidden = bkRows === null;
+    $('bkGuide').textContent = bkRows === null ? '조건을 넣고 조회를 누르면 회원 목록이 나옵니다. (조건 없이 조회하면 전체 회원)'
+      : `조회 결과 ${rows.length.toLocaleString()}명${rows.length > BK_SHOW ? ` (목록은 앞의 ${BK_SHOW}명만 표시, 전체 선택은 결과 전체)` : ''}`;
+    $('bkBody').innerHTML = rows.slice(0, BK_SHOW).map(m => `<tr${selected.has(m.no) ? ' class="sel"' : ''}>
+        <td><input type="checkbox" data-bk="${m.no}"${selected.has(m.no) ? ' checked' : ''} aria-label="${esc(m.name)} 선택"></td>
+        <td><b>${esc(m.name)}</b></td><td class="mono">${esc(m.userId)}</td><td>${esc(m.email || '-')}</td><td>${esc(m.phone || '-')}</td>
+        <td>${esc(m.category)}</td><td>${esc(m.grade)}</td><td>${esc(m.joinDate)}</td><td class="num">${pt(m.mileage)}</td></tr>`).join('')
+      || '<tr><td colspan="9" class="empty">조건에 맞는 회원이 없습니다.</td></tr>';
+    renderCount();
+  }
+  // 선택 인원 · 머리 칸 체크 상태 · 대상 안내 · (한 명이면) 주문번호 선택
+  let orderFor = null;
+  function renderCount() {
+    const rows = bkRows || [], inRows = rows.filter(m => selected.has(m.no)).length;
+    $('bkCount').textContent = `선택 ${selected.size.toLocaleString()}명`;
+    $('bkAll').checked = !!rows.length && inRows === rows.length;
+    $('bkAll').indeterminate = inRows > 0 && inRows < rows.length;
+    const one = selected.size === 1 ? members.find(m => selected.has(m.no)) : null;
+    $('bkTarget').textContent = !selected.size ? '회원을 선택해 주세요.' : one ? `${one.name} (${one.userId}) · 현재 보유 ${pt(one.mileage)}` : `선택한 회원 ${selected.size.toLocaleString()}명에게 같은 금액으로 처리`;
+    $('bkAmountLabel').textContent = selected.size > 1 ? '금액 (1인당) *' : '금액 *';
+    $('bkOrderRow').hidden = !one;
+    if (one && orderFor !== one.no) {
+      $('bkOrderNo').innerHTML = '<option value="">주문 없음</option>' + (one.orders || []).filter(o => o.orderNo).slice().sort((a, c) => c.at.localeCompare(a.at)).slice(0, 30)
+        .map(o => `<option value="${esc(o.orderNo)}">${esc(o.orderNo)} · ${esc(o.at)} · ${esc(o.title)}</option>`).join('');
+    }
+    orderFor = one ? one.no : null;
+    syncTotal();
+  }
+  // 합계·예상 잔여 (차감은 보유 부족 회원 제외)
+  function syncTotal() {
+    const amt = numOf('bkAmount') || 0, minus = isMinus();
+    const targets = members.filter(m => selected.has(m.no)), short = minus ? targets.filter(m => m.mileage < amt).length : 0;
+    if (!amt || !targets.length) { $('bkTotal').textContent = ''; return; }
+    $('bkTotal').textContent = targets.length === 1 ? `처리 후 ${pt(targets[0].mileage + (minus ? -amt : amt))}`
+      : `총 ${pt(amt * (targets.length - short))} (${(targets.length - short).toLocaleString()}명)${short ? ` · 보유 부족 ${short}명 제외` : ''}`;
+  }
+  $('bkFilter').addEventListener('submit', e => { e.preventDefault(); runFilter(); });
+  $('bkReset').addEventListener('click', () => { $('bkFilter').reset(); bkRows = null; renderList(); $('bkKeyword').focus(); });
+  $('bkBody').addEventListener('change', e => {
+    const c = e.target.closest('[data-bk]');
+    if (!c) return;
+    const no = Number(c.dataset.bk);
+    if (c.checked) selected.add(no); else selected.delete(no);
+    c.closest('tr').classList.toggle('sel', c.checked);
+    renderCount();
+  });
+  $('bkAll').addEventListener('change', () => { (bkRows || []).forEach(m => { if ($('bkAll').checked) selected.add(m.no); else selected.delete(m.no); }); renderList(); });
+  $('bkClear').addEventListener('click', () => { selected.clear(); renderList(); });
+  document.querySelectorAll('[name=bkType]').forEach(r => r.addEventListener('change', syncTotal));
+  $('bkForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const minus = isMinus(), amount = numOf('bkAmount'), reason = $('bkReason').value.trim();
+    const targets = members.filter(m => selected.has(m.no)), ok = minus ? targets.filter(m => m.mileage >= amount) : targets, short = targets.length - ok.length;
+    const orderNo = targets.length === 1 ? $('bkOrderNo').value : '';
+    let msg = '';
+    if (!targets.length) msg = '지급·차감할 회원을 검색해 선택하세요.';
+    else if (!amount || amount <= 0) msg = '금액을 1 이상의 숫자로 입력하세요.';
+    else if (!reason) msg = '사유를 입력하세요.';
+    else if (!ok.length) msg = targets.length === 1 ? `보유량(${pt(targets[0].mileage)})보다 많이 차감할 수 없습니다.` : `선택한 회원 모두 보유 마일리지가 ${pt(amount)}보다 적어 차감할 수 없습니다.`;
+    $('bkErr').textContent = msg;
+    if (msg) return;
+    const label = minus ? '차감' : '지급';
+    const who = ok.length === 1 ? `${ok[0].name}(${ok[0].userId}) 회원에게 마일리지 ${amount.toLocaleString()}P를` : `선택한 회원 ${ok.length.toLocaleString()}명에게 마일리지 ${amount.toLocaleString()}P씩 (총 ${pt(amount * ok.length)})`;
+    if (!confirm(`${who} ${label}하시겠습니까?${orderNo ? `\n관련 주문: ${orderNo}` : ''}${short ? `\n보유 마일리지가 부족한 ${short}명은 제외됩니다.` : ''}`)) return;
+    let saved = true;
+    ok.forEach(m => { saved = MemberData.addMileage(m.no, { delta: minus ? -amount : amount, reason, by: AdminUtil.ADMIN_NAME, type: label, source: 'manual', orderNo }) && saved; });
+    ALL = MemberData.mileageHistory();
+    selected.clear(); $('bkForm').reset(); orderFor = null;
+    renderList(); render();
+    toast(`${ok.length === 1 ? `${ok[0].name} 회원에게` : `${ok.length.toLocaleString()}명에게`} 마일리지 ${amount.toLocaleString()}P${ok.length > 1 ? '씩' : '를'} ${label}했습니다.${short ? ` (보유 부족 ${short}명 제외)` : ''}${saved ? '' : ' (저장소를 사용할 수 없어 이 화면에만 반영되었습니다)'}`);
+  });
+  $('btnAdjust').addEventListener('click', openAdjust);
+  $('adjModal').addEventListener('click', e => { if (e.target.id === 'adjModal' || e.target.closest('[data-close]')) closeAdjust(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('adjModal').classList.contains('open')) closeAdjust(); });
+
+  search = readSearch();
+  render();
+})();
+</script>
+</body>
+</html>

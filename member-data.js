@@ -1,4 +1,4 @@
-// 회원 샘플 데이터 (전체 회원 관리 / 단체회원 신청 화면 공유)
+// 회원 샘플 데이터 (통합 회원 관리 / 단체회원 신청 화면 공유)
 // TODO: 실서비스에서는 회원 API 응답으로 대체
 (function () {
   'use strict';
@@ -102,11 +102,25 @@
     dates(Math.floor(r() * 10)).forEach(d => {
       const bal = mileage.length ? mileage[mileage.length - 1].balance : 0;
       if (bal >= 1000 && r() < 0.35) {
-        pushEntry(mileage, { at: fmtDateTime(d), type: '사용', item: '', reason: '도서 주문 시 사용', by: '시스템', delta: -Math.ceil(r() * bal / 100) * 100 });
+        pushEntry(mileage, { at: fmtDateTime(d), type: '사용', item: '', reason: '주문 결제 시 사용', by: '시스템', delta: -Math.ceil(r() * bal / 100) * 100 });
       } else {
         pushEntry(mileage, { at: fmtDateTime(d), type: '적립', item: '', reason: r() < 0.7 ? '구매 확정 적립' : '리뷰 작성 적립', by: '시스템', delta: (1 + Math.floor(r() * 30)) * 100 });
       }
     });
+
+    // 관리자 수동 지급·차감 샘플 (회원 약 15%). 별도 난수라 다른 샘플 값은 그대로. 지급 뒤 일부는 오지급 회수(차감)
+    let s2 = (m.no * 104729 + 7) % 233280;
+    const r2 = () => (s2 = (s2 * 9301 + 49297) % 233280) / 233280;
+    if (r2() < 0.15) {
+      const MANUAL = ['이벤트 당첨 보상', 'CS 보상 (배송 지연)', '불량 접수 보상', '오프라인 행사 참여 적립', '단체 주문 감사 적립'];
+      const ADMINS = ['김지영', '김태복', '창경훈', '최의담', '이고은'];
+      const t = new Date(from + (0.3 + r2() * 0.7) * (base - from)), amt = (1 + Math.floor(r2() * 5)) * 1000, by = ADMINS[Math.floor(r2() * ADMINS.length)];
+      const extra = [{ at: fmtDateTime(t), type: '지급', item: '', reason: MANUAL[Math.floor(r2() * MANUAL.length)], by, delta: amt, source: 'manual' }];
+      if (r2() < 0.3) extra.push({ at: fmtDateTime(new Date(Math.min(base, t.getTime() + (1 + Math.floor(r2() * 48)) * 3600000))), type: '차감', item: '', reason: '오지급 회수', by: ADMINS[Math.floor(r2() * ADMINS.length)], delta: -amt, source: 'manual' });
+      const all = mileage.concat(extra).sort((a, b) => a.at.localeCompare(b.at));
+      mileage.length = 0;
+      all.forEach(e => { delete e.balance; pushEntry(mileage, e); });
+    }
 
     const giftCard = [];
     dates(Math.floor(r() * 4)).forEach(d => {
@@ -145,16 +159,42 @@
   try { MILEAGE = JSON.parse(localStorage.getItem(MILEAGE_KEY)) || {}; } catch (e) { /* 저장소 사용 불가 시 기록 없음 */ }
   const applyMileage = (m, e) => { pushEntry(m.ledger.mileage, e); m.mileage = m.ledger.mileage[m.ledger.mileage.length - 1].balance; };
   members.forEach(m => (MILEAGE[m.no] || []).forEach(e => applyMileage(m, Object.assign({}, e))));
-  // 마일리지 지급(delta > 0)·차감(delta < 0). opts = { delta, reason, by, item? }. 회원 마일리지 내역·보유량·회원 히스토리에 반영. 반환: 저장 성공 여부
+  // 마일리지 지급(delta > 0)·차감(delta < 0). opts = { delta, reason, by, item?, type?, source?, history?, orderNo? }. 회원 마일리지 내역·보유량·회원 히스토리에 반영. 반환: 저장 성공 여부
+  //   source: 'manual'(관리자 직접 지급·차감, 회원 상세) / 'refund'(취소·반품 마일리지 환불 자동 지급). history: false면 회원 히스토리는 부르는 쪽에서 남김
   function addMileage(no, opts) {
     const m = members.find(x => x.no === no);
     if (!m || !opts.delta) return false;
-    const e = { at: fmtDateTime(new Date()), type: opts.delta > 0 ? '적립' : '사용', item: opts.item || '', reason: opts.reason || '', by: opts.by || '관리자', delta: opts.delta };
+    const e = { at: fmtDateTime(new Date()), type: opts.type || (opts.delta > 0 ? '적립' : '사용'), item: opts.item || '', reason: opts.reason || '', by: opts.by || '관리자', delta: opts.delta, source: opts.source || (opts.item ? 'refund' : 'manual') };
+    if (opts.orderNo) e.orderNo = opts.orderNo;   // 관련 주문 (마일리지 내역 > 지급/차감에서 고른 주문)
     applyMileage(m, e);
-    m.history.push({ at: e.at, content: `마일리지 ${opts.delta > 0 ? '지급' : '차감'}: ${Math.abs(opts.delta).toLocaleString()}P (사유: ${e.reason})`, by: e.by });
+    if (opts.history !== false) m.history.push({ at: e.at, content: `마일리지 ${opts.delta > 0 ? '지급' : '차감'}: ${Math.abs(opts.delta).toLocaleString()}P (사유: ${e.reason})`, by: e.by });
     (MILEAGE[no] || (MILEAGE[no] = [])).push(e);
     try { localStorage.setItem(MILEAGE_KEY, JSON.stringify(MILEAGE)); return true; } catch (err) { return false; }
   }
+  // 전체 회원 마일리지 지급·차감 이력 (혜택 > 마일리지 내역). 최근 순
+  //   구분: 자동 = 시스템(구매 확정·리뷰 적립, 주문 사용) · 환불 자동 지급(취소·반품 마일리지 환불) / 수동 = 관리자 직접 지급·차감
+  const sourceOf = e => e.source || (e.by === '시스템' ? 'system' : e.item ? 'refund' : 'manual');
+  // 관련 주문번호: 환불 = 취소·반품 신청번호(C/X + 주문번호)의 주문, 구매 확정·리뷰 적립·주문 사용·주문 관련 보상 = 그날 이전 가장 최근 주문
+  //   같은 주문은 종류(구매 확정·리뷰·주문 사용·보상)마다 한 번만 연결 (오래된 기록부터 아직 연결되지 않은 가장 최근 이전 주문). 주문 데이터(최근 1년)보다 오래된 기록은 연결할 주문이 없어 비어 있음
+  const ORDER_KIND = [[/구매 확정/, 'confirm'], [/리뷰/, 'review'], [/주문/, 'use'], [/배송|불량/, 'care']];
+  function orderLinks(m) {
+    const used = {}, links = new Map();
+    const orders = (m.orders || []).filter(x => x.orderNo).sort((a, b) => b.at.localeCompare(a.at));
+    (m.ledger ? m.ledger.mileage : []).slice().sort((a, b) => a.at.localeCompare(b.at)).forEach(e => {
+      if (e.orderNo) { links.set(e, e.orderNo); return; }
+      if (e.item && /^[CX]\d{13}$/.test(e.item)) { links.set(e, `${e.item.slice(1, 9)}-${e.item.slice(9)}`); return; }
+      const kind = (ORDER_KIND.find(([re]) => re.test(e.reason || '')) || [])[1];
+      if (!kind) return;
+      const set = used[kind] || (used[kind] = new Set()), day = e.at.slice(0, 10);
+      const o = orders.find(x => x.at <= day && !set.has(x.orderNo));
+      if (o) { set.add(o.orderNo); links.set(e, o.orderNo); }
+    });
+    return links;
+  }
+  const mileageHistory = () => members.flatMap(m => {
+    const links = orderLinks(m);
+    return (m.ledger ? m.ledger.mileage : []).map((e, seq) => Object.assign({ m, mode: sourceOf(e) === 'manual' ? '수동' : '자동', source: sourceOf(e), seq }, e, { orderNo: links.get(e) || '' }));
+  }).sort((a, b) => b.at.localeCompare(a.at) || (a.m === b.m ? b.seq - a.seq : 0));   // 같은 분이면 나중 기록이 위로
 
   // ===== 주문 실적 샘플 (등급 자동 산정용) =====
   // 주문 리스트 화면은 아직 없음. 등급 산정에 필요한 최소 정보(주문일·결제금액)만 회원별로 생성
@@ -306,6 +346,7 @@
     });
   }
   members.forEach(makeUsage);
+
   // 답변 대기 문의는 오늘 접수분 7~10건만 (1:1 문의는 대부분 당일 답변). 남긴 문의는 접수 시각을 오늘로, 나머지 답변 대기 샘플은 문의 이력에서 뺌
   //   (member-type-store.js keepTodayPending. 답변 완료 문의 = 지난 이력은 그대로)
   if (window.AdminUtil && AdminUtil.keepTodayPending) {
@@ -423,6 +464,29 @@
   }));
   // 입금대기(후결제대기) 샘플 보충: 절반 규칙에서 빠진 주문 중 최근 5건을 입금 전 후결제 주문으로 추가
   skipped.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5).forEach(o => postpayOrder(o, '후결제대기'));
+
+  // ===== 마일리지 주문 사용 = 실제 주문 (혜택내역 > 마일리지 내역에서 차감한 주문번호가 보이게) =====
+  //   샘플 '주문 결제 시 사용'을 지우고, 회원의 주문(최근 1년, 전체취소 제외) 가운데 일부에서 그때 잔여 마일리지 안에서 사용한 것으로 다시 만듦
+  //   주문의 결제 정보(order-data.js 할인금액 > 마일리지)는 이 사용 금액과 같게 맞춤 → 마일리지 내역과 주문 결제 내역이 일치
+  //   잔여는 처음부터 다시 계산 (관리자 지급·차감 등 다른 기록은 그대로). 별도 난수라 다른 샘플 값은 그대로
+  members.forEach(m => {
+    if (!m.ledger) return;
+    let s = (m.no * 15485863 + 11) % 233280;
+    const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    const keep = m.ledger.mileage.filter(e => !(e.by === '시스템' && e.reason === '주문 결제 시 사용'));
+    const slots = (m.orders || []).filter(o => o.orderNo && o.payStatus !== '전체취소').map(o => ({ slot: true, o, at: `${o.at} ${pad(9 + Math.floor(r() * 12))}:${pad(Math.floor(r() * 60))}`, pick: r() }));
+    const seq = keep.map(e => Object.assign({}, e)).concat(slots).sort((a, b) => a.at.localeCompare(b.at));
+    const list = [];
+    seq.forEach(x => {
+      const bal = list.length ? list[list.length - 1].balance : 0;
+      if (!x.slot) { delete x.balance; pushEntry(list, x); return; }
+      if (bal < 1000 || x.pick >= 0.45) return;   // 잔여 1,000P 이상인 주문의 절반가량에서 사용
+      const use = Math.min(bal, Math.max(1000, Math.ceil(x.pick * 2 * Math.min(bal, x.o.amount * 0.3) / 100) * 100));
+      pushEntry(list, { at: x.at, type: '사용', item: '', reason: '주문 결제 시 사용', by: '시스템', delta: -use, orderNo: x.o.orderNo });
+    });
+    m.ledger.mileage = list;
+    m.mileage = list.length ? list[list.length - 1].balance : 0;
+  });
 
   // ===== 단체회원 신청 =====
   // 기본 신청 데이터는 고정 생성, 관리자 처리 결과(승인/반려/히스토리)만 localStorage에 저장해 덮어씀
@@ -591,7 +655,7 @@
   });
 
   window.MemberData = {
-    members, GRADE_ORDER, BENEFITS, COUPONS, PRODUCTS, PROJECT_NAMES, VIEWER_SAMPLE, viewerUrl, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, orderStats, validOrders, statusClass, ageOf, addMileage,
+    members, GRADE_ORDER, BENEFITS, COUPONS, PRODUCTS, PROJECT_NAMES, VIEWER_SAMPLE, viewerUrl, pad, fmtDate, fmtDateTime, pushEntry, heldCoupons, orderStats, validOrders, statusClass, ageOf, addMileage, mileageHistory,
     applications, saveApplication, applyApproval, revokeBusiness, GROUP_TYPES: groupKinds
   };
 })();

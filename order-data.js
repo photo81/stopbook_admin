@@ -358,6 +358,12 @@
     // steps·groups: 이 상품의 공정 단계와 고객 노출 제작상태 구간 (화면·엑셀은 이 값을 씀)
     return { step, times, canceled, status, delivered: status === '배송완료', steps, groups: proc.groups, outsource: proc.outsource };
   }
+  // 주문에서 사용한 마일리지 = 회원 마일리지 내역의 '주문 결제 시 사용' (member-data.js). 주문 할인금액에 포함하고 결제 정보 > 할인 > 마일리지에 그대로 표시
+  //   결제금액(o.amount)은 그대로, 주문금액(판매가 합계) = 결제금액 + 할인금액
+  const MILEAGE_USE = {};
+  MemberData.members.forEach(m => ((m.ledger || {}).mileage || []).forEach(e => {
+    if (e.orderNo && e.delta < 0 && e.reason === '주문 결제 시 사용') MILEAGE_USE[e.orderNo] = (MILEAGE_USE[e.orderNo] || 0) - e.delta;
+  }));
   MemberData.members.forEach(m => (m.orders || []).forEach(o => {
     let s = [...o.orderNo].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 233280, 7);
     const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
@@ -366,7 +372,8 @@
     const sec = [...o.orderNo].reduce((h, c) => (h * 17 + c.charCodeAt(0)) % 9973, 3) % 60;
     const time = `${pad(8 + Math.floor(r() * 15))}:${pad(Math.floor(r() * 60))}:${pad(sec)}`;
     // 할인: 쿠폰·마일리지 등 (주문금액 = 결제금액 + 할인금액)
-    const discount = r() < 0.4 ? Math.min(Math.floor(o.amount * 0.3 / 500) * 500, (2 + Math.floor(r() * 9)) * 500) : 0;
+    const mileageUsed = MILEAGE_USE[o.orderNo] || 0;
+    const discount = (r() < 0.4 ? Math.min(Math.floor(o.amount * 0.3 / 500) * 500, (2 + Math.floor(r() * 9)) * 500) : 0) + mileageUsed;
     const ordered = new Date(o.at);
     // 결제일: 입금대기·후결제대기는 없음 / 무통장입금은 다음 날 / 후결제(결제완료)는 배송 후 결제 → 주문 7일 뒤 / 그 외는 주문일
     const paidAt = WAITING.includes(o.payStatus) ? ''
@@ -396,7 +403,7 @@
       userId: m.userId, email: m.email, phone: m.phone, categoryCode: m.categoryCode,
       // 주문수량: 건 = 상품 종류 수('마이트립북 외 2종' → 3건), 부 = 제작 수량 합계
       title: o.title, kinds: 1 + Number((o.title.match(/외 (\d+)종/) || [0, 0])[1]), qty: o.qty,
-      listPrice, discount, amount: o.amount,
+      listPrice, discount, mileageUsed, amount: o.amount,
       cancelAmount, totalPaid: o.amount - cancelAmount,
       payMethod: o.payMethod, payStatus, status: o.status,
       shipMethod: weighted(SHIP_METHODS),
@@ -724,7 +731,9 @@
     // 아래 난수는 위 값 다음에 사용 (기존 추가결제금액이 바뀌지 않게)
     const extraShip = ord.shipMethod === '택배' && r() < 0.06 ? REMOTE_FEE : 0;
     const shipFee = baseShip + extraShip;
-    const discounts = splitDiscount(ord.discount, {
+    // 마일리지 할인 = 마일리지 내역의 사용 금액 그대로, 나머지 할인금액만 다른 항목에 나눔
+    const discounts = splitDiscount(ord.discount - (ord.mileageUsed || 0), {
+      mileage: ord.mileageUsed || 0,
       shipping: shipFee,
       member: !!(cat && cat.discountRate > 0),
       grade: !!((gradeItemOf(m.grade) || {}).benefit || {}).discountOn
@@ -803,7 +812,7 @@
     return { paidDateTime, pgLog, docType, docPurpose, docInfo, docStatus, docAt };
   }
 
-  // 할인금액을 종류별로 나눔. 반환: [[종류, 금액], ...] (DISCOUNT_KINDS 6종 모두, 금액 0 포함)
+  // 할인금액을 종류별로 나눔. 반환: [[종류, 금액], ...] (DISCOUNT_KINDS 6종 모두, 금액 0 포함). ok.mileage = 마일리지 사용 금액(따로 고정)
   function splitDiscount(total, ok, r) {
     const out = Object.fromEntries(DISCOUNT_KINDS.map(k => [k, 0]));
     const eligible = ['쿠폰', '마일리지', '상품가할인'];
@@ -821,6 +830,9 @@
       out[k] += 500; units--;
     }
     out[picked[0] === '배송비할인' ? '쿠폰' : picked[0]] += rest;   // 500원 미만 끝전
+    // 마일리지는 회원 마일리지 내역의 사용 금액으로 고정 (위에서 마일리지로 나뉜 몫은 쿠폰으로)
+    out['쿠폰'] += out['마일리지'];
+    out['마일리지'] = ok.mileage || 0;
     return DISCOUNT_KINDS.map(k => [k, out[k]]);
   }
   // 회원등급 이름 → 회원 유형 관리의 등급 항목 (등급할인 여부 확인용)

@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>스탑북 관리자 - 전체 회원 관리</title>
-<link rel="stylesheet" href="admin.css?v=20261219">
+<title>스탑북 관리자 - 통합 회원 관리</title>
+<link rel="stylesheet" href="admin.css?v=20261228">
 </head>
 <body>
 <div class="layout">
@@ -14,7 +14,7 @@
       <li class="has-sub open">
         <a href="#" class="menu-parent" aria-expanded="true">회원관리<span class="chev">▼</span></a>
         <ul class="submenu">
-          <li><a href="members.html" class="active" aria-current="page">전체 회원 관리</a></li>
+          <li><a href="members.html" class="active" aria-current="page">통합 회원 관리</a></li>
           <li><a href="group-applications.html">단체 회원 신청 관리</a></li>
           <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
           <li><a href="member-types.html">회원 유형 관리</a></li>
@@ -80,17 +80,29 @@
           <li><a href="board-faq.html">FAQ</a></li>
           <li><a href="board-review.html">이용후기</a></li>
         </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">혜택관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="mileage-types.html">마일리지 유형 관리</a></li>
+        </ul>
+      </li>
+<li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">혜택내역<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="mileage.html">마일리지 내역</a></li>
+        </ul>
       </li>    </ul>
   </aside>
 
   <div class="main">
     <header class="topbar">
-      <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>전체 회원 관리</b></div>
-      <div><span class="proto-ver" data-proto-version>프로토타입 v2.63 (2026-10-12)</span> 관리자님 | <a href="#">로그아웃</a></div>
+      <div class="breadcrumb">홈 &gt; 회원관리 &gt; <b>통합 회원 관리</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.72 (2026-10-13)</span> 관리자님 | <a href="#">로그아웃</a></div>
     </header>
 
     <main class="content">
-      <h1>전체 회원 관리 <span class="page-desc">전체 회원을 검색, 관리하고 분석 내용을 확인합니다.</span></h1>
+      <h1>통합 회원 관리 <span class="page-desc">전체 회원을 검색, 관리하고 분석 내용을 확인합니다.</span></h1>
 
       <div class="tabs" role="tablist" id="tabs">
         <button type="button" role="tab" class="tab" id="tab-list" data-tab="list" aria-controls="panelList">리스트 <span class="tab-count" id="tabListCount"></span></button>
@@ -100,10 +112,11 @@
       <!-- 검색 조건 (리스트·분석 두 탭 공용: 같은 검색값이 두 탭에 함께 적용) -->
       <form class="panel" id="searchForm">
         <div class="search-row">
-          <div class="search-grid">
-            <div class="field">
+          <!-- 주문 리스트 검색단과 같은 형식: 검색어 + 기간(가입일/최근접속일) + 빠른 선택 -->
+          <div class="search-grid order-search">
+            <div class="field f-keyword">
               <label for="sType">검색어</label>
-              <select id="sType" style="flex:0 0 90px">
+              <select id="sType" style="flex:0 0 110px">
                 <option value="all">전체</option>
                 <option value="name">이름</option>
                 <option value="userId">아이디</option>
@@ -112,10 +125,21 @@
               </select>
               <input type="text" id="sKeyword" placeholder="검색어 입력">
             </div>
-            <div class="field">
-              <label>가입일</label>
+            <div class="field f-period">
+              <label for="sDateType">기간</label>
+              <select id="sDateType" style="flex:0 0 110px">
+                <option value="joinDate">가입일</option>
+                <option value="lastLogin">최근접속일</option>
+              </select>
               <div class="range">
-                <input type="date" id="sFrom"> ~ <input type="date" id="sTo">
+                <input type="date" id="sFrom" aria-label="기간 시작"> ~ <input type="date" id="sTo" aria-label="기간 종료">
+              </div>
+              <div class="quick-range" role="group" aria-label="기간 빠른 선택">
+                <button type="button" class="btn btn-xs" data-days="0">오늘</button>
+                <button type="button" class="btn btn-xs" data-days="7">7일</button>
+                <button type="button" class="btn btn-xs" data-days="30">1개월</button>
+                <button type="button" class="btn btn-xs" data-days="90">3개월</button>
+                <button type="button" class="btn btn-xs" data-days="all">전체</button>
               </div>
             </div>
           </div>
@@ -568,11 +592,11 @@
 <div class="viz-tip" id="vizTip" role="tooltip" hidden></div>
 <div class="toast" id="toast"></div>
 
-<script src="alimtalk.js?v=20261219"></script>
-<script src="board-store.js?v=20261219"></script>
-<script src="member-type-store.js?v=20261219"></script>
-<script src="feedback.js?v=20261219"></script>
-<script src="member-data.js?v=20261219"></script>
+<script src="alimtalk.js?v=20261228"></script>
+<script src="board-store.js?v=20261228"></script>
+<script src="member-type-store.js?v=20261228"></script>
+<script src="feedback.js?v=20261228"></script>
+<script src="member-data.js?v=20261228"></script>
 <script>
 (function () {
   'use strict';
@@ -667,21 +691,23 @@
     const category = $('sCategory').value;
     const memberType = $('sMemberType').value;
     const grade = $('sGrade').value;
+    const dateType = $('sDateType').value;   // 기간 기준: 가입일(joinDate) / 최근접속일(lastLogin)
     const from = $('sFrom').value;
     const to = $('sTo').value;
     const mkSms = $('sMkSms').value;
     const mkEmail = $('sMkEmail').value;
 
-    if (from && to && from > to) { toast('가입일 시작일이 종료일보다 늦습니다.'); return false; }
+    if (from && to && from > to) { toast('기간 시작일이 종료일보다 늦습니다.'); return false; }
 
     const fields = type === 'all' ? ['name', 'userId', 'email', 'phone'] : [type];
+    const dayOf = m => String(m[dateType] || '').slice(0, 10);
     state.filtered = members.filter(m =>
       (!kw || fields.some(f => m[f].toLowerCase().includes(kw))) &&
       (!category || m.categoryCode === category) &&
       (!memberType || m.memberType === memberType) &&
       (!grade || m.grade === grade) &&
-      (!from || m.joinDate >= from) &&
-      (!to || m.joinDate <= to) &&
+      (!from || dayOf(m) >= from) &&
+      (!to || (dayOf(m) && dayOf(m) <= to)) &&
       (!mkSms || m.marketingSms === mkSms) &&
       (!mkEmail || m.marketingEmail === mkEmail)
     );
@@ -737,7 +763,7 @@
   }
 
   // ===== 분석 (검색 결과 기준: 두 탭이 같은 검색 조건을 공유) =====
-  // 집계는 전체 회원 관리 데이터(members)와 회원 상세 > 이용 정보 데이터(orders/inquiries/cart)를 그대로 사용
+  // 집계는 통합 회원 관리 데이터(members)와 회원 상세 > 이용 정보 데이터(orders/inquiries/cart)를 그대로 사용
   const TODAY = new Date(2026, 9, 8);   // 샘플 데이터 기준일 (member-data.js base와 동일). TODO: 실서비스에서는 new Date()
   const daysSince = d => Math.floor((TODAY.getTime() - new Date(d).getTime()) / 86400000);
   const pct = (a, b) => (b ? Math.round(a / b * 1000) / 10 : 0);
@@ -1272,7 +1298,9 @@
 
     // TODO: 실서비스에서는 POST /api/admin/members/{no}/benefits/{kind} 호출 후 서버 응답으로 내역 갱신
     const list = m.ledger[kind];
-    pushEntry(list, { at: fmtDateTime(new Date()), type: typeLabel, item, reason, by: '관리자', delta: minus ? -amount : amount });
+    // 마일리지는 저장해 혜택 > 마일리지 내역에도 남김 (member-data.js addMileage, 수동 지급·차감)
+    if (kind === 'mileage') MemberData.addMileage(m.no, { delta: minus ? -amount : amount, reason, by: AdminUtil.ADMIN_NAME, type: typeLabel, source: 'manual', history: false });
+    else pushEntry(list, { at: fmtDateTime(new Date()), type: typeLabel, item, reason, by: '관리자', delta: minus ? -amount : amount });
     m[kind] = list[list.length - 1].balance;
     addHistory(m, `${b.label} ${typeLabel}: ${target} (사유: ${reason})`);
 
@@ -1578,9 +1606,22 @@
     e.preventDefault();
     if (applyFilter()) { state.page = 1; render(); }
   });
+  // 기간 빠른 선택 (오늘·7일·1개월·3개월·전체). 날짜를 직접 고치면 선택 표시 해제
+  $('searchForm').addEventListener('click', e => {
+    const b = e.target.closest('[data-days]');
+    if (!b) return;
+    if (b.dataset.days === 'all') { $('sFrom').value = ''; $('sTo').value = ''; }
+    else {
+      const t = AdminUtil.listToday(), d = new Date(t.getFullYear(), t.getMonth(), t.getDate() - Number(b.dataset.days));
+      const f = x => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+      $('sFrom').value = f(d); $('sTo').value = f(t);
+    }
+    document.querySelectorAll('#searchForm [data-days]').forEach(x => x.classList.toggle('btn-adjust', x === b));
+  });
+  ['sFrom', 'sTo'].forEach(id => $(id).addEventListener('input', () => document.querySelectorAll('#searchForm [data-days]').forEach(x => x.classList.remove('btn-adjust'))));
   $('btnReset').addEventListener('click', () => {
     $('searchForm').reset();
-    AdminUtil.setDefaultRange();   // 초기화하면 기간은 기본값(최근 1개월)으로
+    AdminUtil.setDefaultRange();   // 초기화하면 기간은 기본값(가입일 최근 1개월)으로
     updateDetailCount();
     applyFilter(); state.page = 1; render();
   });

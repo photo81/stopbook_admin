@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스탑북 관리자 - 마일리지 유형 관리</title>
+<link rel="stylesheet" href="admin.css?v=20261228">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="logo" href="dashboard.html" title="대시보드">STOPBOOK Admin</a>
+    <ul>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">회원관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="members.html">통합 회원 관리</a></li>
+          <li><a href="group-applications.html">단체 회원 신청 관리</a></li>
+          <li><a href="withdrawn.html">탈퇴 회원 관리</a></li>
+          <li><a href="member-types.html">회원 유형 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">메시지전송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="message-send.html">메시지 전송</a></li>
+          <li><a href="message-sms.html">SMS 발송 관리</a></li>
+          <li><a href="message-alimtalk.html">알림톡 발송 관리</a></li>
+          <li><a href="message-email.html">이메일 발송 관리</a></li>
+        </ul>
+      </li>      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">주문관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="orders.html">통합 주문 관리</a></li>
+          <li><a href="paid-orders.html">결제 완료 주문</a></li>
+          <li><a href="unpaid-orders.html">미입금 주문</a></li>
+          <li><a href="postpay-orders.html">후결제 주문</a></li>
+          <li><a href="prepaid-orders.html">선결제 주문</a></li>
+          <li><a href="canceled-orders.html">취소 주문</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">관리자계정관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="admin-accounts.html">계정 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">제작/배송관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="production-orders.html">통합 제작 관리</a></li>
+          <li><a href="ordered-orders.html">주문 완료</a></li>
+          <li><a href="making-orders.html">제작 중</a></li>
+          <li><a href="shipping-orders.html">배송 중</a></li>
+          <li><a href="delivered-orders.html">배송 완료</a></li>
+          <li><a href="outsource-orders.html">외주 제작</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">클레임관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="claim-cancel.html">취소 요청 관리</a></li>
+          <li><a href="claim-exchange.html">교환 반품 관리</a></li>
+          <li><a href="claim-documents.html">서류 발급 관리</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시판관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-all.html">게시판 통합 관리</a></li>
+          <li><a href="board-admin-notice.html">관리자 공지</a></li>
+          <li><a href="board-inquiry-settings.html">1:1 문의 설정</a></li>
+        </ul>
+      </li>
+      <li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">게시글관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="board-notice.html">공지사항</a></li>
+          <li><a href="board-inquiry.html">1:1 문의</a></li>
+          <li><a href="board-faq.html">FAQ</a></li>
+          <li><a href="board-review.html">이용후기</a></li>
+        </ul>
+      </li>
+      <li class="has-sub open">
+        <a href="#" class="menu-parent" aria-expanded="true">혜택관리<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="mileage-types.html" class="active" aria-current="page">마일리지 유형 관리</a></li>
+        </ul>
+      </li>
+<li class="has-sub">
+        <a href="#" class="menu-parent" aria-expanded="false">혜택내역<span class="chev">▼</span></a>
+        <ul class="submenu">
+          <li><a href="mileage.html">마일리지 내역</a></li>
+        </ul>
+      </li>    </ul>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">홈 &gt; 혜택관리 &gt; <b>마일리지 유형 관리</b></div>
+      <div><span class="proto-ver" data-proto-version>프로토타입 v2.72 (2026-10-13)</span> 관리자님 | <a href="#">로그아웃</a></div>
+    </header>
+
+    <main class="content">
+      <h1>마일리지 유형 관리 <span class="page-desc">조건에 맞으면 자동으로 지급하는 마일리지 유형을 관리합니다. 지급 기록은 혜택내역 &gt; 마일리지 내역에서 확인합니다.</span></h1>
+
+      <form class="panel" id="searchForm" novalidate>
+        <div class="search-row">
+          <div class="search-grid order-search">
+            <div class="field f-keyword">
+              <label for="sKeyword">검색어</label>
+              <input type="text" id="sKeyword" placeholder="유형 이름 · 설명">
+            </div>
+            <div class="field f-status">
+              <label for="sTarget">대상</label>
+              <select id="sTarget"><option value="">전체</option></select>
+            </div>
+            <div class="field f-status">
+              <label for="sStatus">적용 여부</label>
+              <select id="sStatus"><option value="">전체</option><option>적용 중</option><option>예정</option><option>종료</option><option>미적용</option></select>
+            </div>
+          </div>
+          <div class="search-actions">
+            <button type="submit" class="btn btn-primary">검색</button>
+            <button type="button" class="btn" id="btnReset">초기화</button>
+          </div>
+        </div>
+      </form>
+
+      <section class="panel">
+        <div class="list-head">
+          <div class="count" id="listGuide"></div>
+          <div class="right"><button type="button" class="btn btn-primary" id="btnAdd">지급 유형 등록</button></div>
+        </div>
+        <div class="table-wrap">
+          <table class="mt-table">
+            <colgroup><col style="width:160px"><col style="width:110px"><col style="width:180px"><col style="width:150px"><col style="width:180px"><col style="width:140px"><col><col style="width:110px"></colgroup>
+            <thead><tr><th>마일리지 지급 유형 이름</th><th>대상</th><th>조건</th><th class="num">마일리지 금액</th><th>기간</th><th>적용 여부</th><th>설명</th><th>관리</th></tr></thead>
+            <tbody id="listBody"></tbody>
+          </table>
+        </div>
+        <p class="readonly" style="margin:10px 0 0">적용 여부 스위치로 바로 켜고 끌 수 있습니다. 기간을 지정한 유형은 시작 전 '예정', 끝난 뒤 '종료'로 바뀌고 지급되지 않습니다. 같은 조건에 여러 유형이 적용 중이면 모두 지급됩니다.</p>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- 지급 유형 등록·수정 -->
+<div class="modal-bg" id="mtModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mtTitle">
+    <div class="modal-header">
+      <h2 id="mtTitle">지급 유형 등록</h2>
+      <button type="button" class="close" data-close aria-label="닫기">&times;</button>
+    </div>
+    <form class="modal-body" id="mtForm" novalidate>
+      <table class="form-table">
+        <tr><th>유형 이름 *</th><td><input type="text" id="fName" maxlength="30" placeholder="예: 포토 리뷰 적립"></td></tr>
+        <tr><th>대상 *</th><td><select id="fTarget" class="w-auto" aria-label="대상"></select></td></tr>
+        <tr><th>조건 *</th><td>
+          <select id="fCondition" class="w-auto" aria-label="조건"></select>
+          <div class="inline-row" id="fMinRow" style="margin-top:6px">최소 결제금액 <input type="text" id="fMinOrder" class="w-num" inputmode="numeric" placeholder="0"> 원 이상 <span class="readonly">(비우면 금액 제한 없음)</span></div>
+        </td></tr>
+        <tr><th>마일리지 금액 *</th><td>
+          <div class="inline-row">
+            <label class="check-chip"><input type="radio" name="fMethod" value="fixed" checked> 정액</label>
+            <label class="check-chip" id="fRateChip"><input type="radio" name="fMethod" value="rate"> 정률</label>
+            <input type="text" id="fAmount" class="w-num" inputmode="decimal" placeholder="0"> <span id="fUnit">P</span>
+            <span id="fMaxRow">최대 <input type="text" id="fMax" class="w-num" inputmode="numeric" placeholder="제한 없음"> P</span>
+          </div>
+          <div class="readonly" id="fMethodHint" style="margin-top:4px"></div>
+        </td></tr>
+        <tr><th>기간</th><td>
+          <div class="inline-row">
+            <label class="check-chip"><input type="radio" name="fPeriod" value="always" checked> 상시</label>
+            <label class="check-chip"><input type="radio" name="fPeriod" value="range"> 기간 지정</label>
+            <span id="fRange" class="inline-row" hidden><input type="date" id="fStart" aria-label="시작일"> ~ <input type="date" id="fEnd" aria-label="종료일"></span>
+          </div>
+        </td></tr>
+        <tr><th>적용 여부</th><td><label class="check-chip"><input type="checkbox" id="fUse" checked> 적용 (조건이 맞으면 자동 지급)</label></td></tr>
+        <tr><th>설명</th><td><input type="text" id="fDesc" maxlength="100" placeholder="관리자용 메모 (지급 기준·주의사항)"></td></tr>
+      </table>
+      <div class="err" id="fErr"></div>
+    </form>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-danger" id="mtDelete" style="margin-right:auto">삭제</button>
+      <button type="button" class="btn" data-close>닫기</button>
+      <button type="submit" form="mtForm" class="btn btn-primary">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="board-store.js?v=20261228"></script>
+<script src="member-type-store.js?v=20261228"></script>
+<script src="mileage-types.js?v=20261228"></script>
+<script src="feedback.js?v=20261228"></script>
+<script>
+(function () {
+  'use strict';
+  // 마일리지 유형 관리 (혜택 > 혜택관리)
+  //   자동 마일리지 지급 유형 목록: 유형 이름 · 대상 · 조건 · 마일리지 금액 · 기간 · 적용 여부(스위치) · 설명 · 관리(수정·삭제)
+  //   등록·수정 모달: 정액(P)/정률(%, 결제금액 기준 조건만, 최대 지급) · 최소 결제금액(결제 조건만) · 상시/기간 · 적용 여부 · 설명
+  const { esc, toast, initSidebar, ADMIN_NAME } = AdminUtil;
+  const M = MileageTypes;
+  const $ = id => document.getElementById(id);
+  initSidebar();
+  $('sTarget').innerHTML += M.TARGETS.map(t => `<option>${esc(t)}</option>`).join('');
+  $('fTarget').innerHTML = M.TARGETS.map(t => `<option>${esc(t)}</option>`).join('');
+  $('fCondition').innerHTML = M.CONDITIONS.map(c => `<option>${esc(c.key)}</option>`).join('');
+  const STATUS_CLASS = { '적용 중': 'iq-st-완료', '예정': 'iq-st-확인중', '종료': 'nt-st-end', '미적용': 'nt-st-hide' };
+
+  // ===== 목록 =====
+  let search = { kw: '', target: '', status: '' };
+  function render() {
+    const all = M.list(), s = search;
+    const rows = all.filter(t => (!s.target || t.target === s.target) && (!s.status || M.statusOf(t) === s.status) && (!s.kw || [t.name, t.desc].some(v => v.toLowerCase().includes(s.kw))));
+    const active = all.filter(t => M.statusOf(t) === '적용 중').length;
+    $('listGuide').innerHTML = `지급 유형 <b>${rows.length}</b>개${rows.length !== all.length ? ` / 전체 ${all.length}개` : ''} <span class="muted">· 적용 중 ${active}개</span>`;
+    $('listBody').innerHTML = rows.map(t => {
+      const st = M.statusOf(t);
+      return `<tr${st === '미적용' || st === '종료' ? ' class="off"' : ''}>
+        <td><button type="button" class="iq-title-link" data-edit="${esc(t.id)}">${esc(t.name)}</button></td>
+        <td>${esc(t.target)}</td>
+        <td title="${esc(M.conditionText(t))}">${esc(M.conditionText(t))}</td>
+        <td class="num"><b>${esc(M.amountText(t))}</b></td>
+        <td>${t.startAt || t.endAt ? esc(M.periodText(t)) : '<span class="muted">상시</span>'}</td>
+        <td><label class="mt-switch" title="${t.use ? '적용 해제' : '적용'}"><input type="checkbox" data-use="${esc(t.id)}"${t.use ? ' checked' : ''}><span></span></label> <span class="badge ${STATUS_CLASS[st]}">${st}</span></td>
+        <td title="${esc(t.desc)}">${esc(t.desc) || '<span class="muted">-</span>'}</td>
+        <td><button type="button" class="btn btn-xs" data-edit="${esc(t.id)}">수정</button> <button type="button" class="btn btn-xs btn-danger" data-del="${esc(t.id)}">삭제</button></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="8" class="empty">조건에 맞는 지급 유형이 없습니다.</td></tr>';
+  }
+  $('searchForm').addEventListener('submit', e => { e.preventDefault(); search = { kw: $('sKeyword').value.trim().toLowerCase(), target: $('sTarget').value, status: $('sStatus').value }; render(); });
+  $('btnReset').addEventListener('click', () => { $('searchForm').reset(); search = { kw: '', target: '', status: '' }; render(); });
+  $('listBody').addEventListener('click', e => {
+    const ed = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]');
+    if (ed) openModal(ed.dataset.edit);
+    if (del) removeType(del.dataset.del);
+  });
+  // 적용 여부 스위치: 바로 저장
+  $('listBody').addEventListener('change', e => {
+    const sw = e.target.closest('[data-use]');
+    if (!sw) return;
+    const t = M.find(sw.dataset.use);
+    M.setUse(t.id, sw.checked, ADMIN_NAME); render();
+    toast(`'${t.name}'을(를) ${sw.checked ? '적용했습니다. 조건이 맞으면 자동으로 지급됩니다' : '적용 해제했습니다. 더 이상 자동 지급되지 않습니다'}.`);
+  });
+
+  // ===== 등록·수정 모달 =====
+  let editing = null;
+  const method = () => document.querySelector('[name=fMethod]:checked').value;
+  function syncForm() {
+    const purchase = M.isPurchase($('fCondition').value);
+    $('fMinRow').hidden = !purchase;
+    $('fRateChip').hidden = !purchase;
+    if (!purchase && method() === 'rate') document.querySelector('[name=fMethod][value=fixed]').checked = true;
+    const rate = method() === 'rate';
+    $('fUnit').textContent = rate ? '%' : 'P';
+    $('fMaxRow').hidden = !rate;
+    $('fMethodHint').textContent = rate ? '결제금액에 비율을 곱해 지급합니다. 최대 지급을 넣으면 그 이상은 지급하지 않습니다.' : purchase ? '조건이 맞을 때마다 정해진 마일리지를 지급합니다. (결제 조건은 정률도 고를 수 있습니다)' : '조건이 맞을 때마다 정해진 마일리지를 지급합니다.';
+    $('fRange').hidden = document.querySelector('[name=fPeriod]:checked').value !== 'range';
+  }
+  function openModal(id) {
+    const t = id ? M.find(id) : null;
+    editing = t ? t.id : null;
+    $('mtTitle').textContent = t ? `지급 유형 수정 · ${t.name}` : '지급 유형 등록';
+    $('fName').value = t ? t.name : '';
+    $('fTarget').value = t ? t.target : M.TARGETS[0];
+    $('fCondition').value = t ? t.condition : M.CONDITIONS[0].key;
+    $('fMinOrder').value = t && t.minOrder ? t.minOrder.toLocaleString() : '';
+    document.querySelector(`[name=fMethod][value=${t ? t.method : 'fixed'}]`).checked = true;
+    $('fAmount').value = t ? (t.method === 'rate' ? t.amount : t.amount.toLocaleString()) : '';
+    $('fMax').value = t && t.maxAmount ? t.maxAmount.toLocaleString() : '';
+    document.querySelector(`[name=fPeriod][value=${t && (t.startAt || t.endAt) ? 'range' : 'always'}]`).checked = true;
+    $('fStart').value = t ? t.startAt : ''; $('fEnd').value = t ? t.endAt : '';
+    $('fUse').checked = t ? t.use : true;
+    $('fDesc').value = t ? t.desc : '';
+    $('fErr').textContent = '';
+    $('mtDelete').hidden = !t;
+    syncForm();
+    $('mtModal').classList.add('open');
+    $('fName').focus();
+  }
+  const closeModal = () => $('mtModal').classList.remove('open');
+  ['fCondition'].forEach(id => $(id).addEventListener('change', syncForm));
+  document.querySelectorAll('[name=fMethod],[name=fPeriod]').forEach(r => r.addEventListener('change', syncForm));
+  // 숫자 칸: 천 단위 쉼표 (정률 칸은 소수 허용)
+  ['fMinOrder', 'fMax'].forEach(id => $(id).addEventListener('input', e => { const v = e.target.value.replace(/[^\d]/g, ''); e.target.value = v ? Number(v).toLocaleString() : ''; }));
+  $('fAmount').addEventListener('input', e => { if (method() === 'fixed') { const v = e.target.value.replace(/[^\d]/g, ''); e.target.value = v ? Number(v).toLocaleString() : ''; } else e.target.value = e.target.value.replace(/[^\d.]/g, ''); });
+  $('mtForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const range = document.querySelector('[name=fPeriod]:checked').value === 'range';
+    if (range && !$('fStart').value && !$('fEnd').value) { $('fErr').textContent = '기간을 지정하려면 시작일 또는 종료일을 입력해 주세요.'; return; }
+    const err = M.saveType({ id: editing, name: $('fName').value, target: $('fTarget').value, condition: $('fCondition').value, method: method(), amount: $('fAmount').value, maxAmount: $('fMax').value, minOrder: $('fMinOrder').value,
+      startAt: range ? $('fStart').value : '', endAt: range ? $('fEnd').value : '', use: $('fUse').checked, desc: $('fDesc').value }, ADMIN_NAME);
+    if (err) { $('fErr').textContent = err; return; }
+    closeModal(); render();
+    toast(editing ? '지급 유형을 저장했습니다.' : `'${$('fName').value.trim()}' 지급 유형을 등록했습니다.`);
+  });
+  function removeType(id) {
+    const t = M.find(id);
+    if (!t || !confirm(`'${t.name}' 지급 유형을 삭제할까요?\n이미 지급된 마일리지는 그대로 남고, 앞으로 자동 지급되지 않습니다.`)) return false;
+    M.deleteType(id); render(); toast(`'${t.name}' 지급 유형을 삭제했습니다.`);
+    return true;
+  }
+  $('mtDelete').addEventListener('click', () => { if (editing && removeType(editing)) closeModal(); });
+  $('btnAdd').addEventListener('click', () => openModal(null));
+  $('mtModal').addEventListener('click', e => { if (e.target.id === 'mtModal' || e.target.closest('[data-close]')) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('mtModal').classList.contains('open')) closeModal(); });
+
+  render();
+})();
+</script>
+</body>
+</html>

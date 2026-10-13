@@ -1182,3 +1182,48 @@ tr.nt-pinned td { background: #fffafa; }
 /* 게시판 통합 관리: 말머리는 잘리지 않게 줄바꿈 */
 .bd-heads { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 0; white-space: normal; }
 table.bd-table td:has(.bd-heads) { overflow: visible; }
+
+/* ===== 마일리지 내역 (mileage.html) ===== */
+table.ml-table { table-layout: fixed; min-width: 1150px; }
+table.ml-table td { overflow: hidden; text-overflow: ellipsis; }
+.badge.ml-auto { --dot: #a1a1aa; }
+.badge.ml-manual { --dot: #4f46e5; color: var(--accent); }
+.ml-plus { color: var(--success); font-weight: 600; }
+.ml-minus { color: var(--danger); font-weight: 600; }
+/* ===== 마일리지 유형 관리 (mileage-types.html) ===== */
+table.mt-table { table-layout: fixed; min-width: 1200px; }
+table.mt-table td { overflow: hidden; text-overflow: ellipsis; }
+table.mt-table tr.off td { color: var(--faint); }
+#mtModal .modal { width: 680px; max-width: calc(100vw - 32px); }
+/* 적용 여부 스위치 */
+.mt-switch { position: relative; display: inline-block; width: 34px; height: 20px; vertical-align: middle; cursor: pointer; }
+.mt-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.mt-switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--border-strong); transition: background .15s; }
+.mt-switch span::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .15s; }
+.mt-switch input:checked + span { background: var(--accent); }
+.mt-switch input:checked + span::after { transform: translateX(14px); }
+.mt-switch input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 마일리지 내역 > 마일리지 지급/차감 모달 */
+#adjModal .modal { width: 760px; max-width: calc(100vw - 32px); }
+.ml-adj-results { max-height: 280px; margin-top: 10px; }
+#adjModal .history-wrap { max-height: 260px; }
+#adjModal .benefit-summary #adjMemberName { margin-left: 0; font-size: 15px; }
+/* 마일리지 지급/차감 모달 > 모드 탭 · 일괄 선택 */
+.ml-adj-modes { margin: -4px 0 14px; }
+.ml-bulk-filter { padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--subtle); }
+.ml-bulk-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 12px; }
+.ml-bulk-grid label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 12px; min-width: 0; }
+.ml-bulk-grid label.wide { grid-column: span 2; }
+.ml-bulk-grid input, .ml-bulk-grid select { width: 100%; min-width: 0; }
+.ml-bulk-grid .inline-row input { width: auto; flex: 1; }
+.ml-bulk-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+.ml-bulk-head { display: flex; justify-content: space-between; align-items: center; margin: 12px 0 6px; font-size: 12px; }
+.ml-bulk-head b { color: var(--accent); }
+.ml-bulk-list { max-height: 280px; }
+.ml-bulk-list tr.sel td { background: var(--accent-soft); }
+#adjModal .modal { width: 860px; }
+@media (max-width: 760px) { .ml-bulk-grid { grid-template-columns: 1fr 1fr; } }
+/* 마일리지 지급/차감 모달: 넓게 (회원 검색 결과 칸이 많음) */
+#adjModal .modal { width: 1120px; max-width: calc(100vw - 32px); }
+.ml-bulk-grid label.wide .inline-row select { width: auto; flex: none; }
+.ml-bulk-grid .inline-row input[type=text] { min-width: 0; }
